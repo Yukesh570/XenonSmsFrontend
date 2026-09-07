@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Edit, Trash, ShieldPlus, Eye, Mail, Layers } from "lucide-react";
+import { Home, Plus, Edit, Trash, ShieldPlus, Shield, Eye, Mail, Layers } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -19,6 +19,7 @@ import { ClientModal } from "../../components/modals/ClientModal";
 import { ClientRoutingRateModal } from "../../components/modals/ClientRoutingRateModal";
 import IpWhitelistModal from "../../components/modals/WhiteListIPModal";
 import { ClientRateTableModal } from "../../components/modals/ClientRateTableModal";
+import SenderIdPolicyModal from "../../components/modals/SenderIdPolicyModal";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -54,7 +55,7 @@ interface ColumnConfig extends FilterColumn {
 }
 
 // --- Default Configuration ---
-const DEFAULT_SEARCH_COLUMNS = ["name", "companyName" , "routeGroup", "customerRateGroup", "status"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "companyName", "routeGroup", "customerRateGroup", "status"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
   "companyName",
@@ -99,15 +100,18 @@ const Client: React.FC = () => {
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [rateModalClient, setRateModalClient] = useState<{ id: number; name: string; } | null>(null);
 
+  const [isSenderIdModalOpen, setIsSenderIdModalOpen] = useState(false);
+  const [senderIdModalClient, setSenderIdModalClient] = useState<{ id: number; name: string; } | null>(null);
+
   // --- Context Menu State ---
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number; } | null>(null);
   const [selectedRowClient, setSelectedRowClient] = useState<ClientData | null>(null);
 
   // --- Dynamic Filters & Columns State ---
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
-  const saved = localStorage.getItem("client_search_columns");
-  return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
-}); 
+    const saved = localStorage.getItem("client_search_columns");
+    return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+  });
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
@@ -128,7 +132,7 @@ const Client: React.FC = () => {
     localStorage.setItem("client_table_columns", JSON.stringify(tableColumns));
   }, [tableColumns]);
 
-   useEffect(() => {
+  useEffect(() => {
     localStorage.setItem(
       "client_search_columns",
       JSON.stringify(searchColumns),
@@ -317,7 +321,7 @@ const Client: React.FC = () => {
     { key: "session", label: "Sessions (Current/Max)", tableLabel: "Sessions", type: "text", isSearchable: false, render: (c) => renderSessionBadge(c) },
     { key: "maxTps", label: "Max TPS", type: "number", filterKey: "clientPolicy__maxTps", render: (c) => c.clientPolicy?.maxTps ?? "-" },
     { key: "maxSessions", label: "Max Sessions", type: "number", filterKey: "clientPolicy__maxSessions", render: (c) => c.clientPolicy?.maxSessions ?? "-" },
-     // { key: "maxWindowGlobal", label: "Max Window (Global)", type: "number", filterKey: "clientPolicy__maxWindowGlobal", render: (c) => c.clientPolicy?.maxWindowGlobal ?? "-" },
+    // { key: "maxWindowGlobal", label: "Max Window (Global)", type: "number", filterKey: "clientPolicy__maxWindowGlobal", render: (c) => c.clientPolicy?.maxWindowGlobal ?? "-" },
     // { key: "maxWindowPerSession", label: "Max Window (Per Session)", type: "number", filterKey: "clientPolicy__maxWindowPerSession", render: (c) => c.clientPolicy?.maxWindowPerSession ?? "-" },
     { key: "idleTimeoutSec", label: "Idle Timeout (s)", type: "number", filterKey: "clientPolicy__idleTimeoutSec", render: (c) => c.clientPolicy?.idleTimeoutSec ?? "-" },
     { key: "submitTimeoutSec", label: "Submit Timeout (s)", type: "number", filterKey: "clientPolicy__submitTimeoutSec", render: (c) => c.clientPolicy?.submitTimeoutSec ?? "-" },
@@ -561,6 +565,12 @@ const Client: React.FC = () => {
     setIsIpModalOpen(true);
   };
 
+  const handleSenderIdPolicy = (client: ClientData) => {
+    if (!client.id) return;
+    setSenderIdModalClient({ id: client.id, name: client.name || "" });
+    setIsSenderIdModalOpen(true);
+  };
+
   const handleSendDetails = async (client: ClientData) => {
     if (!client.id) return;
     const toastId = toast.loading("Sending client details...");
@@ -619,6 +629,11 @@ const Client: React.FC = () => {
           },
         ]
         : []),
+      {
+        label: "Sender ID Policy",
+        icon: <Shield size={16} />,
+        onClick: () => handleSenderIdPolicy(selectedRowClient),
+      },
       {
         label: "View Details",
         icon: <Eye size={16} />,
@@ -986,6 +1001,11 @@ const Client: React.FC = () => {
         onConfirm={handleDelete}
         title="Delete Client"
         message={`Are you sure you want to delete client "${selectedRowClient?.name || ""}"? This action cannot be undone.`}
+      />
+      <SenderIdPolicyModal
+        isOpen={isSenderIdModalOpen}
+        onClose={() => setIsSenderIdModalOpen(false)}
+        client={senderIdModalClient}
       />
     </div>
   );
