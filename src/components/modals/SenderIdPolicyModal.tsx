@@ -114,7 +114,7 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
       } else if (res && Array.isArray(res.results)) {
         policyList = res.results;
       }
-      
+
       if (policyList.length > 0) {
         setPolicy(policyList[0]);
       } else {
@@ -298,8 +298,8 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
                   onChange={(val) => setPolicy(prev => ({ ...(prev as any), mode: val }))}
                   options={[
                     { label: "Disabled", value: "DISABLED" },
-                    { label: "Whitelist Only (Block by default)", value: "WHITELIST_ONLY" },
-                    { label: "Blacklist Only (Allow by default)", value: "BLACKLIST_ONLY" },
+                    { label: "Whitelist Only ", value: "WHITELIST_ONLY" },
+                    { label: "Blacklist Only ", value: "BLACKLIST_ONLY" },
                   ]}
                   disabled={!isPolicyEditing}
                 />
