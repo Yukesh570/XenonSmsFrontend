@@ -73,7 +73,7 @@ const PermissionsTable = () => {
         const data = await getNavByUserType({ userType: selectedUserType });
         setPermissions(data);
         setOriginalPermissions(data);
-      } catch (error) {
+      } catch {
         toast.error(`Failed to load permissions for ${selectedUserType}.`);
         setPermissions([]);
         setOriginalPermissions([]);
@@ -129,7 +129,7 @@ const PermissionsTable = () => {
       toast.success(`Permissions for ${selectedUserType} saved successfully!`);
       setOriginalPermissions(permissions);
       refreshNavItems();
-    } catch (error) {
+    } catch {
       toast.error(`Failed to save permissions for ${selectedUserType}.`);
     } finally {
       setIsSaving(false);
@@ -143,7 +143,7 @@ const PermissionsTable = () => {
       setTimeout(() => {
         const activeLinks = document.querySelectorAll('aside a.active, nav a.active');
         const activeItem = activeLinks[activeLinks.length - 1] as HTMLElement;
-        let moduleLabel = activeItem?.innerText?.split('\n')[0].trim() || "Module";
+        const moduleLabel = activeItem?.innerText?.split('\n')[0].trim() || "Module";
 
         actionHelper(moduleLabel, `Opened ${moduleLabel} Module`, false);
       }, 100); // Waits 0.1 seconds
