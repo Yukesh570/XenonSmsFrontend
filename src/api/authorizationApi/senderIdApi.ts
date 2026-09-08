@@ -35,6 +35,7 @@ export interface TestPolicyResponse {
   policy_mode: string;
   reason: string;
   matched_rule_id: number | null;
+  matched_rule_description?: string | null;
   evaluation_source: string;
 }
 
@@ -49,6 +50,7 @@ export interface SenderIdAuditData {
   country?: number;
   policyMode: string;
   matchedRule?: number;
+  matched_rule_description?: string | null;
   decision: string;
   reasonCode: string;
   smppStatus: number;
