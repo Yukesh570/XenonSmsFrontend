@@ -9,7 +9,7 @@ import Select from "../../components/ui/Select";
 import { toast } from "react-toastify";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import { NavItemsContext } from "../../context/navItemsContext";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { actionHelper } from "../../helper/action";
 
 const userTypeOptions = [
@@ -31,6 +31,7 @@ const PermissionsTable = () => {
     []
   );
   const [selectedUserType, setSelectedUserType] = useState("ADMIN");
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [expandedRows, setExpandedRows] = useState<number[]>([]);
   const { refreshNavItems } = useContext(NavItemsContext);
@@ -67,6 +68,7 @@ const PermissionsTable = () => {
 
   useEffect(() => {
     const fetctSideBar = async () => {
+      setIsLoading(true);
       try {
         const data = await getNavByUserType({ userType: selectedUserType });
         setPermissions(data);
@@ -75,6 +77,8 @@ const PermissionsTable = () => {
         toast.error(`Failed to load permissions for ${selectedUserType}.`);
         setPermissions([]);
         setOriginalPermissions([]);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetctSideBar();
@@ -265,7 +269,19 @@ const PermissionsTable = () => {
             </thead>
 
             <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-              {permissions.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      <span className="text-sm font-medium">Loading permissions...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : permissions.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5}
@@ -286,7 +302,7 @@ const PermissionsTable = () => {
         <Button
           variant="primary"
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || isLoading}
           className="px-8"
         >
           {isSaving ? "Saving Changes" : "Save Changes"}
