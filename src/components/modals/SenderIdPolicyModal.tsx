@@ -462,7 +462,7 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
                 <ul className="space-y-1 text-sm text-gray-800 dark:text-gray-200">
                   <li><strong>Reason Code:</strong> {testResult.reason}</li>
                   <li><strong>Policy Mode:</strong> {testResult.policy_mode}</li>
-                  <li><strong>Matched Rule ID:</strong> {testResult.matched_rule_id || "None"}</li>
+                  <li><strong>Matched Rule:</strong> {testResult.matched_rule_description || testResult.matched_rule_id || "None"}</li>
                   {testResult.country_id && (
                     <li className="flex items-center gap-2">
                       <strong>Detected Country:</strong>{" "}
@@ -491,14 +491,29 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
               onPageChange={setAuditPage}
               onRowsPerPageChange={setAuditRowsPerPage}
               isLoading={auditLoading}
-              headers={["Date", "Sender ID", "Destination", "Reason", "Mode", "SMPP Code"]}
+              headers={["Date", "System ID", "IP Address", "Session ID", "Sender ID", "Destination", "Country", "Reason", "Mode", "Decision", "Matched Rule", "SMPP Code"]}
               renderRow={(audit) => (
                 <tr key={audit.id} className="border-b dark:border-gray-700 text-sm">
                   <td className="p-3">{audit.createdAt ? formatDateTime(audit.createdAt) : "-"}</td>
+                  <td className="p-3">{audit.systemId || "-"}</td>
+                  <td className="p-3">{audit.clientIp || "-"}</td>
+                  <td className="p-3">{audit.sessionId || "-"}</td>
                   <td className="p-3 font-semibold text-red-600 dark:text-red-400">{audit.senderId}</td>
                   <td className="p-3">{audit.destination}</td>
+                  <td className="p-3 flex items-center gap-2">
+                    {audit.country ? (
+                      <>
+                        {countries.find(c => c.value === audit.country?.toString())?.label || audit.country}
+                        {countries.find(c => c.value === audit.country?.toString())?.iso2 && (
+                          <CountryFlag iso2={countries.find(c => c.value === audit.country?.toString())!.iso2!} />
+                        )}
+                      </>
+                    ) : "-"}
+                  </td>
                   <td className="p-3">{audit.reasonCode}</td>
                   <td className="p-3">{audit.policyMode}</td>
+                  <td className="p-3">{audit.decision}</td>
+                  <td className="p-3">{audit.matched_rule_description || audit.matchedRule || "-"}</td>
                   <td className="p-3">{audit.smppStatus}</td>
                 </tr>
               )}
