@@ -103,14 +103,19 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     { label: "Suspended", value: "SUSPENDED" },
   ];
 
-  const routeOptions = [
+  const routeOptions: Option[] = [
     { label: "Direct", value: "DIRECT" },
     { label: "High Quality", value: "HIGH QUALITY" },
     { label: "SIM", value: "SIM" },
     { label: "Wholesale", value: "WHOLESALE" },
-    { label: "Full Featured", value: "FULL" },
+    { label: "Full", value: "FULL" },
     { label: "Spam", value: "SPAM" },
+    { label: "MKT", value: "MKT" },
+    { label: "Local By Pass", value: "LOCAL_BY_PASS" },
+    { label: "WhatsApp", value: "WHATSAPP" },
+    { label: "Bulk", value: "BULK" }
   ];
+
 
   const paymentTermOptions = [
     { label: "Prepaid", value: "PREPAID" },
