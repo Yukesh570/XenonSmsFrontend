@@ -8,40 +8,37 @@ export const usePagePermissions = () => {
   const location = useLocation();
 
   const permissions = useMemo(() => {
-    // 1. Get current path without leading slash (e.g., "rate/vendorRate")
-    const currentPath = location.pathname.startsWith("/") 
-      ? location.pathname.substring(1) 
-      : location.pathname;
+    // 1. Clean current path (e.g., "/navItem/" -> "navItem")
+    const currentPath = location.pathname.replace(/^\/+|\/+$/g, "");
 
-    // 2. Recursive function to find the MOST SPECIFIC (deepest) matching item
-    const findDeepestMatch = (items: navUserData[]): navUserData | null => {
+    if (!navItems?.results || !currentPath) {
+      return { canRead: false, canCreate: false, canUpdate: false, canDelete: false };
+    }
+
+    // 2. Collect all items into a flat list so parent URL doesn't block children
+    const allItems: navUserData[] = [];
+    const flattenTree = (items: navUserData[]) => {
       for (const item of items) {
-        // Check if this item is part of the current path
-        const isMatch = item.url === currentPath || currentPath.startsWith(`${item.url}/`);
-
-        if (isMatch) {
-          // If this item matches, check its children for a MORE specific match
-          if (item.children && item.children.length > 0) {
-            const childMatch = findDeepestMatch(item.children);
-            if (childMatch) {
-              return childMatch; // Found a specific child, return it
-            }
-          }
-          // If no children matched, but this parent did, return this item
-          return item;
+        allItems.push(item);
+        if (item.children && item.children.length > 0) {
+          flattenTree(item.children);
         }
       }
-      return null;
     };
+    flattenTree(navItems.results);
 
-    const activeItem = navItems.results ? findDeepestMatch(navItems.results) : null;
+    // 3. Match exact path or direct child path (e.g. "rate/vendorRate/123" -> "rate/vendorRate")
+    const matchedItem = allItems.find((item) => {
+      const itemUrl = (item.url || "").replace(/^\/+|\/+$/g, "");
+      return itemUrl && (itemUrl === currentPath || currentPath.startsWith(`${itemUrl}/`));
+    });
 
-    // 3. Return permissions (Default to FALSE if not found)
+    // 4. Return permissions (default to false if not found)
     return {
-      canRead: activeItem?.permission?.read ?? false,
-      canCreate: activeItem?.permission?.write ?? false, // Maps to "Add" button
-      canUpdate: activeItem?.permission?.put ?? false,   // Maps to "Edit" button
-      canDelete: activeItem?.permission?.delete ?? false // Maps to "Delete" button
+      canRead: matchedItem?.permission?.read ?? false,
+      canCreate: matchedItem?.permission?.write ?? false, // Maps to "Add" button
+      canUpdate: matchedItem?.permission?.put ?? false,   // Maps to "Edit" button
+      canDelete: matchedItem?.permission?.delete ?? false, // Maps to "Delete" button
     };
   }, [navItems, location.pathname]);
 

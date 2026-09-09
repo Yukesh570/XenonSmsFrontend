@@ -81,5 +81,41 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 input[type="number"] {
+  appearance: textfield;
   -moz-appearance: textfield; /* Firefox */
+}
+
+/* Slim scrollbar specifically for PageTabs */
+.tab-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark .tab-scrollbar {
+  scrollbar-color: #475569 transparent;
+}
+
+.tab-scrollbar::-webkit-scrollbar {
+  height: 3px;
+}
+
+.tab-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tab-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark .tab-scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+
+.dark .tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }

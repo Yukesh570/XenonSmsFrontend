@@ -99,7 +99,7 @@ export const PageTabs: React.FC = () => {
       <div
         ref={scrollContainerRef}
         onWheel={handleWheel}
-        className="flex-1 flex items-end h-full gap-1 overflow-x-auto scrollbar-hide pt-1"
+        className="flex-1 flex items-end h-full gap-1 overflow-x-auto tab-scrollbar pt-1"
       >
         {tabs.map((tab) => {
           const isActive =
