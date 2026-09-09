@@ -412,7 +412,8 @@ const DLREvent: React.FC = () => {
           density="compact"
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
-              const next = [...prev];
+              const validKeys = prev.filter(key => allColumns.some(c => c.key === key));
+            const next = [...validKeys];
               const [moved] = next.splice(fromIdx, 1);
               next.splice(toIdx, 0, moved);
               return next;

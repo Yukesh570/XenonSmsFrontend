@@ -20,7 +20,6 @@ import { ClientRoutingRateModal } from "../../components/modals/ClientRoutingRat
 import IpWhitelistModal from "../../components/modals/WhiteListIPModal";
 import { ClientRateTableModal } from "../../components/modals/ClientRateTableModal";
 import SenderIdPolicyModal from "../../components/modals/SenderIdPolicyModal";
-
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -102,7 +101,6 @@ const Client: React.FC = () => {
   const [rateModalClient, setRateModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   const [isSenderIdModalOpen, setIsSenderIdModalOpen] = useState(false);
-
   const [senderIdModalClient, setSenderIdModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   // --- Context Menu State ---
@@ -124,7 +122,7 @@ const Client: React.FC = () => {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           // Filter out any stale/invalid keys to prevent dragging index mismatches
-          const validKeys = parsed.filter(key => DEFAULT_TABLE_COLUMNS.includes(key) || DEFAULT_SEARCH_COLUMNS.includes(key) || key === "session" || key === "route" || key === "paymentTerms" || key === "invoicePolicy" || key === "allowNetting" || key === "enableDlr" || key === "smppUsername" || key === "bindStatus" || key === "maxTps" || key === "maxSessions" || key === "idleTimeoutSec" || key === "submitTimeoutSec" || key === "createdBy" || key === "updatedBy" || key === "createdAt" || key === "createdAt__gt_lt" || key === "maxWindowGlobal" || key === "maxWindowPerSession");
+          const validKeys = parsed.filter(key => DEFAULT_TABLE_COLUMNS.includes(key) || DEFAULT_SEARCH_COLUMNS.includes(key) || key === "session" || key === "route" || key === "paymentTerms" || key === "invoicePolicy" || key === "allowNetting" || key === "enableDlr" || key === "smppUsername" || key === "smppPassword" || key === "bindStatus" || key === "maxTps" || key === "maxSessions" || key === "idleTimeoutSec" || key === "submitTimeoutSec" || key === "createdBy" || key === "updatedBy" || key === "createdAt" || key === "createdAt__gt_lt" || key === "maxWindowGlobal" || key === "maxWindowPerSession");
           if (validKeys.length > 0) return validKeys;
         }
       }
@@ -246,6 +244,10 @@ const Client: React.FC = () => {
     { label: "Wholesale", value: "WHOLESALE" },
     { label: "Full", value: "FULL" },
     { label: "Spam", value: "SPAM" },
+    { label: "MKT", value: "MKT" },
+    { label: "Local By Pass", value: "LOCAL_BY_PASS" },
+    { label: "WhatsApp", value: "WHATSAPP" },
+    { label: "Bulk", value: "BULK" }
   ];
 
   const paymentTermOptions: Option[] = [
@@ -323,6 +325,8 @@ const Client: React.FC = () => {
     { key: "allowNetting", label: "Allow Netting", type: "boolean", options: booleanOptions, filterKey: "allowNetting", render: (c) => renderBooleanBadge(c.allowNetting) },
     { key: "enableDlr", label: "Enable Dlr", type: "boolean", options: booleanOptions, isSearchable: false, render: (c) => renderBooleanBadge(c.enableDlr) },
     { key: "smppUsername", label: "SMPP Username", type: "text", filterKey: "smppUsername__icontains" },
+    { key: "smppPassword", label: "SMPP Password", type: "text", isSearchable: false },
+
     { key: "bindStatus", label: "Bind Status", type: "text", options: bindStatusOptions, filterKey: "bindStatus", render: (c) => <StatusBadge status={c.bindStatus} /> },
     { key: "session", label: "Sessions (Current/Max)", tableLabel: "Sessions", type: "text", isSearchable: false, render: (c) => renderSessionBadge(c) },
     { key: "maxTps", label: "Max TPS", type: "number", filterKey: "clientPolicy__maxTps", render: (c) => c.clientPolicy?.maxTps ?? "-" },
@@ -640,7 +644,6 @@ const Client: React.FC = () => {
         icon: <Shield size={16} />,
         onClick: () => handleSenderIdPolicy(selectedRowClient),
       },
-
       {
         label: "View Details",
         icon: <Eye size={16} />,
@@ -1016,7 +1019,6 @@ const Client: React.FC = () => {
         onClose={() => setIsSenderIdModalOpen(false)}
         client={senderIdModalClient}
       />
-
     </div>
   );
 };

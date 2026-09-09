@@ -428,9 +428,12 @@ const Dashboard: React.FC = () => {
       return;
     }
 
+    let isMounted = true;
     const wsUrl = `${wsBase}/ws/status/`;
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+
+    let sessionUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
@@ -446,16 +449,21 @@ const Dashboard: React.FC = () => {
 
       ws.onclose = (event) => {
         console.warn("WebSocket closed.", event.reason);
-        reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        if (isMounted) {
+          reconnectTimeout = setTimeout(connectWebSocket, 3000);
+        }
       };
 
       ws.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data);
-          console.log("WebSocket Message Received:", payload);
+          // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
           if (payload.action === "session_update") {
-            if (isMetricsLiveRef.current) fetchActiveSessions();
-            if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
+            if (sessionUpdateTimeout) clearTimeout(sessionUpdateTimeout);
+            sessionUpdateTimeout = setTimeout(() => {
+              if (isMetricsLiveRef.current) fetchActiveSessions();
+              if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
+            }, 1000);
           } else if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
 
@@ -523,6 +531,7 @@ const Dashboard: React.FC = () => {
     connectWebSocket();
 
     return () => {
+      isMounted = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (ws) ws.close();
     };
