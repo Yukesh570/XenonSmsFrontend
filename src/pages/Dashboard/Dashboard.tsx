@@ -184,19 +184,19 @@ const Dashboard: React.FC = () => {
     if (range === "all") return {};
     const end = new Date();
     const start = new Date();
-    
+
     if (range === "5m") start.setMinutes(start.getMinutes() - 5);
     else if (range === "15m") start.setMinutes(start.getMinutes() - 15);
     else if (range === "1h") start.setHours(start.getHours() - 1);
     else if (range === "2h") start.setHours(start.getHours() - 2);
     else if (range === "4h") start.setHours(start.getHours() - 4);
     else {
-        const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
-        start.setDate(start.getDate() - days + 1);
-        const fmtDate = (d: Date) => d.toISOString().split("T")[0];
-        return { startDate: fmtDate(start), endDate: fmtDate(end) };
+      const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+      start.setDate(start.getDate() - days + 1);
+      const fmtDate = (d: Date) => d.toISOString().split("T")[0];
+      return { startDate: fmtDate(start), endDate: fmtDate(end) };
     }
-    
+
     return { startDate: start.toISOString(), endDate: end.toISOString() };
   };
 
@@ -464,7 +464,7 @@ const Dashboard: React.FC = () => {
                 sessionUpdateTimeout = null;
                 if (isMetricsLiveRef.current) fetchActiveSessions();
                 if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
-              }, 1000);
+              }, 5000);
             }
           } else if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
