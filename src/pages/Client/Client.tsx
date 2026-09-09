@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Edit, Trash, ShieldPlus, Shield, Eye, Mail, Layers, Settings } from "lucide-react";
+import { Home, Plus, Edit, Trash, ShieldPlus, Shield, Eye, Mail, Layers } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -103,7 +103,6 @@ const Client: React.FC = () => {
 
   const [isSenderIdModalOpen, setIsSenderIdModalOpen] = useState(false);
 
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [senderIdModalClient, setSenderIdModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   // --- Context Menu State ---
