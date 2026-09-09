@@ -20,7 +20,6 @@ import { ClientRoutingRateModal } from "../../components/modals/ClientRoutingRat
 import IpWhitelistModal from "../../components/modals/WhiteListIPModal";
 import { ClientRateTableModal } from "../../components/modals/ClientRateTableModal";
 import SenderIdPolicyModal from "../../components/modals/SenderIdPolicyModal";
-
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -102,7 +101,6 @@ const Client: React.FC = () => {
   const [rateModalClient, setRateModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   const [isSenderIdModalOpen, setIsSenderIdModalOpen] = useState(false);
-
   const [senderIdModalClient, setSenderIdModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   // --- Context Menu State ---
@@ -646,7 +644,6 @@ const Client: React.FC = () => {
         icon: <Shield size={16} />,
         onClick: () => handleSenderIdPolicy(selectedRowClient),
       },
-
       {
         label: "View Details",
         icon: <Eye size={16} />,
@@ -1022,7 +1019,6 @@ const Client: React.FC = () => {
         onClose={() => setIsSenderIdModalOpen(false)}
         client={senderIdModalClient}
       />
-
     </div>
   );
 };
