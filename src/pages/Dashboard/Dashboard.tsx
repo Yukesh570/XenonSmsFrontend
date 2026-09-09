@@ -459,11 +459,13 @@ const Dashboard: React.FC = () => {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
           if (payload.action === "session_update") {
-            if (sessionUpdateTimeout) clearTimeout(sessionUpdateTimeout);
-            sessionUpdateTimeout = setTimeout(() => {
-              if (isMetricsLiveRef.current) fetchActiveSessions();
-              if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
-            }, 1000);
+            if (!sessionUpdateTimeout) {
+              sessionUpdateTimeout = setTimeout(() => {
+                sessionUpdateTimeout = null;
+                if (isMetricsLiveRef.current) fetchActiveSessions();
+                if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
+              }, 1000);
+            }
           } else if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
 
