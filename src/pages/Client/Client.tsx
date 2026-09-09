@@ -55,7 +55,7 @@ interface ColumnConfig extends FilterColumn {
 }
 
 // --- Default Configuration ---
-const DEFAULT_SEARCH_COLUMNS = ["name", "companyName", "routeGroup", "customerRateGroup", "status"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "companyName", "routeGroup", "customerRateGroup", "status", "bindStatus"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
   "companyName",
@@ -120,7 +120,11 @@ const Client: React.FC = () => {
       const saved = localStorage.getItem("client_table_columns");
       if (saved) {
         const parsed = JSON.parse(saved);
-        return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_TABLE_COLUMNS;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          // Filter out any stale/invalid keys to prevent dragging index mismatches
+          const validKeys = parsed.filter(key => DEFAULT_TABLE_COLUMNS.includes(key) || DEFAULT_SEARCH_COLUMNS.includes(key) || key === "session" || key === "route" || key === "paymentTerms" || key === "invoicePolicy" || key === "allowNetting" || key === "enableDlr" || key === "smppUsername" || key === "bindStatus" || key === "maxTps" || key === "maxSessions" || key === "idleTimeoutSec" || key === "submitTimeoutSec" || key === "createdBy" || key === "updatedBy" || key === "createdAt" || key === "createdAt__gt_lt" || key === "maxWindowGlobal" || key === "maxWindowPerSession");
+          if (validKeys.length > 0) return validKeys;
+        }
       }
     } catch (e) {
       console.error("Error reading localStorage", e);
@@ -317,7 +321,7 @@ const Client: React.FC = () => {
     { key: "allowNetting", label: "Allow Netting", type: "boolean", options: booleanOptions, filterKey: "allowNetting", render: (c) => renderBooleanBadge(c.allowNetting) },
     { key: "enableDlr", label: "Enable Dlr", type: "boolean", options: booleanOptions, isSearchable: false, render: (c) => renderBooleanBadge(c.enableDlr) },
     { key: "smppUsername", label: "SMPP Username", type: "text", filterKey: "smppUsername__icontains" },
-    { key: "bindStatus", label: "Bind Status", type: "text", options: bindStatusOptions, isSearchable: false, render: (c) => <StatusBadge status={c.bindStatus} /> },
+    { key: "bindStatus", label: "Bind Status", type: "text", options: bindStatusOptions, filterKey: "bindStatus", render: (c) => <StatusBadge status={c.bindStatus} /> },
     { key: "session", label: "Sessions (Current/Max)", tableLabel: "Sessions", type: "text", isSearchable: false, render: (c) => renderSessionBadge(c) },
     { key: "maxTps", label: "Max TPS", type: "number", filterKey: "clientPolicy__maxTps", render: (c) => c.clientPolicy?.maxTps ?? "-" },
     { key: "maxSessions", label: "Max Sessions", type: "number", filterKey: "clientPolicy__maxSessions", render: (c) => c.clientPolicy?.maxSessions ?? "-" },
@@ -868,7 +872,9 @@ const Client: React.FC = () => {
         sortDirection={sortConfig?.direction || null}
         onReorderColumns={(fromIdx, toIdx) => {
           setTableColumns((prev) => {
-            const next = [...prev];
+            // First ensure we only reorder the active visible keys, otherwise the indices won't match
+            const validKeys = prev.filter(key => allColumns.some(c => c.key === key));
+            const next = [...validKeys];
             const [moved] = next.splice(fromIdx, 1);
             next.splice(toIdx, 0, moved);
             return next;
