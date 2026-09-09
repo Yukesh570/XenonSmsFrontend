@@ -64,6 +64,8 @@ const DEFAULT_TABLE_COLUMNS = [
   "client",
   "vendorRoute",
   "msisdn",
+  "senderId",
+  "effectiveSenderId",
   "status",
   "cost",
 ];
@@ -195,7 +197,10 @@ const hasLoggedOpening = useRef(false);
         type: "text",
         options: operatorOptions,
       }, */
-      { key: "senderId", label: "Sender ID", type: "text" },
+      { key: "senderId", label: "Original Sender ID", type: "text" },
+      { key: "effectiveSenderId", label: "Effective Sender ID", type: "text" },
+      { key: "senderTranslationAction", label: "Sender Translation Action", type: "text" },
+      { key: "senderTranslationRuleId", label: "Sender Translation Rule ID", type: "text" },
       { key: "messageType", label: "Message Type", type: "text" },
       {
         key: "status",
@@ -251,7 +256,10 @@ const hasLoggedOpening = useRef(false);
         ),
       },
       { key: "msisdn", label: "MSISDN", type: "text" },
-      { key: "senderId", label: "Sender ID", type: "text" },
+      { key: "senderId", label: "Original Sender ID", type: "text" },
+      { key: "effectiveSenderId", label: "Effective Sender ID", type: "text" },
+      { key: "senderTranslationAction", label: "Translation Action", type: "text" },
+      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text" },
       {
         key: "status",
         label: "Status",

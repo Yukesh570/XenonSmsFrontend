@@ -83,6 +83,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "text_message_id",
   "destination",
   "senderId",
+  "effectiveSenderId",
   "countryName",
   "submitStatus",
   "client",
@@ -253,9 +254,27 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "senderId",
-      label: "Sender ID",
+      label: "Original Sender ID",
       type: "text",
       filterKey: "senderId__icontains",
+    },
+    {
+      key: "effectiveSenderId",
+      label: "Effective Sender ID",
+      type: "text",
+      filterKey: "effectiveSenderId__icontains",
+    },
+    {
+      key: "senderTranslationAction",
+      label: "Translation Action",
+      type: "text",
+      filterKey: "senderTranslationAction",
+    },
+    {
+      key: "senderTranslationRuleId",
+      label: "Translation Rule ID",
+      type: "text",
+      filterKey: "senderTranslationRuleId",
     },
     {
       key: "vendor_msg_id",
@@ -357,6 +376,30 @@ const DetailedReport: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "delivery_time",
       isSearchOnly: true,
+    },
+    {
+      key: "senderId",
+      label: "Original Sender ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "effectiveSenderId",
+      label: "Effective Sender ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "senderTranslationAction",
+      label: "Translation Action",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "senderTranslationRuleId",
+      label: "Translation Rule ID",
+      type: "text",
+      isSearchable: false,
     },
     {
       key: "encoding",

@@ -16,6 +16,9 @@ export interface TrafficLogData {
   cost: string;
   country?: string;
   operator?: string;
+  effectiveSenderId?: string;
+  senderTranslationAction?: string;
+  senderTranslationRuleId?: number | string;
 }
 
 export interface PaginatedResponse<T> {
