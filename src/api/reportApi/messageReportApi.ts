@@ -25,6 +25,9 @@ export interface MessageLogData {
   segmentNumber?: string;
   characterCount?: string;
   failure_reason?: string;
+  effectiveSenderId?: string;
+  senderTranslationAction?: string;
+  senderTranslationRuleId?: number | string;
 
   clientName?: string;
   vendorName?: string;

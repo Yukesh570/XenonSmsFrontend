@@ -98,6 +98,9 @@ const DEFAULT_TABLE_COLUMNS = [
   "message_id",
   "destination",
   "source_addr",
+  "effectiveSenderId",
+  "senderTranslationAction",
+  "senderTranslationRuleId",
   "countryName",
   "status",
   "segmentNumber",
@@ -224,6 +227,9 @@ const MessageReport: React.FC = () => {
     () => [
       { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
       { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
+      { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
+      { key: "senderTranslationAction", label: "Translation Action", type: "text", filterKey: "senderTranslationAction__icontains" },
+      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text", filterKey: "senderTranslationRuleId" },
       {
         key: "countryName",
         label: "Country",
@@ -308,6 +314,36 @@ const MessageReport: React.FC = () => {
         render: (log: any) => (
           <span className="text-sm">
             {log.source_addr}
+          </span>
+        ),
+      },
+      {
+        key: "effectiveSenderId",
+        label: "Effective Sender ID",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm">
+            {log.effectiveSenderId || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "senderTranslationAction",
+        label: "Translation Action",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm">
+            {log.senderTranslationAction || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "senderTranslationRuleId",
+        label: "Translation Rule ID",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm">
+            {log.senderTranslationRuleId || "-"}
           </span>
         ),
       },

@@ -66,6 +66,7 @@ import FindRoute from "../pages/RouteManager/FindRoute";
 import AnalyticsReport from "../pages/Report/AnalyticsReport";
 import UserCreation from "../pages/UserCreation/UserCreation";
 import VendorCampaign from "../pages/Campaign/VendorCampaign";
+import SenderIdTranslationModule from "../pages/SenderIdTranslation/SenderIdTranslationModule";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -130,6 +131,7 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   analyticsReport: AnalyticsReport,
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,
+  senderIdTranslation: SenderIdTranslationModule,
 };
 
 export const getComponentByPath = (pathname: string): React.ComponentType<any> => {

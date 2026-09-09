@@ -433,7 +433,6 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
                   label="Sender ID"
                   value={testSenderId}
                   onChange={(e) => setTestSenderId(e.target.value)}
-                  placeholder="e.g. AMAZON"
                   required
                 />
               </div>
@@ -442,7 +441,6 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
                   label="Destination"
                   value={testDestination}
                   onChange={(e) => setTestDestination(e.target.value)}
-                  placeholder="e.g. 919876543210"
                   required
                 />
               </div>

@@ -20,6 +20,9 @@ export interface DetailedReportData {
   client_charge: string | number;
   part_total: number;
   senderId: string;
+  effectiveSenderId?: string;
+  senderTranslationAction?: string;
+  senderTranslationRuleId?: number | string;
   vendor: string;
   vendorRate: string | number;
   vendor_charge: string | number;
