@@ -127,7 +127,7 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   importRow: ImportRow,
   mccMncPrefixRange: MccMncPrefixRange,
   mccMncPrefixImportBatch: MccMncPrefixImportBatch,
-  findRoute: FindRoute,
+  routeLookup: FindRoute,
   analyticsReport: AnalyticsReport,
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,

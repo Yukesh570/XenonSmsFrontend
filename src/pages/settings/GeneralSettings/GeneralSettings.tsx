@@ -206,17 +206,21 @@ const GeneralSettings: React.FC = () => {
     try {
       await updateGeneralSettingsApi(payload as any, routeName);
       localStorage.setItem("app_timezone", formData.defaultTimezone);
+      window.dispatchEvent(new Event("timezoneChanged"));
       localStorage.setItem("app_login_name", formData.companyName);
       window.dispatchEvent(new Event("BrandingUpdated")); 
       toast.success("Company Setup updated successfully!");
+      setTimeout(() => window.location.reload(), 1000);
     } catch (error: any) {
       if (error?.response?.status === 404) {
          try {
             await createGeneralSettingsApi(payload as any, routeName);
             localStorage.setItem("app_timezone", formData.defaultTimezone);
+            window.dispatchEvent(new Event("timezoneChanged"));
             localStorage.setItem("app_login_name", formData.companyName);
             window.dispatchEvent(new Event("BrandingUpdated")); 
             toast.success("Company Setup created successfully!");
+            setTimeout(() => window.location.reload(), 1000);
          } catch (createError: any) {
             toast.error("Failed to create initial setup.");
          }
