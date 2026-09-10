@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Edit, Trash, Eye, RefreshCw, Layers } from "lucide-react";
+import { Home, Plus, Edit, Trash, Eye, RefreshCw, Layers, ChevronDown } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -36,6 +36,7 @@ import { StatusBadge, STATUS_COLORS } from "../../../components/ui/StatusBadge";
 interface Option {
   label: string;
   value: string;
+  icon?: React.ReactNode;
 }
 
 interface ColumnConfig extends FilterColumn {
@@ -246,9 +247,21 @@ const Vendor: React.FC = () => {
   ];
 
   const statusOptions: Option[] = [
-    { label: "active", value: "ACTIVE" },
-    { label: "trial", value: "TRIAL" },
-    { label: "suspended", value: "SUSPENDED" },
+    {
+      label: "Active",
+      value: "ACTIVE",
+      icon: <span className="w-2 h-2 rounded-full bg-green-500 shrink-0 inline-block" />,
+    },
+    {
+      label: "Trial",
+      value: "TRIAL",
+      icon: <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0 inline-block" />,
+    },
+    {
+      label: "Suspended",
+      value: "SUSPENDED",
+      icon: <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 inline-block" />,
+    },
   ];
 
   const renderSessionBadge = (vendor: any) => {
@@ -357,25 +370,29 @@ const Vendor: React.FC = () => {
       render: (c) => {
         const statusConfig = STATUS_COLORS[c.status?.toUpperCase() || "UNKNOWN"] || STATUS_COLORS.UNKNOWN;
         return (
-          <select
-            value={c.status || ""}
-            onChange={(e) => handleStatusChange(c, e.target.value as VendorData["status"])}
-            onClick={(e) => e.stopPropagation()}
-            disabled={!canUpdate}
-            className="border rounded px-2 py-0.5 text-xs font-medium focus:outline-none cursor-pointer disabled:cursor-not-allowed appearance-none pr-6 bg-no-repeat"
-            style={{
-              backgroundColor: statusConfig.bg,
-              color: statusConfig.text,
-              borderColor: statusConfig.border,
-              backgroundImage: `url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2216%22%20height%3D%2216%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23${statusConfig.text.replace('#', '')}%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E")`,
-              backgroundSize: '16px 16px',
-              backgroundPosition: 'calc(100% - 4px) center',
-            }}
-          >
-            <option value="ACTIVE" className="bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100">Active</option>
-            <option value="TRIAL" className="bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100">Trial</option>
-            <option value="SUSPENDED" className="bg-white text-gray-900 dark:bg-gray-800 dark:text-gray-100">Suspended</option>
-          </select>
+          <div className="inline-block" onClick={(e) => e.stopPropagation()}>
+            <Select
+              value={c.status || ""}
+              onChange={(newStatus) => handleStatusChange(c, newStatus as VendorData["status"])}
+              options={statusOptions}
+              disabled={!canUpdate}
+              clearable={false}
+              placement="bottom"
+              renderTrigger={() => (
+                <span
+                  className="border rounded px-2 py-0.5 text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed select-none transition-opacity hover:opacity-85"
+                  style={{
+                    backgroundColor: statusConfig.bg,
+                    color: statusConfig.text,
+                    borderColor: statusConfig.border,
+                  }}
+                >
+                  <span>{statusConfig.label || c.status}</span>
+                  <ChevronDown size={12} className="shrink-0" style={{ color: statusConfig.text }} />
+                </span>
+              )}
+            />
+          </div>
         );
       },
     },

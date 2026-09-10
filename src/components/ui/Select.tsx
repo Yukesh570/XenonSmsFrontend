@@ -24,6 +24,7 @@ interface SelectProps {
   placement?: "top" | "bottom";
   className?: string;
   allowCustomValue?: boolean;
+  renderTrigger?: (selectedOption?: SelectOption, open?: boolean) => React.ReactNode;
 }
 
 const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
@@ -39,6 +40,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   placement = "bottom",
   className = "",
   allowCustomValue = false,
+  renderTrigger,
   open,
 }) => {
   const [query, setQuery] = useState("");
@@ -159,6 +161,12 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
     };
   }, [coords, updateCoords]);
 
+  useEffect(() => {
+    if (open) {
+      updateCoords();
+    }
+  }, [open, updateCoords]);
+
   if (open && !coords) {
     requestAnimationFrame(updateCoords);
   }
@@ -176,21 +184,32 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
           {required && <span className="text-red-500 ml-1">*</span>}
         </label>
       )}
-      <div className="relative w-full" ref={anchorRef}>
-        <div
-          className={`relative w-full rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
-          ${
-            error
-              ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500"
-              : "border-gray-200 focus-within:border-primary focus-within:ring-primary"
-          } 
-          ${
-            disabled
-              ? "bg-gray-100 dark:bg-gray-800"
-              : "bg-white dark:bg-gray-800"
-          }
-          dark:border-gray-700`}
-        >
+      <div className={`relative ${renderTrigger ? "inline-flex" : "w-full"}`} ref={anchorRef}>
+        {renderTrigger ? (
+          <>
+            <Combobox.Button
+              as="div"
+              className={`inline-flex ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
+            >
+              {renderTrigger(selectedOption, open)}
+            </Combobox.Button>
+            <Combobox.Input className="sr-only" aria-hidden="true" tabIndex={-1} readOnly value={value || ""} />
+          </>
+        ) : (
+          <div
+            className={`relative w-full rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
+            ${
+              error
+                ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500"
+                : "border-gray-200 focus-within:border-primary focus-within:ring-primary"
+            } 
+            ${
+              disabled
+                ? "bg-gray-100 dark:bg-gray-800"
+                : "bg-white dark:bg-gray-800"
+            }
+            dark:border-gray-700`}
+          >
           {selectedOption?.icon && !isTyping && (
             <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               {selectedOption.icon}
@@ -267,6 +286,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
             </span>
           )}
         </div>
+      )}
 
         {!disabled &&
           coords &&
@@ -287,8 +307,11 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                     resolvedPlacement === "top"
                       ? window.innerHeight - coords.top
                       : undefined,
-                  left: coords.left,
-                  width: coords.width,
+                  left: renderTrigger
+                    ? Math.max(8, Math.min(coords.left, window.innerWidth - Math.max(coords.width, 130) - 8))
+                    : coords.left,
+                  width: renderTrigger ? Math.max(coords.width, 130) : coords.width,
+                  minWidth: renderTrigger ? 130 : undefined,
                 }}
                 className="z-[99999] overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm border border-gray-100 dark:border-gray-700 custom-grid-scroll max-h-60"
               >
