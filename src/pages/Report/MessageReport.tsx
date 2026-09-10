@@ -764,8 +764,8 @@ const MessageReport: React.FC = () => {
   const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
   return (
-    <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="w-full" onClick={() => setContextMenuPos(null)}>
+      <div className="mb-2.5 sm:mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
             Live Report

@@ -148,7 +148,7 @@ const Sidebar = ({ isCollapsed, isMobileOpen, closeMobileSidebar }: SidebarProps
   return (
     <>
       {isMobileOpen && <div className="fixed inset-0 z-[90] bg-black/50 backdrop-blur-sm md:hidden" onClick={closeMobileSidebar} />}
-      <aside className={`fixed md:static inset-y-0 left-0 z-[100] md:z-30 flex flex-col h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl md:shadow-sm transition-all duration-300 ease-in-out transform ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} ${isCollapsed ? "md:w-[88px]" : "md:w-64"} w-64`}>
+      <aside className={`fixed md:static inset-y-0 left-0 z-[100] md:z-40 flex flex-col h-screen bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 shadow-xl md:shadow-sm transition-all duration-300 ease-in-out transform ${isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} ${isCollapsed ? "md:w-[88px]" : "md:w-64"} w-64`}>
         <div className="h-16 flex-shrink-0 flex items-center justify-center border-b border-gray-100 dark:border-gray-800 mb-2 px-2">
           <NavLink to="/dashboard" className="flex items-center justify-center w-full h-full transition-transform hover:scale-105 active:scale-95 py-2" onClick={() => { if (window.innerWidth < 768) closeMobileSidebar(); }}>
             <img src={currentLogo} alt="App Logo" className={`w-full h-full object-contain ${isCollapsed && window.innerWidth >= 768 ? "max-w-[72px]" : "max-w-[180px]"}`} />

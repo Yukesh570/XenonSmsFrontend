@@ -36,6 +36,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [existingRecords, setExistingRecords] = useState<IpWhitelistData[]>([]);
   const [showExisting, setShowExisting] = useState(false);
   const activeClientIdRef = useRef<number | null>(null);
@@ -61,31 +62,47 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
 
   const handleDelete = async (record: IpWhitelistData) => {
     if (!record.id) return;
+    setIsDeleting(true);
     try {
       await deleteIpWhitelistApi(record.id, "ipWhitelist");
       const label = record.access_type === "IP" ? record.ip : record.hostname;
       toast.success(`Removed: ${label}`);
-      fetchRecords();
+      await fetchRecords();
       onSuccess();
     } catch (e) {
       console.error(e);
       toast.error("Failed to delete entry.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
+  const handleClose = () => {
+    setExistingRecords([]);
+    setShowExisting(false);
+    onClose();
+  };
+
   useEffect(() => {
-    if (isOpen) {
-      fetchRecords();
+    if (isOpen && fixedClient) {
+      setExistingRecords([]);
       setShowExisting(false);
-      if (fixedClient) {
-        setFormData({
-          access_type: "IP",
-          ip: "",
-          hostname: "",
-        });
-      }
+      setFormData({
+        access_type: "IP",
+        ip: "",
+        hostname: "",
+      });
+      fetchRecords();
+    } else {
+      setExistingRecords([]);
+      setShowExisting(false);
     }
-  }, [isOpen, fixedClient]);
+
+    return () => {
+      setExistingRecords([]);
+      setShowExisting(false);
+    };
+  }, [isOpen, fixedClient?.id]);
 
   const handleSelect = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -163,10 +180,19 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={`Add Access Control - ${fixedClient ? fixedClient.name : ""}`}
-      className="max-w-xl"
+      className="max-w-xl relative"
     >
+      {isDeleting && (
+        <div className="absolute inset-0 bg-white/75 dark:bg-gray-800/85 backdrop-blur-[1px] flex flex-col items-center justify-center z-50 rounded-xl">
+          <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary mb-2.5" />
+          <span className="text-sm font-medium text-text-primary dark:text-white">
+            Deleting
+          </span>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 gap-4">
           <Select
@@ -211,7 +237,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
         </div>
 
         <div className="flex justify-end space-x-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
+          <Button type="button" variant="secondary" onClick={handleClose}>
             Close
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>

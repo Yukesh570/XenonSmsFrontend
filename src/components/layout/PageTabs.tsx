@@ -84,7 +84,7 @@ export const PageTabs: React.FC = () => {
     : [];
 
   return (
-    <div className="flex items-center h-9 bg-gray-100 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-2 select-none relative z-20 shrink-0">
+    <div className="flex items-center h-9 bg-gray-100 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-2 select-none relative z-40 shrink-0">
       {/* Scroll Left Button */}
       <button
         type="button"

@@ -290,7 +290,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
   return (
     <>
-      <header className="h-16 flex justify-between items-center px-6 z-10 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
+      <header className="h-16 flex justify-between items-center px-6 relative z-40 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
         <div className="flex items-center">
           <Button variant="ghost" onClick={onToggleSidebar} className="mr-2">
             <Menu className="text-gray-900 dark:text-white transition-colors duration-300" size={24} />
