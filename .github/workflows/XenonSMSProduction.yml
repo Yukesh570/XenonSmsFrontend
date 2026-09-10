@@ -55,14 +55,14 @@ jobs:
 
       - name: SSH → Deploy Docker
         run: |
-          ssh -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} << EOF
-            cd "${REMOTE_DIR}"
-            echo "--- Deploying XenonSms Frontend ---"
-            docker compose -f docker-compose-react.yml up -d --build --remove-orphans
-            docker image prune -f
-            echo "✅ Deployment completed!"
+          ssh -o StrictHostKeyChecking=no -T -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} "
+            cd \"${{ env.REMOTE_DIR }}\" &&
+            echo \"--- Deploying XenonSms Frontend ---\" &&
+            docker compose -f docker-compose-react.yml up -d --build --remove-orphans &&
+            docker image prune -f &&
+            echo \"✅ Deployment completed!\" &&
             docker ps
-          EOF
+          "
 
 
       - name: Success
