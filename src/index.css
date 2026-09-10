@@ -119,3 +119,54 @@ input[type="number"] {
 .dark .tab-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+/* Full-width container so data tables and filter cards span edge-to-edge without wide side gaps */
+.container {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Eliminate excessive gap above filter card */
+.container > div.mb-6:first-child,
+.w-full > div.mb-6:first-child {
+  margin-bottom: 0.625rem !important;
+}
+
+/* Keep page title and advanced filters in a single row on all screen sizes */
+div[class*="items-start"][class*="sm:items-center"][class*="flex-col"],
+div[class*="items-start"][class*="sm:items-center"][class*="gap-4"] {
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+div[class*="justify-between"][class*="flex-col"][class*="sm:flex-row"] {
+  flex-direction: row !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+}
+
+/* Hide breadcrumbs on mobile (< 640px) so title and filters stay in a single clean row */
+@media (max-width: 640px) {
+  div[class*="justify-between"][class*="flex-col"][class*="sm:flex-row"] > div.flex.items-center.space-x-2,
+  div[class*="justify-between"] > div.flex.items-center.space-x-2:not([class*="hidden"]) {
+    display: none !important;
+  }
+}
+
+/* Ensure DataTable top bar action buttons (e.g. Add Module) are compact (32px) and align nicely in single row */
+.app-data-table > div:first-child .shrink-0 > button,
+.app-data-table > div:first-child .shrink-0 > a > button {
+  height: 32px !important;
+  padding-left: 0.625rem !important;
+  padding-right: 0.625rem !important;
+  font-size: 0.8125rem !important;
+}
+
+
+
+

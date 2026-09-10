@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import { Shield, List, Activity, Settings, Plus, Edit, Trash, TestTube } from "lucide-react";
+import { Shield, List, Activity, Settings, Plus, X, TestTube } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Select from "../ui/Select";
 import Input from "../ui/Input";
 import DataTable from "../ui/DataTable";
+import { StatusBadge } from "../ui/StatusBadge";
+import { DeleteModal } from "./DeleteModal";
 import { formatDateTime } from "../../helper/dateFormatter";
 import { CountryFlag } from "../ui/CountryFlag";
 
@@ -55,6 +57,10 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
   const [rulesPage, setRulesPage] = useState(1);
   const [rulesRowsPerPage, setRulesRowsPerPage] = useState(10);
   const [rulesTotal, setRulesTotal] = useState(0);
+
+  // --- Delete Rule State ---
+  const [deleteRuleTarget, setDeleteRuleTarget] = useState<SenderIdRuleData | null>(null);
+  const [isDeletingRule, setIsDeletingRule] = useState(false);
 
   // --- Test State ---
   const [testSenderId, setTestSenderId] = useState("");
@@ -184,20 +190,25 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
         toast.success("Rule created.");
       }
       setIsRuleFormOpen(false);
+      setEditingRule(null);
       fetchRules();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to save rule.");
     }
   };
 
-  const handleDeleteRule = async (id: number) => {
-    if (!client || !window.confirm("Are you sure?")) return;
+  const handleConfirmDelete = async () => {
+    if (!client || !deleteRuleTarget?.id) return;
+    setIsDeletingRule(true);
     try {
-      await deleteSenderRuleApi(client.id, id);
+      await deleteSenderRuleApi(client.id, deleteRuleTarget.id);
       toast.success("Rule deleted.");
+      setDeleteRuleTarget(null);
       fetchRules();
     } catch (err) {
       toast.error("Failed to delete rule.");
+    } finally {
+      setIsDeletingRule(false);
     }
   };
 
@@ -240,234 +251,325 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
   if (!isOpen || !client) return null;
 
   return (
-    <Modal
+    <>
+      <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Sender ID Authorization - ${client.name}`}
-      className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col"
+      title={
+        <div className="flex items-center gap-2">
+          <Shield className="text-primary" size={20} />
+          <span>Sender ID Authorization - {client.name}</span>
+        </div>
+      }
+      className="max-w-6xl"
     >
-      <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4 overflow-x-auto">
-        <button
-          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === "policy" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+      <div className="w-full max-h-[80vh] overflow-y-auto pr-1 space-y-4">
+        {/* Tab Navigation */}
+        <div className="flex border-b border-gray-200 dark:border-gray-700 gap-6 mb-4 overflow-x-auto">
+          <button
+            type="button"
+            className={`flex items-center gap-2 pb-3 px-1 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "policy"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
             }`}
-          onClick={() => setActiveTab("policy")}
-        >
-          <Settings size={16} /> Policy Settings
-        </button>
-        <button
-          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === "rules" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            onClick={() => setActiveTab("policy")}
+          >
+            <Settings size={16} />
+            <span>Policy Settings</span>
+          </button>
+          <button
+            type="button"
+            className={`flex items-center gap-2 pb-3 px-1 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "rules"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
             }`}
-          onClick={() => setActiveTab("rules")}
-        >
-          <List size={16} /> Rules Management
-        </button>
-        <button
-          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === "test" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            onClick={() => setActiveTab("rules")}
+          >
+            <List size={16} />
+            <span>Rules Management</span>
+          </button>
+          <button
+            type="button"
+            className={`flex items-center gap-2 pb-3 px-1 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "test"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
             }`}
-          onClick={() => setActiveTab("test")}
-        >
-          <TestTube size={16} /> Simulation
-        </button>
-        <button
-          className={`flex items-center gap-2 px-4 py-2 font-medium text-sm transition-colors border-b-2 whitespace-nowrap ${activeTab === "audit" ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            onClick={() => setActiveTab("test")}
+          >
+            <TestTube size={16} />
+            <span>Simulation</span>
+          </button>
+          <button
+            type="button"
+            className={`flex items-center gap-2 pb-3 px-1 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "audit"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
             }`}
-          onClick={() => setActiveTab("audit")}
-        >
-          <Activity size={16} /> Audit Logs
-        </button>
-      </div>
+            onClick={() => setActiveTab("audit")}
+          >
+            <Activity size={16} />
+            <span>Audit Logs</span>
+          </button>
+        </div>
 
-      <div className="overflow-y-auto flex-1 min-h-[400px]">
         {/* POLICY TAB */}
         {activeTab === "policy" && (
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Global Policy Configuration</h3>
-              <Button onClick={() => setIsPolicyEditing(!isPolicyEditing)} variant={isPolicyEditing ? "secondary" : "primary"}>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Global Policy Configuration
+              </h3>
+              <Button
+                type="button"
+                variant={isPolicyEditing ? "secondary" : "primary"}
+                size="sm"
+                onClick={() => setIsPolicyEditing(!isPolicyEditing)}
+              >
                 {isPolicyEditing ? "Cancel" : "Edit Policy"}
               </Button>
             </div>
 
-            {policyLoading ? (
-              <p>Loading...</p>
-            ) : (
-              <form onSubmit={handleSavePolicy} className="max-w-md space-y-4">
-                <Select
-                  label="Policy Mode"
-                  value={policy?.mode || "WHITELIST_ONLY"}
-                  onChange={(val) => setPolicy(prev => ({ ...(prev as any), mode: val }))}
-                  options={[
-                    { label: "Disabled", value: "DISABLED" },
-                    { label: "Whitelist Only ", value: "WHITELIST_ONLY" },
-                    { label: "Blacklist Only ", value: "BLACKLIST_ONLY" },
-                  ]}
-                  disabled={!isPolicyEditing}
-                />
+            <div className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60">
+              {policyLoading ? (
+                <div className="py-8 text-center text-text-secondary dark:text-gray-400">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
+                  <span className="text-xs sm:text-sm">Loading policy...</span>
+                </div>
+              ) : (
+                <form onSubmit={handleSavePolicy} className="space-y-4 max-w-xl">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Select
+                      label="Policy Mode"
+                      value={policy?.mode || "WHITELIST_ONLY"}
+                      onChange={(val) => setPolicy(prev => ({ ...(prev as any), mode: val }))}
+                      options={[
+                        { label: "Disabled", value: "DISABLED" },
+                        { label: "Whitelist Only", value: "WHITELIST_ONLY" },
+                        { label: "Blacklist Only", value: "BLACKLIST_ONLY" },
+                      ]}
+                      disabled={!isPolicyEditing}
+                      clearable={false}
+                    />
 
-                <Select
-                  label="Status"
-                  value={policy?.isActive !== false ? "true" : "false"}
-                  onChange={(val) => setPolicy(prev => ({ ...(prev as any), isActive: val === "true" }))}
-                  options={[
-                    { label: "Active", value: "true" },
-                    { label: "Inactive", value: "false" },
-                  ]}
-                  disabled={!isPolicyEditing}
-                />
+                    <Select
+                      label="Status"
+                      value={policy?.isActive !== false ? "true" : "false"}
+                      onChange={(val) => setPolicy(prev => ({ ...(prev as any), isActive: val === "true" }))}
+                      options={[
+                        { label: "Active", value: "true" },
+                        { label: "Inactive", value: "false" },
+                      ]}
+                      disabled={!isPolicyEditing}
+                      clearable={false}
+                    />
+                  </div>
 
-                {isPolicyEditing && (
-                  <Button type="submit" className="w-full">Save Changes</Button>
-                )}
-              </form>
-            )}
+                  {isPolicyEditing && (
+                    <div className="flex justify-start gap-2 pt-2">
+                      <Button type="button" variant="secondary" size="sm" onClick={() => setIsPolicyEditing(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="submit" variant="primary" size="sm">
+                        Save Changes
+                      </Button>
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
           </div>
         )}
 
         {/* RULES TAB */}
         {activeTab === "rules" && (
-          <div>
-            <div className="flex justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Sender ID Rules</h3>
-              {!isRuleFormOpen && (
-                <Button onClick={() => {
+          <div className="space-y-4">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                Sender ID Rules
+              </h3>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
                   setEditingRule({ senderId: "", action: "ALLOW", isActive: true });
                   setIsRuleFormOpen(true);
-                }}>
-                  <Plus size={16} className="mr-2" /> Add Rule
-                </Button>
-              )}
+                }}
+                leftIcon={<Plus size={15} />}
+              >
+                Add Rule
+              </Button>
             </div>
 
-            {isRuleFormOpen ? (
-              <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg mb-4 border border-gray-200 dark:border-gray-700">
-                <h4 className="font-semibold mb-4">{editingRule?.id ? "Edit Rule" : "Create Rule"}</h4>
-                <form onSubmit={handleSaveRule} className="grid grid-cols-2 gap-4">
-                  <Input
-                    label="Sender ID"
-                    value={editingRule?.senderId || ""}
-                    onChange={(e) => setEditingRule(prev => ({ ...prev!, senderId: e.target.value }))}
-                    required
-                  />
-                  <Select
-                    label="Action"
-                    value={editingRule?.action || "ALLOW"}
-                    onChange={(val) => setEditingRule(prev => ({ ...prev!, action: val as any }))}
-                    options={[
-                      { label: "Allow", value: "ALLOW" },
-                      { label: "Block", value: "BLOCK" },
-                    ]}
-                  />
-                  <Select
-                    label="Country (Optional)"
-                    value={editingRule?.country ? String(editingRule.country) : ""}
-                    onChange={(val) => setEditingRule(prev => ({ ...prev!, country: val ? Number(val) : null }))}
-                    options={[{ label: "Global (Any Country)", value: "" }, ...countries]}
-                  />
-                  <Select
-                    label="Status"
-                    value={editingRule?.isActive !== false ? "true" : "false"}
-                    onChange={(val) => setEditingRule(prev => ({ ...prev!, isActive: val === "true" }))}
-                    options={[
-                      { label: "Active", value: "true" },
-                      { label: "Inactive", value: "false" },
-                    ]}
-                  />
-                  <div className="col-span-2 flex justify-end gap-2 mt-4">
-                    <Button variant="secondary" onClick={() => setIsRuleFormOpen(false)}>Cancel</Button>
-                    <Button type="submit">Save Rule</Button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <DataTable
-                serverSide
-                data={rules}
-                totalItems={rulesTotal}
-                currentPage={rulesPage}
-                rowsPerPage={rulesRowsPerPage}
-                onPageChange={setRulesPage}
-                onRowsPerPageChange={setRulesRowsPerPage}
-                isLoading={rulesLoading}
-                headers={["Sender ID", "Action", "Country", "Status", "Actions"]}
-                renderRow={(rule) => (
-                  <tr key={rule.id} className="border-b dark:border-gray-700">
-                    <td className="p-3">{rule.senderId}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded text-xs font-semibold ${rule.action === 'ALLOW' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {rule.action}
-                      </span>
-                    </td>
-                    <td className="p-3 flex items-center gap-2">
-                      {rule.country ? (
-                        <>
+            <DataTable
+              density="compact"
+              serverSide
+              data={rules}
+              totalItems={rulesTotal}
+              currentPage={rulesPage}
+              rowsPerPage={rulesRowsPerPage}
+              onPageChange={setRulesPage}
+              onRowsPerPageChange={setRulesRowsPerPage}
+              isLoading={rulesLoading}
+              headers={["Sender ID", "Action", "Country", "Status", "Actions"]}
+              renderRow={(rule: SenderIdRuleData, index: number) => (
+                <tr
+                  key={rule.id || index}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors"
+                >
+                  <td className="px-4 py-3 font-semibold text-text-primary dark:text-white">
+                    {rule.senderId}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge
+                      status={rule.action === "ALLOW" ? "ACTIVE" : "FAILED"}
+                      customText={rule.action}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    {rule.country ? (
+                      <div className="flex items-center gap-2">
+                        {countries.find(c => c.value === rule.country?.toString())?.iso2 && (
+                          <CountryFlag
+                            iso2={countries.find(c => c.value === rule.country?.toString())!.iso2!}
+                            width={16}
+                            height={12}
+                          />
+                        )}
+                        <span className="text-text-primary dark:text-white font-medium">
                           {countries.find(c => c.value === rule.country?.toString())?.label || rule.country}
-                          {countries.find(c => c.value === rule.country?.toString())?.iso2 && (
-                            <CountryFlag iso2={countries.find(c => c.value === rule.country?.toString())!.iso2!} />
-                          )}
-                        </>
-                      ) : "Global"}
-                    </td>
-                    <td className="p-3">{rule.isActive ? "Active" : "Inactive"}</td>
-                    <td className="p-3 flex gap-2">
-                      <button onClick={() => { setEditingRule(rule); setIsRuleFormOpen(true); }} className="text-blue-500 hover:text-blue-700">
-                        <Edit size={16} />
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-text-secondary dark:text-gray-400">Global</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusBadge
+                      status={rule.isActive ? "ACTIVE" : "OFFLINE"}
+                      customText={rule.isActive ? "Active" : "Inactive"}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingRule(rule);
+                          setIsRuleFormOpen(true);
+                        }}
+                        className="text-primary hover:text-primary-dark font-medium text-xs sm:text-sm transition-colors"
+                      >
+                        Edit
                       </button>
-                      <button onClick={() => handleDeleteRule(rule.id!)} className="text-red-500 hover:text-red-700">
-                        <Trash size={16} />
+                      <button
+                        type="button"
+                        onClick={() => setDeleteRuleTarget(rule)}
+                        className="text-red-500 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors"
+                      >
+                        Delete
                       </button>
-                    </td>
-                  </tr>
-                )}
-              />
-            )}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            />
           </div>
         )}
 
         {/* TEST TAB */}
         {activeTab === "test" && (
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Dry-Run Simulation</h3>
-            <form onSubmit={handleTestPolicy} className="flex gap-4 items-end mb-6">
-              <div className="flex-1">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
+              Dry-Run Simulation
+            </h3>
+            <form
+              onSubmit={handleTestPolicy}
+              className="space-y-4 bg-gray-50/70 dark:bg-gray-900/60 p-5 rounded-xl border border-gray-200 dark:border-gray-700"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Sender ID"
                   value={testSenderId}
                   onChange={(e) => setTestSenderId(e.target.value)}
+                  placeholder="Enter sender ID to test"
                   required
                 />
-              </div>
-              <div className="flex-1">
                 <Input
                   label="Destination"
                   value={testDestination}
                   onChange={(e) => setTestDestination(e.target.value)}
+                  placeholder="Enter destination MSISDN (e.g. 14155552671)"
                   required
                 />
               </div>
-              <Button type="submit" disabled={testLoading}>
-                {testLoading ? "Simulating..." : "Run Test"}
-              </Button>
+              <div className="flex justify-start">
+                <Button type="submit" variant="primary" size="sm" disabled={testLoading}>
+                  {testLoading ? "Simulating..." : "Run Test"}
+                </Button>
+              </div>
             </form>
 
             {testResult && (
-              <div className={`p-4 rounded-lg border-2 ${testResult.allowed ? "border-green-500 bg-green-50" : "border-red-500 bg-red-50"} dark:bg-gray-900`}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className={testResult.allowed ? "text-green-600" : "text-red-600"} />
-                  <h4 className={`text-xl font-bold ${testResult.allowed ? "text-green-700" : "text-red-700"}`}>
+              <div
+                className={`p-5 rounded-xl border shadow-card ${
+                  testResult.allowed
+                    ? "border-emerald-200 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-800"
+                    : "border-red-200 bg-red-50/70 dark:bg-red-950/30 dark:border-red-800"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  {testResult.allowed ? (
+                    <Shield className="text-emerald-600 dark:text-emerald-400" size={20} />
+                  ) : (
+                    <X className="text-red-600 dark:text-red-400" size={20} />
+                  )}
+                  <h4
+                    className={`text-base font-bold ${
+                      testResult.allowed
+                        ? "text-emerald-700 dark:text-emerald-300"
+                        : "text-red-700 dark:text-red-300"
+                    }`}
+                  >
                     {testResult.allowed ? "ALLOWED" : "BLOCKED"}
                   </h4>
                 </div>
-                <ul className="space-y-1 text-sm text-gray-800 dark:text-gray-200">
-                  <li><strong>Reason Code:</strong> {testResult.reason}</li>
-                  <li><strong>Policy Mode:</strong> {testResult.policy_mode}</li>
-                  <li><strong>Matched Rule:</strong> {testResult.matched_rule_description || testResult.matched_rule_id || "None"}</li>
+                <ul className="space-y-2 text-xs sm:text-sm text-text-secondary dark:text-gray-300">
+                  <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1.5">
+                    <strong className="text-text-primary dark:text-white">Reason Code:</strong>
+                    <span className="font-mono">{testResult.reason}</span>
+                  </li>
+                  <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1.5">
+                    <strong className="text-text-primary dark:text-white">Policy Mode:</strong>
+                    <span>{testResult.policy_mode}</span>
+                  </li>
+                  <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1.5">
+                    <strong className="text-text-primary dark:text-white">Matched Rule:</strong>
+                    <span>{testResult.matched_rule_description || testResult.matched_rule_id || "None"}</span>
+                  </li>
                   {testResult.country_id && (
-                    <li className="flex items-center gap-2">
-                      <strong>Detected Country:</strong>{" "}
-                      {countries.find(c => c.value === testResult.country_id?.toString())?.label || testResult.country_id}
-                      {countries.find(c => c.value === testResult.country_id?.toString())?.iso2 && (
-                        <CountryFlag iso2={countries.find(c => c.value === testResult.country_id?.toString())!.iso2!} />
-                      )}
+                    <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1.5">
+                      <strong className="text-text-primary dark:text-white">Detected Country:</strong>
+                      <span className="flex items-center gap-2">
+                        {countries.find(c => c.value === testResult.country_id?.toString())?.iso2 && (
+                          <CountryFlag
+                            iso2={countries.find(c => c.value === testResult.country_id?.toString())!.iso2!}
+                            width={16}
+                            height={12}
+                          />
+                        )}
+                        <span>{countries.find(c => c.value === testResult.country_id?.toString())?.label || testResult.country_id}</span>
+                      </span>
+                    </li>
+                  )}
+                  {testResult.evaluation_source && (
+                    <li className="flex justify-between">
+                      <strong className="text-text-primary dark:text-white">Evaluation Source:</strong>
+                      <span>{testResult.evaluation_source}</span>
                     </li>
                   )}
                 </ul>
@@ -478,9 +580,12 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
 
         {/* AUDIT TAB */}
         {activeTab === "audit" && (
-          <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">Audit Logs (Rejected Traffic)</h3>
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">
+              Audit Logs (Rejected Traffic)
+            </h3>
             <DataTable
+              density="compact"
               serverSide
               data={audits}
               totalItems={auditTotal}
@@ -489,30 +594,80 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
               onPageChange={setAuditPage}
               onRowsPerPageChange={setAuditRowsPerPage}
               isLoading={auditLoading}
-              headers={["Date", "System ID", "IP Address", "Session ID", "Sender ID", "Destination", "Country", "Reason", "Mode", "Decision", "Matched Rule", "SMPP Code"]}
-              renderRow={(audit) => (
-                <tr key={audit.id} className="border-b dark:border-gray-700 text-sm">
-                  <td className="p-3">{audit.createdAt ? formatDateTime(audit.createdAt) : "-"}</td>
-                  <td className="p-3">{audit.systemId || "-"}</td>
-                  <td className="p-3">{audit.clientIp || "-"}</td>
-                  <td className="p-3">{audit.sessionId || "-"}</td>
-                  <td className="p-3 font-semibold text-red-600 dark:text-red-400">{audit.senderId}</td>
-                  <td className="p-3">{audit.destination}</td>
-                  <td className="p-3 flex items-center gap-2">
-                    {audit.country ? (
-                      <>
-                        {countries.find(c => c.value === audit.country?.toString())?.label || audit.country}
-                        {countries.find(c => c.value === audit.country?.toString())?.iso2 && (
-                          <CountryFlag iso2={countries.find(c => c.value === audit.country?.toString())!.iso2!} />
-                        )}
-                      </>
-                    ) : "-"}
+              headers={[
+                "Date",
+                "System ID",
+                "IP Address",
+                "Session ID",
+                "Sender ID",
+                "Destination",
+                "Country",
+                "Reason",
+                "Mode",
+                "Decision",
+                "Matched Rule",
+                "SMPP Code"
+              ]}
+              renderRow={(audit: SenderIdAuditData, index: number) => (
+                <tr
+                  key={audit.id || index}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-xs transition-colors"
+                >
+                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                    {audit.createdAt ? formatDateTime(audit.createdAt) : "-"}
                   </td>
-                  <td className="p-3">{audit.reasonCode}</td>
-                  <td className="p-3">{audit.policyMode}</td>
-                  <td className="p-3">{audit.decision}</td>
-                  <td className="p-3">{audit.matched_rule_description || audit.matchedRule || "-"}</td>
-                  <td className="p-3">{audit.smppStatus}</td>
+                  <td className="px-3 py-2 font-mono text-text-primary dark:text-white">
+                    {audit.systemId || "-"}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
+                    {audit.clientIp || "-"}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
+                    {audit.sessionId || "-"}
+                  </td>
+                  <td className="px-3 py-2 font-semibold text-rose-600 dark:text-rose-400">
+                    {audit.senderId}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-text-primary dark:text-white">
+                    {audit.destination}
+                  </td>
+                  <td className="px-3 py-2">
+                    {audit.country ? (
+                      <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {countries.find(c => c.value === audit.country?.toString())?.iso2 && (
+                          <CountryFlag
+                            iso2={countries.find(c => c.value === audit.country?.toString())!.iso2!}
+                            width={14}
+                            height={10}
+                          />
+                        )}
+                        <span>{countries.find(c => c.value === audit.country?.toString())?.label || audit.country}</span>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300 font-mono">
+                    {audit.reasonCode}
+                  </td>
+                  <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
+                    {audit.policyMode}
+                  </td>
+                  <td className="px-3 py-2">
+                    <StatusBadge
+                      status={audit.decision === "ALLOWED" ? "ACTIVE" : "FAILED"}
+                      customText={audit.decision}
+                    />
+                  </td>
+                  <td
+                    className="px-3 py-2 text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
+                    title={audit.matched_rule_description || String(audit.matchedRule || "")}
+                  >
+                    {audit.matched_rule_description || audit.matchedRule || "-"}
+                  </td>
+                  <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
+                    {audit.smppStatus}
+                  </td>
                 </tr>
               )}
             />
@@ -520,6 +675,82 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
         )}
       </div>
     </Modal>
+
+    {/* Edit / Create Rule Modal */}
+    <Modal
+      isOpen={isRuleFormOpen}
+      onClose={() => {
+        setIsRuleFormOpen(false);
+        setEditingRule(null);
+      }}
+      title={editingRule?.id ? "Edit Sender ID Rule" : "Add Sender ID Rule"}
+      className="max-w-xl"
+    >
+      <form onSubmit={handleSaveRule} className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Input
+            label="Sender ID"
+            value={editingRule?.senderId || ""}
+            onChange={(e) => setEditingRule(prev => ({ ...prev!, senderId: e.target.value }))}
+            placeholder="e.g. SENDER_ABC or *"
+            required
+          />
+          <Select
+            label="Action"
+            value={editingRule?.action || "ALLOW"}
+            onChange={(val) => setEditingRule(prev => ({ ...prev!, action: val as any }))}
+            options={[
+              { label: "Allow", value: "ALLOW" },
+              { label: "Block", value: "BLOCK" },
+            ]}
+            clearable={false}
+          />
+          <Select
+            label="Country (Optional)"
+            value={editingRule?.country ? String(editingRule.country) : ""}
+            onChange={(val) => setEditingRule(prev => ({ ...prev!, country: val ? Number(val) : null }))}
+            options={[{ label: "Global (Any Country)", value: "" }, ...countries]}
+            placeholder="Global (Any Country)"
+          />
+          <Select
+            label="Status"
+            value={editingRule?.isActive !== false ? "true" : "false"}
+            onChange={(val) => setEditingRule(prev => ({ ...prev!, isActive: val === "true" }))}
+            options={[
+              { label: "Active", value: "true" },
+              { label: "Inactive", value: "false" },
+            ]}
+            clearable={false}
+          />
+        </div>
+        <div className="flex justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              setIsRuleFormOpen(false);
+              setEditingRule(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button type="submit" variant="primary">
+            {editingRule?.id ? "Update Rule" : "Save Rule"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+
+    {/* Delete Rule Confirmation Modal */}
+    <DeleteModal
+      isOpen={!!deleteRuleTarget}
+      onClose={() => setDeleteRuleTarget(null)}
+      onConfirm={handleConfirmDelete}
+      title="Delete Sender ID Rule"
+      message={`Are you sure you want to delete rule for "${deleteRuleTarget?.senderId || ""}"? This action cannot be undone.`}
+      isDeleting={isDeletingRule}
+    />
+    </>
   );
 };
 

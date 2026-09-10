@@ -130,7 +130,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
     return (
       <div
         key={col.key}
-        className={`w-full flex items-center px-2 py-2 text-left text-sm rounded-md transition-all select-none ${
+        className={`w-full flex items-center px-2 py-1.5 text-left text-xs sm:text-sm rounded-md transition-all select-none ${
           isSelected
             ? "bg-primary/10 text-primary dark:text-primary font-medium"
             : "text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -183,17 +183,17 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
             ref={buttonRef}
             onClick={updatePosition}
             title={buttonLabel}
-            className={`flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-all duration-300 focus:outline-none shadow-sm
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border transition-all duration-300 focus:outline-none shadow-sm
               ${
                 open || selectedColumns.length > 0
                   ? "border-primary text-primary bg-primary/10 dark:text-primary dark:border-primary"
                   : "bg-white text-text-secondary border-gray-300 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300"
               }`}
           >
-            <Filter size={16} />
+            <Filter size={14} />
             <span className="whitespace-nowrap">{buttonLabel}</span>
             {selectedColumns.length > 0 && (
-              <span className="ml-1 inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-primary rounded-full">
+              <span className="ml-1 inline-flex items-center justify-center min-w-[1.1rem] h-4 px-1 text-[11px] font-bold text-white bg-primary rounded-full">
                 {selectedColumns.length}
               </span>
             )}
@@ -323,11 +323,11 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                       </div>
 
                       {/* Footer */}
-                      <div className="flex-none p-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end items-center gap-2">
+                      <div className="flex-none p-2 sm:p-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-end items-center gap-2">
                         <button
                           type="button"
                           onClick={() => handleClearAll(close)}
-                          className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-text-primary dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+                          className="px-2.5 py-1 text-xs font-medium text-gray-500 hover:text-text-primary dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
                         >
                           Clear
                         </button>
@@ -337,7 +337,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
                           size="sm"
                           disabled={isLoading}
                           onClick={() => handleApply(close)}
-                          className="px-4 py-1.5 h-auto text-xs min-w-[70px]"
+                          className="px-3 py-1 h-auto text-xs min-w-[65px]"
                         >
                           {isLoading ? "..." : "Apply"}
                         </Button>

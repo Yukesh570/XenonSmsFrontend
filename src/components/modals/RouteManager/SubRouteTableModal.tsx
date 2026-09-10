@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import Modal from "../../ui/Modal";
 import { DeleteModal } from "../DeleteModal";
 import {
@@ -114,6 +115,133 @@ const FilterInput = ({
     />
   </div>
 );
+
+const RatesHoverDropdown: React.FC<{
+  title: string;
+  rates: Array<{ MNC: string; rate: string | number }>;
+  currencyCode?: string;
+}> = ({ title, rates, currencyCode }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [openUpwards, setOpenUpwards] = useState(false);
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const calculatePosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    const estimatedHeight = Math.min(240, 55 + rates.length * 26);
+    const shouldOpenUp = spaceBelow < estimatedHeight + 15 && spaceAbove > spaceBelow;
+
+    setOpenUpwards(shouldOpenUp);
+
+    const centerX = rect.left + rect.width / 2;
+    const left = Math.max(120, Math.min(window.innerWidth - 120, centerX));
+
+    if (shouldOpenUp) {
+      setCoords({
+        bottom: window.innerHeight - rect.top + 6,
+        left,
+      });
+    } else {
+      setCoords({
+        top: rect.bottom + 6,
+        left,
+      });
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    calculatePosition();
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false);
+    }, 150);
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleScrollOrResize = () => {
+      calculatePosition();
+    };
+    window.addEventListener("scroll", handleScrollOrResize, true);
+    window.addEventListener("resize", handleScrollOrResize);
+    return () => {
+      window.removeEventListener("scroll", handleScrollOrResize, true);
+      window.removeEventListener("resize", handleScrollOrResize);
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+    };
+  }, []);
+
+  return (
+    <div
+      ref={triggerRef}
+      className="relative inline-block"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <span className="cursor-pointer text-blue-600 font-semibold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 text-xs">
+        Multiple Rates <span className="text-[10px]">{openUpwards && isOpen ? "▲" : "▼"}</span>
+      </span>
+
+      {isOpen &&
+        createPortal(
+          <div
+            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-md p-2.5 min-w-[210px] max-w-[280px] pointer-events-auto animate-fade-in"
+            style={{
+              position: "fixed",
+              left: `${coords.left}px`,
+              ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : { top: `${coords.top}px` }),
+              transform: "translateX(-50%)",
+            }}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
+            <div className="text-xs font-semibold mb-1.5 text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-1 flex items-center justify-between">
+              <span>{title}</span>
+              <span className="text-[10px] font-normal text-gray-400">({rates.length})</span>
+            </div>
+            <div className="max-h-52 overflow-y-auto pr-0.5">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50 sticky top-0">
+                    <th className="px-2 py-1 font-medium">MNC</th>
+                    <th className="px-2 py-1 font-medium text-right">Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                  {rates.map((r, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                      <td className="px-2 py-1 font-mono text-xs text-gray-700 dark:text-gray-300">{r.MNC}</td>
+                      <td className="px-2 py-1 font-mono text-xs text-right text-gray-700 dark:text-gray-300">
+                        {r.rate} {currencyCode || ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
 
 const routingTypeOptions = [
   { label: "Priority", value: "PRIORITY" },
@@ -1089,7 +1217,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={`Manage Route Group: ${routeGroup || ""}`}
-        className="max-w-[95vw] w-full relative"
+        className="max-w-[95vw] w-full relative min-w-0"
       >
         {/* Top Right "All Types" Filter Dropdown beside Modal Close Button with Spacing */}
         <div className="absolute top-5 right-20 z-30 w-36 config-filter-wrapper" onClick={(e) => e.stopPropagation()}>
@@ -1102,13 +1230,13 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           />
         </div>
 
-        <div className="p-4 flex flex-col gap-5">
+        <div className="p-3 sm:p-4 flex flex-col gap-3.5 min-w-0 w-full">
 
           {/* Country Config (collapsible) */}
           <div className="border-2 border-primary/20 dark:border-primary/30 rounded-xl bg-primary/[0.03] dark:bg-primary/[0.06] shadow-sm relative">
             <button
               type="button"
-              className={`w-full flex items-center justify-between px-4 py-3 bg-primary/[0.07] dark:bg-primary/[0.12] text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-primary/[0.11] dark:hover:bg-primary/[0.16] transition-colors ${configSectionOpen ? 'rounded-t-xl' : 'rounded-xl'}`}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-primary/[0.07] dark:bg-primary/[0.12] text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-primary/[0.11] dark:hover:bg-primary/[0.16] transition-colors ${configSectionOpen ? 'rounded-t-xl' : 'rounded-xl'}`}
               onClick={() => setConfigSectionOpen((o) => !o)}
             >
               <span className="flex items-center gap-2">
@@ -1128,13 +1256,13 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             </button>
 
             {configSectionOpen && (
-              <div className="p-4 space-y-5 bg-white dark:bg-gray-900 border-t border-primary/10 dark:border-primary/20 rounded-b-xl">
+              <div className="p-3.5 space-y-3 bg-white dark:bg-gray-900 border-t border-primary/10 dark:border-primary/20 rounded-b-xl">
 
                 {/* ADD NEW CONFIG AREA */}
                 {canUpdate && availableCountries.length > 0 && (
-                  <div className="flex flex-col gap-2">
-                    <h4 className="text-sm font-semibold text-primary">Add Country Config</h4>
-                    <div className="flex flex-wrap items-end gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">Add Country Config</h4>
+                    <div className="flex flex-wrap items-end gap-2.5">
                       <div className="w-56">
                         <Select label="Country" value={newCountry} onChange={setNewCountry} options={availableCountries} placeholder="Select Country" />
                       </div>
@@ -1166,25 +1294,37 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                 )}
 
                 {canUpdate && availableCountries.length > 0 && (
-                  <hr className="border-gray-200 dark:border-gray-700" />
+                  <hr className="border-gray-200 dark:border-gray-700 my-0.5" />
                 )}
 
                 {/* CONFIGURED COUNTRIES CHIPS WITH EXPANDABLE SEARCH ON THE LEFT */}
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2">
                   {sections.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Search country trigger / expanded input on the left */}
                       <div className="relative flex items-center">
                         {isCountrySearchExpanded ? (
                           <div className="flex items-center gap-1.5 animate-fade-in">
-                            <div className="w-36 sm:w-44">
-                              <Input
-                                label=""
+                            <div className="relative flex items-center w-36 sm:w-44">
+                              <Search size={13} className="absolute left-2.5 text-gray-400 pointer-events-none" />
+                              <input
+                                type="text"
                                 placeholder="Search country..."
                                 value={countrySearchTerm}
                                 onChange={(e) => setCountrySearchTerm(e.target.value)}
                                 autoFocus
+                                className="w-full pl-7 pr-7 py-1 h-7 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
                               />
+                              {countrySearchTerm && (
+                                <button
+                                  type="button"
+                                  onClick={() => setCountrySearchTerm("")}
+                                  className="absolute right-1.5 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
+                                  title="Clear"
+                                >
+                                  <X size={12} />
+                                </button>
+                              )}
                             </div>
                             <button
                               type="button"
@@ -1192,7 +1332,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                 setCountrySearchTerm("");
                                 setIsCountrySearchExpanded(false);
                               }}
-                              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                              className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
                               title="Close search"
                             >
                               <X size={14} />
@@ -1202,7 +1342,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           <button
                             type="button"
                             onClick={() => setIsCountrySearchExpanded(true)}
-                            className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-colors"
+                            className="h-7 w-7 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-colors"
                             title="Search configured countries"
                           >
                             <Search size={14} />
@@ -1214,7 +1354,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                       {filteredSections.map((s) => (
                         <div
                           key={s.config.id}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium ${s.config.routingType === "PERCENTAGE"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${s.config.routingType === "PERCENTAGE"
                             ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300"
                             : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300"
                             }`}
@@ -1225,7 +1365,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                             )}
                             {s.config.countryName}
                           </span>
-                          <span className="text-xs opacity-60">({s.config.routingType})</span>
+                          <span className="text-[11px] opacity-60">({s.config.routingType})</span>
                           {canUpdate && (
                             <button
                               type="button"
@@ -1252,7 +1392,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 mt-1">
+          <div className="flex items-center gap-3 my-0.5">
             <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               Routes by Country
@@ -1261,7 +1401,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           </div>
 
           {/* Per-country sections */}
-          <div className="flex flex-col gap-3 overflow-y-auto max-h-[65vh]">
+          <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[65vh] min-w-0 w-full">
             {sections.length === 0 && (
               <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
                 No countries configured. Open <strong>Country Routing Configuration</strong> above to add one.
@@ -1331,17 +1471,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
               return (
                 <div
                   key={countryId}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900"
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full"
                 >
                   {/* Section header with Upper Bar Search Filters */}
                   <div
-                    className={`flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 cursor-pointer select-none transition-colors ${section.isOpen
+                    className={`flex items-center justify-between gap-2.5 px-3.5 py-2 cursor-pointer select-none transition-colors ${section.isOpen
                       ? "bg-gray-100 dark:bg-gray-700/60 rounded-t-lg"
                       : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
                       }`}
                     onClick={() => toggleSection(countryId)}
                   >
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
                         {countryIsoMap[countryId] && (
                           <CountryFlag iso2={countryIsoMap[countryId]} />
@@ -1374,7 +1514,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                     </div>
 
                     {/* Upper Bar: Search Filters & Actions */}
-                    <div className="flex items-center gap-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                       {section.isOpen && (
                         <div className="flex items-center gap-1 mr-1 relative">
                           {section.searchExpanded ? (
@@ -1462,7 +1602,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                   {/* Section body */}
                   {section.isOpen && (
-                    <div className="rounded-b-lg">
+                    <div className="rounded-b-lg min-w-0 w-full overflow-hidden">
 
                       {/* IN-TABLE ERROR BANNER */}
                       {sectionError && (
@@ -1481,33 +1621,33 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         </div>
                       )}
 
-                      <div className="w-full overflow-visible">
+                      <div className="w-full overflow-x-auto custom-scrollbar">
                         <table className="min-w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
                           <thead className="bg-gray-100 dark:bg-gray-800 text-text-secondary dark:text-gray-300 shadow-sm">
                             <tr>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-10">#</th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-32">MNC</th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px]">Network</th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
-                              <th className="px-2 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-20">
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-10">#</th>
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-32">MNC</th>
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px]">Network</th>
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
+                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
                                 {isPercentage ? "Traffic %" : "Priority"}
                               </th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
                                 Customer Rate
                               </th>
-                              <th className="px-3 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
                                 Vendor Rate
                               </th>
-                              <th className="px-2 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-20">
+                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
                                 Margin
                               </th>
-                              <th className="px-2 py-2 font-bold text-left border-b border-r dark:border-gray-600 w-16">
+                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-16">
                                 Margin %
                               </th>
-                              <th className="px-2 py-2 font-bold text-left border-b dark:border-gray-600 w-24">Status</th>
+                              <th className="px-2 py-1.5 font-bold text-left border-b dark:border-gray-600 w-24">Status</th>
                               {(canUpdate || canDelete) && (
-                                <th className="px-2 py-2 font-bold text-center border-b border-l dark:border-gray-600 w-10">Action</th>
+                                <th className="px-2 py-1.5 font-bold text-center border-b border-l dark:border-gray-600 w-10">Action</th>
                               )}
                             </tr>
                           </thead>
@@ -1768,20 +1908,20 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                             : `${rowBgClass} hover:bg-blue-50/40 dark:hover:bg-primary/5`
                                             }`}
                                         >
-                                          <td className="px-3 py-2.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10">{i + 1}</td>
-                                          <td className="px-3 py-2.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10">{i + 1}</td>
+                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
                                             {route.MCC || "-"}
                                           </td>
-                                          <td className="px-3 py-2.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-32">
+                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-32">
                                             {route.MNC || "-"}
                                           </td>
-                                          <td className="px-3 py-2.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px]">
+                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px]">
                                             {(route as any).network || "-"}
                                           </td>
-                                          <td className="px-3 py-2.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
                                             {vendorName}
                                           </td>
-                                          <td className="px-2 py-2.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
+                                          <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
                                             {isPercentage ? `${route.trafficPercentage ?? "-"}%` : (route.priority ?? "-")}
                                             {isLocallyModified && (
                                               <span className="ml-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
@@ -1789,77 +1929,39 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                               </span>
                                             )}
                                           </td>
-                                          <td className="px-3 py-2.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                             {((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1) ? (
-                                              <div className="relative group inline-block">
-                                                <span className="cursor-pointer text-blue-600 font-semibold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1">
-                                                  Multiple Rates <span className="text-[10px]">▼</span>
-                                                </span>
-                                                <div className="hidden group-hover:block fixed z-[99999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-md p-3 mt-4 ml-2 min-w-[200px] transform -translate-x-1/2">
-                                                  <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-200 border-b pb-1">All Customer Rates</div>
-                                                  <table className="w-full text-left">
-                                                    <thead>
-                                                      <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50">
-                                                        <th className="px-2 py-1 font-medium">MNC</th>
-                                                        <th className="px-2 py-1 font-medium text-right">Rate</th>
-                                                      </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                                                      {(route as any).allCustomerRates.map((cr: any, idx: number) => (
-                                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                          <td className="px-2 py-1 font-mono text-gray-700 dark:text-gray-300">{cr.MNC}</td>
-                                                          <td className="px-2 py-1 font-mono text-right text-gray-700 dark:text-gray-300">{cr.rate} {(route as any).clientCurrencyCode || ""}</td>
-                                                        </tr>
-                                                      ))}
-                                                    </tbody>
-                                                  </table>
-                                                </div>
-                                              </div>
+                                              <RatesHoverDropdown
+                                                title="All Customer Rates"
+                                                rates={(route as any).allCustomerRates}
+                                                currencyCode={(route as any).clientCurrencyCode}
+                                              />
                                             ) : (
                                               (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
                                             )}
                                           </td>
-                                          <td className="px-3 py-2.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
                                             {((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ? (
-                                              <div className="relative group inline-block">
-                                                <span className="cursor-pointer text-blue-600 font-semibold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1">
-                                                  Multiple Rates <span className="text-[10px]">▼</span>
-                                                </span>
-                                                <div className="hidden group-hover:block fixed z-[99999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-md p-3 mt-4 ml-2 min-w-[200px] transform -translate-x-1/2">
-                                                  <div className="text-xs font-semibold mb-2 text-gray-700 dark:text-gray-200 border-b pb-1">All Network Rates</div>
-                                                  <table className="w-full text-left">
-                                                    <thead>
-                                                      <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50">
-                                                        <th className="px-2 py-1 font-medium">MNC</th>
-                                                        <th className="px-2 py-1 font-medium text-right">Rate</th>
-                                                      </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                                                      {(route as any).allVendorRates.map((vr: any, idx: number) => (
-                                                        <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                                                          <td className="px-2 py-1 font-mono text-gray-700 dark:text-gray-300">{vr.MNC}</td>
-                                                          <td className="px-2 py-1 font-mono text-right text-gray-700 dark:text-gray-300">{vr.rate} {(route as any).vendorCurrencyCode || ""}</td>
-                                                        </tr>
-                                                      ))}
-                                                    </tbody>
-                                                  </table>
-                                                </div>
-                                              </div>
+                                              <RatesHoverDropdown
+                                                title="All Network Rates"
+                                                rates={(route as any).allVendorRates}
+                                                currencyCode={(route as any).vendorCurrencyCode}
+                                              />
                                             ) : (
                                               (route as any).vendorRate ? `${(route as any).vendorRate} ${(route as any).vendorCurrencyCode || ''}` : "—"
                                             )}
                                           </td>
-                                          <td className={`px-2 py-2.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
+                                          <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
                                             {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).margin !== undefined ? `${(route as any).margin} ${(route as any).baseCurrencyCode || ""}` : "—")}
                                           </td>
-                                          <td className={`px-2 py-2.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
+                                          <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
                                             {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
                                           </td>
-                                          <td className="px-2 py-2.5 border-b dark:border-gray-700 whitespace-nowrap w-24">
+                                          <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-24">
                                             <StatusBadge status={route.status} />
                                           </td>
                                           {(canUpdate || canDelete) && (
-                                            <td className="px-2 py-2.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-10">
+                                            <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-10">
                                               {canDelete && (
                                                 <button
                                                   type="button"

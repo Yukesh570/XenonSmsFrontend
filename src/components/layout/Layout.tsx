@@ -165,29 +165,32 @@ const Layout: React.FC = () => {
 
         <Navbar onToggleSidebar={toggleSidebar} />
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-secondary dark:bg-gray-900 p-4 md:p-6 w-full relative">
-          {tabs.map((tab) => {
-            const isActive =
-              activeNormalizedPath === tab.path ||
-              (tab.path !== "/dashboard" && activeNormalizedPath.startsWith(`${tab.path}/`));
+        <div className="flex-1 relative overflow-hidden flex flex-col w-full">
+          <main className="flex-1 overflow-x-hidden overflow-y-auto bg-secondary dark:bg-gray-900 p-2.5 md:px-4 md:py-3 w-full relative">
+            {tabs.map((tab) => {
+              const isActive =
+                activeNormalizedPath === tab.path ||
+                (tab.path !== "/dashboard" && activeNormalizedPath.startsWith(`${tab.path}/`));
 
-            const hasBeenVisited = visitedTabs[tab.path] || isActive || tab.path === "/dashboard";
+              const hasBeenVisited = visitedTabs[tab.path] || isActive || tab.path === "/dashboard";
 
-            if (!hasBeenVisited) return null;
+              if (!hasBeenVisited) return null;
 
-            const Component = getComponentByPath(tab.path);
+              const Component = getComponentByPath(tab.path);
 
-            return (
-              <TabPane
-                key={tab.id}
-                tabId={tab.id}
-                tabPath={tab.path}
-                isActive={isActive}
-                Component={Component}
-              />
-            );
-          })}
-        </main>
+              return (
+                <TabPane
+                  key={tab.id}
+                  tabId={tab.id}
+                  tabPath={tab.path}
+                  isActive={isActive}
+                  Component={Component}
+                />
+              );
+            })}
+          </main>
+          <div id="page-modal-root" className="pointer-events-none absolute inset-0 z-30" />
+        </div>
       </div>
     </div>
   );

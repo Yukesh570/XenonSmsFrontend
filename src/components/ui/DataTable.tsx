@@ -36,6 +36,9 @@ interface DataTableProps<T> {
   onSort?: (columnIndex: number) => void;
   sortColumnIndex?: number | null;
   sortDirection?: "asc" | "desc" | null;
+
+  emptyMessage?: string;
+  errorMessage?: string | null;
 }
 
 const rowsOptions = [
@@ -67,9 +70,14 @@ export function DataTable<T extends { id?: number | string }>({
   onSort,
   sortColumnIndex = null,
   sortDirection = null,
+  emptyMessage,
+  errorMessage,
 }: DataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
   const [clientRows, setClientRows] = useState(50);
+
+  // Jump-to-page input state
+  const [jumpInput, setJumpInput] = useState("");
 
   // Drag-and-drop states with Left/Right positioning
   const [draggedHeaderIdx, setDraggedHeaderIdx] = useState<number | null>(null);
@@ -113,23 +121,49 @@ export function DataTable<T extends { id?: number | string }>({
   const activeRows = serverSide ? rowsPerPage : clientRows;
   const activeTotal = serverSide ? totalItems : data.length;
 
-  const totalPages = Math.ceil(activeTotal / activeRows);
+  const totalPages = Math.max(1, Math.ceil(activeTotal / activeRows));
   const startIndex = (activePage - 1) * activeRows;
+
+  // Keep jump input synced with active page
+  useEffect(() => {
+    setJumpInput(String(activePage));
+  }, [activePage]);
 
   const displayData = serverSide
     ? data
     : data.slice(startIndex, startIndex + activeRows);
 
+  const goToPage = (page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages));
+    if (serverSide && onPageChange) onPageChange(validPage);
+    else setClientPage(validPage);
+  };
+
   const handleNext = () => {
-    const nextPage = Math.min(activePage + 1, totalPages);
-    if (serverSide && onPageChange) onPageChange(nextPage);
-    else setClientPage(nextPage);
+    goToPage(activePage + 1);
   };
 
   const handlePrev = () => {
-    const prevPage = Math.max(activePage - 1, 1);
-    if (serverSide && onPageChange) onPageChange(prevPage);
-    else setClientPage(prevPage);
+    goToPage(activePage - 1);
+  };
+
+  const handleJumpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = parseInt(jumpInput, 10);
+    if (!isNaN(parsed)) {
+      goToPage(parsed);
+    } else {
+      setJumpInput(String(activePage));
+    }
+  };
+
+  const handleJumpBlur = () => {
+    const parsed = parseInt(jumpInput, 10);
+    if (!isNaN(parsed)) {
+      goToPage(parsed);
+    } else {
+      setJumpInput(String(activePage));
+    }
   };
 
   const handleRowsChange = (val: number) => {
@@ -231,13 +265,17 @@ export function DataTable<T extends { id?: number | string }>({
     >
       {/* FULL TOP BAR */}
       {!hideTopBar && !showCountOnly && (
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-700 p-4 gap-4 bg-white dark:bg-gray-800 relative z-10">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">
+        <div className="flex flex-row flex-wrap items-center justify-between border-b border-gray-200 dark:border-gray-700 px-2.5 sm:px-3.5 py-1.5 sm:py-2 gap-2 bg-white dark:bg-gray-800 relative z-10">
+          <div className="flex flex-row flex-wrap items-center gap-1.5 sm:gap-2.5">
+            {/* Rows Per Page */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
+              <span className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap hidden min-[540px]:inline">
                 Rows per page:
               </span>
-              <div className="w-24 shrink-0">
+              <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap min-[540px]:hidden">
+                Rows:
+              </span>
+              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
                 <Select
                   value={String(activeRows)}
                   onChange={(val) => handleRowsChange(Number(val))}
@@ -246,25 +284,57 @@ export function DataTable<T extends { id?: number | string }>({
                 />
               </div>
             </div>
-            <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">
-              {paginationLabel}
-            </span>
-            <div className="flex items-center space-x-2 shrink-0">
+
+            {/* Subtle Divider */}
+            <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
+
+            {/* Combined Pagination Bar */}
+            <div className="h-[34px] inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-text-secondary dark:text-gray-300 shadow-sm overflow-hidden">
+              {/* Range Count */}
+              <span className="px-2 sm:px-2.5 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px] sm:text-xs">
+                {paginationLabel}
+              </span>
+
+              {/* Previous Button */}
               <button
-                className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                type="button"
+                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
                 onClick={handlePrev}
                 disabled={activePage === 1 || isLoading}
+                title="Previous Page"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={14} />
               </button>
+
+              {/* Page Jumper */}
+              <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 px-1.5 sm:px-2 h-full">
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">Page</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={jumpInput}
+                  onChange={(e) => setJumpInput(e.target.value)}
+                  onBlur={handleJumpBlur}
+                  disabled={isLoading || totalPages <= 1}
+                  className="w-8 sm:w-10 h-5 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all"
+                />
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">
+                  of {totalPages}
+                </span>
+              </form>
+
+              {/* Next Button */}
               <button
-                className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                type="button"
+                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
                 onClick={handleNext}
                 disabled={
                   activePage >= totalPages || activeTotal === 0 || isLoading
                 }
+                title="Next Page"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={14} />
               </button>
             </div>
           </div>
@@ -274,8 +344,8 @@ export function DataTable<T extends { id?: number | string }>({
 
       {/* COUNT ONLY TOP BAR */}
       {showCountOnly && (
-        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 relative z-10">
-          <span className="text-sm text-text-secondary dark:text-gray-400">
+        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-3.5 py-2 bg-white dark:bg-gray-800 relative z-10">
+          <span className="text-xs sm:text-sm text-text-secondary dark:text-gray-400">
             {paginationLabel}
           </span>
           {headerActions && <div className="shrink-0">{headerActions}</div>}
@@ -285,7 +355,7 @@ export function DataTable<T extends { id?: number | string }>({
       {/* SCROLLABLE DATA TABLE */}
       <div
         ref={scrollContainerRef}
-        className="overflow-auto max-h-[65vh] min-h-[300px] relative z-0 custom-scrollbar"
+        className="overflow-auto max-h-[72vh] min-h-[300px] relative z-0 custom-scrollbar"
       >
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
           <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
@@ -400,7 +470,7 @@ export function DataTable<T extends { id?: number | string }>({
                       size={32}
                       className="text-gray-300 dark:text-gray-600 mb-2"
                     />
-                    <span>No records found.</span>
+                    <span>{errorMessage || emptyMessage || "No records found."}</span>
                   </div>
                 </td>
               </tr>
@@ -433,6 +503,44 @@ export function DataTable<T extends { id?: number | string }>({
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
         .table-density-compact th:first-child,
         .table-density-compact td:first-child { min-width: 56px !important; width: 56px !important; }
+
+        .rows-per-page-select {
+          height: 34px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select > div {
+          height: 34px !important;
+          width: 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        }
+        .rows-per-page-select div.relative.w-full {
+          height: 34px !important;
+        }
+        .rows-per-page-select div[class*="rounded-lg"] {
+          height: 34px !important;
+          min-height: 34px !important;
+          max-height: 34px !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select input {
+          height: 32px !important;
+          min-height: 32px !important;
+          max-height: 32px !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          line-height: 32px !important;
+          font-size: 0.8125rem !important;
+        }
+        .rows-per-page-select button {
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+        }
       `,
         }}
       />

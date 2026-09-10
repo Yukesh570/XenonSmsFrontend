@@ -9,13 +9,14 @@ import { CountryFlag } from "../ui/CountryFlag";
 import type {
   SenderIdTranslationPolicy,
   SenderIdTranslationRule,
-  TestTranslationResponse
+  TestTranslationResponse,
 } from "../../api/authorizationApi/senderIdTranslationApi";
 import {
   getSenderTranslationPolicyApi,
   updateSenderTranslationPolicyApi,
   getSenderTranslationRulesApi,
   createSenderTranslationRuleApi,
+  updateSenderTranslationRuleApi,
   deleteSenderTranslationRuleApi,
   testSenderTranslationApi,
 } from "../../api/authorizationApi/senderIdTranslationApi";
@@ -36,6 +37,7 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
 
   // Rule form
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [newRule, setNewRule] = useState<Partial<SenderIdTranslationRule>>({
     action: "FIXED_REPLACE",
     isActive: true,
@@ -93,13 +95,25 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
   const handleAddRule = async () => {
     if (!newRule.sourceSenderId || !newRule.action) return;
     try {
-      await createSenderTranslationRuleApi(clientId, newRule as SenderIdTranslationRule);
+      if (editingRuleId) {
+        await updateSenderTranslationRuleApi(editingRuleId, newRule);
+      } else {
+        await createSenderTranslationRuleApi(clientId, newRule as SenderIdTranslationRule);
+      }
       setShowAddForm(false);
+      setEditingRuleId(null);
+      setNewRule({ action: "FIXED_REPLACE", isActive: true });
       loadData();
     } catch (e) {
       console.error(e);
-      alert("Failed to add rule");
+      alert(editingRuleId ? "Failed to update rule" : "Failed to add rule");
     }
+  };
+
+  const handleEditRule = (rule: SenderIdTranslationRule) => {
+    setEditingRuleId(rule.id!);
+    setNewRule(rule);
+    setShowAddForm(true);
   };
 
   const handleDeleteRule = async (ruleId: number) => {
@@ -117,7 +131,10 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
     if (!testSource || !testDest) return;
     setTestLoading(true);
     try {
-      const res = await testSenderTranslationApi(clientId, { sender_id: testSource, destination: testDest });
+      const res = await testSenderTranslationApi(clientId, {
+        sender_id: testSource,
+        destination: testDest,
+      });
       setTestResult(res);
     } catch (e) {
       console.error(e);
@@ -133,69 +150,109 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
       className="max-w-4xl"
       title={
         <div className="flex items-center gap-2">
-          <Settings className="text-blue-500" />
-          Sender ID Translation (Phase 2)
+          <Settings className="text-primary" size={20} />
+          <span>Sender ID Translation (Phase 2)</span>
         </div>
       }
     >
-      <div className="w-full max-h-[80vh] overflow-y-auto">
-
+      <div className="w-full max-h-[75vh] overflow-y-auto pr-1">
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading...</div>
+          <div className="py-12 text-center text-text-secondary dark:text-gray-400">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
+            <span>Loading...</span>
+          </div>
         ) : (
           <>
-            <div className="flex gap-4 border-b border-gray-200 dark:border-gray-700 mb-6">
+            {/* Tabs Header */}
+            <div className="flex border-b border-gray-200 dark:border-gray-700 gap-6 mb-4">
               <button
-                className={`py-2 px-4 border-b-2 font-medium ${activeTab === "policy" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                type="button"
+                className={`pb-2.5 text-sm font-semibold transition-all border-b-2 -mb-px ${
+                  activeTab === "policy"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
                 onClick={() => setActiveTab("policy")}
               >
                 Policy Settings
               </button>
               <button
-                className={`py-2 px-4 border-b-2 font-medium ${activeTab === "rules" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                type="button"
+                className={`pb-2.5 text-sm font-semibold transition-all border-b-2 -mb-px ${
+                  activeTab === "rules"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
                 onClick={() => setActiveTab("rules")}
               >
                 Translation Rules
               </button>
               <button
-                className={`py-2 px-4 border-b-2 font-medium ${activeTab === "test" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`}
+                type="button"
+                className={`pb-2.5 text-sm font-semibold transition-all border-b-2 -mb-px ${
+                  activeTab === "test"
+                    ? "border-primary text-primary"
+                    : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
                 onClick={() => setActiveTab("test")}
               >
                 Dry-Run Simulation
               </button>
             </div>
 
+            {/* POLICY TAB */}
             {activeTab === "policy" && policy && (
-              <div className="space-y-6">
-                <div className="p-6 border rounded-lg dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between items-center">
+              <div className="space-y-4">
+                <div className="p-4 sm:p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60 flex justify-between items-center gap-4">
                   <div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Enable Phase 2 Translation</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white">
+                      Enable Phase 2 Translation
+                    </h3>
+                    <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 mt-1">
                       Deterministically replaces, strips, or truncates Sender IDs after they pass Phase 1 authorization.
                     </p>
                   </div>
                   <button
+                    type="button"
+                    role="switch"
+                    aria-checked={policy.isActive}
                     onClick={handlePolicyToggle}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${policy.isActive ? 'bg-blue-600' : 'bg-gray-300'}`}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      policy.isActive ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"
+                    }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${policy.isActive ? 'translate-x-6' : 'translate-x-1'}`} />
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        policy.isActive ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
             )}
 
+            {/* RULES TAB */}
             {activeTab === "rules" && (
-              <div className="space-y-4">
-                <div className="flex justify-end">
-                  <Button onClick={() => setShowAddForm(!showAddForm)} className="flex items-center gap-2">
-                    {showAddForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                    {showAddForm ? "Cancel" : "Add Translation Rule"}
-                  </Button>
-                </div>
-
+              <div className="space-y-3">
                 {showAddForm && (
-                  <div className="p-4 border rounded-lg bg-gray-50 dark:bg-gray-900 dark:border-gray-700 space-y-4 mb-6">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60 space-y-3 mb-4 shadow-sm">
+                    <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                      <h4 className="text-sm font-semibold text-text-primary dark:text-white">
+                        {editingRuleId ? "Update Translation Rule" : "New Translation Rule"}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowAddForm(false);
+                          setEditingRuleId(null);
+                        }}
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Select
                           label="Target Country"
@@ -203,11 +260,11 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                           onChange={(val) => setNewRule({ ...newRule, country: val ? Number(val) : null })}
                           options={[
                             { value: "", label: "Global (All Countries)" },
-                            ...countries.map(c => ({
+                            ...countries.map((c) => ({
                               value: String(c.id),
                               label: c.name,
-                              icon: <CountryFlag iso2={c.iso2} width={16} height={12} />
-                            }))
+                              icon: <CountryFlag iso2={c.iso2} width={16} height={12} />,
+                            })),
                           ]}
                           placeholder="Select Country"
                         />
@@ -217,6 +274,8 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                           label="Source Sender ID (Exact Match)"
                           value={newRule.sourceSenderId || ""}
                           onChange={(e) => setNewRule({ ...newRule, sourceSenderId: e.target.value })}
+                          placeholder="e.g. SENDER_ABC"
+                          required
                         />
                       </div>
                       <div>
@@ -229,6 +288,7 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                             { value: "STRIP", label: "Strip" },
                             { value: "TRUNCATE", label: "Truncate" },
                           ]}
+                          clearable={false}
                         />
                       </div>
                       {newRule.action === "FIXED_REPLACE" && (
@@ -237,6 +297,8 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                             label="Replacement Value"
                             value={newRule.replacementSenderId || ""}
                             onChange={(e) => setNewRule({ ...newRule, replacementSenderId: e.target.value })}
+                            placeholder="e.g. NEW_SENDER"
+                            required
                           />
                         </div>
                       )}
@@ -248,17 +310,31 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                             value={newRule.truncateLength || ""}
                             onChange={(e) => setNewRule({ ...newRule, truncateLength: Number(e.target.value) })}
                             placeholder="e.g. 11"
+                            required
                           />
                         </div>
                       )}
                       {newRule.action === "STRIP" && (
-                        <div className="col-span-2 p-3 bg-yellow-50 text-yellow-800 rounded text-sm border border-yellow-200">
+                        <div className="sm:col-span-2 p-2.5 bg-amber-50 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 rounded-lg text-xs border border-amber-200 dark:border-amber-700">
                           <strong>Warning:</strong> Not all downstream vendors accept empty Sender IDs. Ensure your routes support it before enabling STRIP.
                         </div>
                       )}
                     </div>
-                    <div className="flex justify-end">
-                      <Button onClick={handleAddRule}>Save Rule</Button>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setShowAddForm(false);
+                          setEditingRuleId(null);
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="button" variant="primary" size="sm" onClick={handleAddRule}>
+                        {editingRuleId ? "Update Rule" : "Save Rule"}
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -266,14 +342,76 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
                 <DataTable
                   data={rules}
                   headers={["Country", "Original", "Action", "Output Param", "Actions"]}
-                  renderRow={(rule: SenderIdTranslationRule) => (
-                    <tr key={rule.id} className="border-b dark:border-gray-700 text-sm">
-                      <td className="p-3">{rule.country ? countries.find(c => c.id === rule.country)?.name || rule.country : "Global"}</td>
-                      <td className="p-3">{rule.sourceSenderId}</td>
-                      <td className="p-3">{rule.action}</td>
-                      <td className="p-3">{rule.action === "FIXED_REPLACE" ? rule.replacementSenderId : rule.action === "TRUNCATE" ? `Max len: ${rule.truncateLength}` : "Empty"}</td>
-                      <td className="p-3">
-                        <button onClick={() => handleDeleteRule(rule.id!)} className="text-red-500 hover:text-red-700 text-sm font-medium">Delete</button>
+                  density="compact"
+                  headerActions={
+                    !showAddForm ? (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setEditingRuleId(null);
+                          setNewRule({ action: "FIXED_REPLACE", isActive: true });
+                          setShowAddForm(true);
+                        }}
+                        leftIcon={<Plus size={15} />}
+                      >
+                        Add Translation Rule
+                      </Button>
+                    ) : null
+                  }
+                  renderRow={(rule: SenderIdTranslationRule, index: number) => (
+                    <tr
+                      key={rule.id || index}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        {rule.country ? (
+                          <div className="flex items-center gap-2">
+                            <CountryFlag
+                              iso2={countries.find((c) => c.id === rule.country)?.iso2 || ""}
+                              width={16}
+                              height={12}
+                            />
+                            <span className="text-text-primary dark:text-white font-medium">
+                              {countries.find((c) => c.id === rule.country)?.name || rule.country}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-text-secondary dark:text-gray-400">Global</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-text-primary dark:text-white">
+                        {rule.sourceSenderId}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20">
+                          {rule.action}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs">
+                        {rule.action === "FIXED_REPLACE"
+                          ? rule.replacementSenderId
+                          : rule.action === "TRUNCATE"
+                          ? `Max len: ${rule.truncateLength}`
+                          : "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEditRule(rule)}
+                            className="text-primary hover:text-primary-dark font-medium text-xs sm:text-sm transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteRule(rule.id!)}
+                            className="text-red-500 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -281,38 +419,89 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
               </div>
             )}
 
+            {/* TEST TAB */}
             {activeTab === "test" && (
-              <div className="space-y-6">
-                <form onSubmit={handleRunTest} className="grid grid-cols-2 gap-4 items-end bg-gray-50 dark:bg-gray-900 p-6 rounded-lg border dark:border-gray-700">
-                  <div>
-                    <Input label="Source Sender ID" value={testSource} onChange={e => setTestSource(e.target.value)} placeholder="Enter sender ID to test" required />
+              <div className="space-y-4">
+                <form
+                  onSubmit={handleRunTest}
+                  className="space-y-3 bg-gray-50/70 dark:bg-gray-900/60 p-4 rounded-xl border border-gray-200 dark:border-gray-700"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <Input
+                      label="Source Sender ID"
+                      value={testSource}
+                      onChange={(e) => setTestSource(e.target.value)}
+                      placeholder="Enter sender ID to test"
+                      required
+                    />
+                    <Input
+                      label="Destination Number"
+                      value={testDest}
+                      onChange={(e) => setTestDest(e.target.value)}
+                      placeholder="Enter MSISDN"
+                      required
+                    />
                   </div>
-                  <div>
-                    <Input label="Destination Number" value={testDest} onChange={e => setTestDest(e.target.value)} placeholder="Enter MSISDN" required />
+                  <div className="flex justify-start">
+                    <Button type="submit" variant="primary" size="sm" disabled={testLoading}>
+                      {testLoading ? "Simulating..." : "Run Test"}
+                    </Button>
                   </div>
-                  <Button type="submit" disabled={testLoading} className="col-span-2 mt-2">
-                    {testLoading ? "Simulating..." : "Run Test"}
-                  </Button>
                 </form>
 
                 {testResult && (
-                  <div className={`p-6 rounded-lg border-2 ${testResult.is_system_error ? "border-red-500 bg-red-50" : testResult.matched ? "border-green-500 bg-green-50" : "border-gray-300 bg-gray-50"} dark:bg-gray-900`}>
-                    <div className="flex items-center gap-2 mb-4">
+                  <div
+                    className={`p-4 rounded-xl border shadow-card ${
+                      testResult.is_system_error
+                        ? "border-red-200 bg-red-50/70 dark:bg-red-950/30 dark:border-red-800"
+                        : testResult.matched
+                        ? "border-emerald-200 bg-emerald-50/70 dark:bg-emerald-950/30 dark:border-emerald-800"
+                        : "border-gray-200 bg-gray-50/70 dark:bg-gray-900/60 dark:border-gray-700"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-2.5">
                       {testResult.is_system_error ? (
-                        <X className="text-red-600" />
+                        <X className="text-red-600 dark:text-red-400" size={18} />
                       ) : testResult.matched ? (
-                        <Shield className="text-green-600" />
+                        <Shield className="text-emerald-600 dark:text-emerald-400" size={18} />
                       ) : null}
-                      <h4 className={`text-xl font-bold ${testResult.is_system_error ? "text-red-700" : testResult.matched ? "text-green-700" : "text-gray-700 dark:text-gray-300"}`}>
-                        {testResult.is_system_error ? "SYSTEM ERROR" : testResult.matched ? "RULE MATCHED" : "NO MATCH (UNCHANGED)"}
+                      <h4
+                        className={`text-sm sm:text-base font-bold ${
+                          testResult.is_system_error
+                            ? "text-red-700 dark:text-red-300"
+                            : testResult.matched
+                            ? "text-emerald-700 dark:text-emerald-300"
+                            : "text-text-primary dark:text-gray-200"
+                        }`}
+                      >
+                        {testResult.is_system_error
+                          ? "SYSTEM ERROR"
+                          : testResult.matched
+                          ? "RULE MATCHED"
+                          : "NO MATCH (UNCHANGED)"}
                       </h4>
                     </div>
-                    <ul className="space-y-2 text-sm text-gray-800 dark:text-gray-200">
-                      <li><strong>Original Sender:</strong> {testResult.original_sender}</li>
-                      <li><strong>Effective Sender:</strong> <span className="font-mono bg-white dark:bg-black px-2 py-1 rounded">{testResult.effective_sender || "(empty)"}</span></li>
-                      <li><strong>Action Taken:</strong> {testResult.action}</li>
-                      <li><strong>Rule ID:</strong> {testResult.matched_rule_description || testResult.matched_rule_id || "N/A"}</li>
-                      {/* <li><strong>Evaluation Source:</strong> {testResult.source}</li> */}
+                    <ul className="space-y-1.5 text-xs sm:text-sm text-text-secondary dark:text-gray-300">
+                      <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1">
+                        <strong className="text-text-primary dark:text-white">Original Sender:</strong>
+                        <span>{testResult.original_sender}</span>
+                      </li>
+                      <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1">
+                        <strong className="text-text-primary dark:text-white">Effective Sender:</strong>
+                        <span className="font-mono font-semibold bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded shadow-sm text-text-primary dark:text-white">
+                          {testResult.effective_sender || "(empty)"}
+                        </span>
+                      </li>
+                      <li className="flex justify-between border-b border-gray-200/60 dark:border-gray-700/60 pb-1">
+                        <strong className="text-text-primary dark:text-white">Action Taken:</strong>
+                        <span>{testResult.action}</span>
+                      </li>
+                      <li className="flex justify-between">
+                        <strong className="text-text-primary dark:text-white">Rule ID:</strong>
+                        <span>
+                          {testResult.matched_rule_description || testResult.matched_rule_id || "N/A"}
+                        </span>
+                      </li>
                     </ul>
                   </div>
                 )}

@@ -9,6 +9,7 @@ import { getClientsApi } from "../../api/clientApi/clientApi";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
+import DataTable from "../../components/ui/DataTable";
 import { actionHelper } from "../../helper/action";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 
@@ -43,6 +44,7 @@ const FindRoute: React.FC = () => {
   const [tableData, setTableData] = useState<RouteLookupTableRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
 
   const routeName = "client";
 
@@ -84,6 +86,7 @@ const FindRoute: React.FC = () => {
 
     setIsLoading(true);
     setHasSearched(true);
+    setSearchError(null);
     try {
       const response = await getRouteLookupApi(
         routeName,
@@ -91,7 +94,10 @@ const FindRoute: React.FC = () => {
         selectedClientId || undefined
       );
 
-      if (response && response.route && response.route.length > 0) {
+      if (response?.error) {
+        setSearchError(response.error);
+        setTableData([]);
+      } else if (response && response.route && response.route.length > 0) {
         const formattedRows: RouteLookupTableRow[] = response.route.map((item, idx) => ({
           id: item.route_id || idx,
           countryName: response.country?.name || "-",
@@ -134,7 +140,14 @@ const FindRoute: React.FC = () => {
         setTableData([]);
       }
     } catch (error: any) {
-      toast.error("Failed to lookup route for the provided number.");
+      const backendError =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.detail ||
+        (typeof error.response?.data === "string" ? error.response.data : null) ||
+        error.message ||
+        "Failed to lookup route for the provided number.";
+      setSearchError(backendError);
       setTableData([]);
     } finally {
       setIsLoading(false);
@@ -145,6 +158,7 @@ const FindRoute: React.FC = () => {
     setPhoneNumber("");
     setSelectedClientId("");
     setTableData([]);
+    setSearchError(null);
     setHasSearched(false);
   };
 
@@ -234,92 +248,62 @@ const FindRoute: React.FC = () => {
 
       {/* Results Table */}
       {hasSearched && (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-900/50">
-                  {tableHeaders.map((header) => (
-                    <th key={header} className="px-4 py-3.5 whitespace-nowrap">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                {isLoading ? (
-                  <tr>
-                    <td
-                      colSpan={tableHeaders.length}
-                      className="px-4 py-8 text-center text-sm text-text-secondary dark:text-gray-400"
-                    >
-                      Searching routes...
-                    </td>
-                  </tr>
-                ) : tableData.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={tableHeaders.length}
-                      className="px-4 py-8 text-center text-sm text-text-secondary dark:text-gray-400"
-                    >
-                      No records found.
-                    </td>
-                  </tr>
-                ) : (
-                  tableData.map((row, index) => (
-                    <tr
-                      key={row.id || index}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 transition-colors"
-                    >
-                      <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
-                        {index + 1}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium text-text-primary dark:text-white whitespace-nowrap">
-                        {row.countryName}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                        {row.mcc}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                        {row.mnc}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium text-text-primary dark:text-white whitespace-nowrap">
-                        {row.clientName}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium text-text-primary dark:text-white whitespace-nowrap">
-                        {row.routeGroup}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                        {row.smppUsername}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-medium text-text-primary dark:text-white whitespace-nowrap">
-                        {row.terminatingVendor}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-mono text-primary whitespace-nowrap">
-                        {row.systemId}
-                      </td>
-                      <td className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                        {row.companyName}
-                      </td>
-                      <td className="px-4 py-4 text-sm whitespace-nowrap">
-                        <StatusBadge
-                          status={row.routingType === "NO_ROUTE" ? "NO_ROUTE" : "DELIVERED"}
-                          customText={row.routingType}
-                        />
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold text-text-primary dark:text-white whitespace-nowrap">
-                        {row.clientCost != null ? `${row.clientCost} ${row.clientCurrencyCode || ""}` : "-"}
-                      </td>
-                      <td className="px-4 py-4 text-sm font-semibold text-text-primary dark:text-white whitespace-nowrap">
-                        {row.vendorCost != null ? `${row.vendorCost} ${row.vendorCurrencyCode || ""}` : "-"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable
+          data={tableData}
+          headers={tableHeaders}
+          isLoading={isLoading}
+          errorMessage={searchError}
+          density="compact"
+          renderRow={(row, index) => (
+            <tr
+              key={row.id || index}
+              className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 transition-colors text-sm"
+            >
+              <td className="px-4 py-3 text-text-primary dark:text-white">
+                {index + 1}
+              </td>
+              <td className="px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap">
+                {row.countryName}
+              </td>
+              <td className="px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                {row.mcc}
+              </td>
+              <td className="px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                {row.mnc}
+              </td>
+              <td className="px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap">
+                {row.clientName}
+              </td>
+              <td className="px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap">
+                {row.routeGroup}
+              </td>
+              <td className="px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                {row.smppUsername}
+              </td>
+              <td className="px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap">
+                {row.terminatingVendor}
+              </td>
+              <td className="px-4 py-3 font-mono text-primary whitespace-nowrap">
+                {row.systemId}
+              </td>
+              <td className="px-4 py-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                {row.companyName}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
+                <StatusBadge
+                  status={row.routingType === "NO_ROUTE" ? "NO_ROUTE" : "DELIVERED"}
+                  customText={row.routingType}
+                />
+              </td>
+              <td className="px-4 py-3 font-semibold text-text-primary dark:text-white whitespace-nowrap">
+                {row.clientCost != null ? `${row.clientCost} ${row.clientCurrencyCode || ""}` : "-"}
+              </td>
+              <td className="px-4 py-3 font-semibold text-text-primary dark:text-white whitespace-nowrap">
+                {row.vendorCost != null ? `${row.vendorCost} ${row.vendorCurrencyCode || ""}` : "-"}
+              </td>
+            </tr>
+          )}
+        />
       )}
     </div>
   );
