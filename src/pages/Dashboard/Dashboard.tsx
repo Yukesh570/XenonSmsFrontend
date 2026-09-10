@@ -36,7 +36,6 @@ import {
 import Button from "../../components/ui/Button";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import {
-  getClientSessionsApi,
   getClientSessionSummaryApi,
   type ClientSessionSummaryData,
 } from "../../api/clientSessionApi/clientSessionApi";
@@ -256,7 +255,7 @@ const Dashboard: React.FC = () => {
     try {
       const data = await getClientSessionSummaryApi();
       setLiveSessions(data);
-      
+
       // Calculate total active sessions directly from the summary data!
       const totalCount = data.reduce((sum, item) => sum + (item.active_sessions || 0), 0);
       setActiveSessionsCount(totalCount);
@@ -422,7 +421,6 @@ const Dashboard: React.FC = () => {
     const wsUrl = `${wsBase}/ws/status/`;
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
-    let sessionUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
@@ -447,7 +445,7 @@ const Dashboard: React.FC = () => {
         try {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
-          
+
           if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
 
