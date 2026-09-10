@@ -251,28 +251,19 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchActiveSessions = async () => {
-    try {
-      const [connectedRes, boundRes] = await Promise.all([
-        getClientSessionsApi("clientSession", 1, 5, { status: "CONNECTED" }),
-        getClientSessionsApi("clientSession", 1, 5, { status: "BOUND" }),
-      ]);
-      const connectedCount = connectedRes?.count ?? 0;
-      const boundCount = boundRes?.count ?? 0;
-      setActiveSessionsCount(connectedCount + boundCount);
-    } catch (e) {
-      console.error("fetchActiveSessions failed", e);
-    }
-  };
-
   const fetchClientSessionSummary = async () => {
     setIsLiveSessionsLoading(true);
     try {
       const data = await getClientSessionSummaryApi();
       setLiveSessions(data);
+      
+      // Calculate total active sessions directly from the summary data!
+      const totalCount = data.reduce((sum, item) => sum + (item.active_sessions || 0), 0);
+      setActiveSessionsCount(totalCount);
     } catch (e) {
       console.error("fetchClientSessionSummary failed", e);
       setLiveSessions([]);
+      setActiveSessionsCount("-");
     } finally {
       setIsLiveSessionsLoading(false);
     }
@@ -417,7 +408,6 @@ const Dashboard: React.FC = () => {
   }, [activeRange, selectedFailureCategory]);
 
   useEffect(() => {
-    fetchActiveSessions();
     fetchClientSessionSummary();
     fetchOnlineVendors();
     fetchOnlineClients();
@@ -432,7 +422,6 @@ const Dashboard: React.FC = () => {
     const wsUrl = `${wsBase}/ws/status/`;
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
-
     let sessionUpdateTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const connectWebSocket = () => {
@@ -458,16 +447,17 @@ const Dashboard: React.FC = () => {
         try {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
-          if (payload.action === "session_update") {
-            if (!sessionUpdateTimeout) {
-              sessionUpdateTimeout = setTimeout(() => {
-                sessionUpdateTimeout = null;
-                if (isMetricsLiveRef.current) fetchActiveSessions();
-                if (isAnalyticsLiveRef.current) fetchClientSessionSummary();
-              }, 5000);
-            }
-          } else if (payload.action === "dashboard_metrics_update") {
+          
+          if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
+
+            const currentPath = window.location.pathname;
+            // Only fetch if the user is actually looking at the dashboard!
+            if (currentPath === "/dashboard" || currentPath === "/") {
+              if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
+                fetchClientSessionSummary();
+              }
+            }
 
             if (isMetricsLiveRef.current && activeRangeRef.current === "today") {
               if (data.smsStats) {
