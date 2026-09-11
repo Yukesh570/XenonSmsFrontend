@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   getGroupedCustomRoutesApi,
   getCustomRoutesApi,
+  deleteRouteGroupApi,
 } from "../../api/routeManagerApi/customRouteApi";
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
 import { CustomRouteModal } from "../../components/modals/RouteManager/CustomRouteModal";
 import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
+import { DeleteModal } from "../../components/modals/DeleteModal";
 
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -85,6 +87,10 @@ const CustomRoute: React.FC = () => {
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false);
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [routeGroupToDelete, setRouteGroupToDelete] = useState<any | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;
@@ -473,6 +479,30 @@ const CustomRoute: React.FC = () => {
     setIsCreateModalOpen(true);
   };
 
+  const handleDeleteGroup = () => {
+    setRouteGroupToDelete(selectedRowGroup);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteGroup = async () => {
+    if (!routeGroupToDelete) return;
+    setIsDeleting(true);
+    try {
+      await deleteRouteGroupApi(routeGroupToDelete.id);
+      toast.success("Route Group deleted successfully.");
+      setIsDeleteModalOpen(false);
+      setRouteGroupToDelete(null);
+      fetchGroupedRoutes({});
+      actionHelper("Custom Route", `Deleted Route Group: ${routeGroupToDelete.name || routeGroupToDelete.id}`, true);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete Route Group.");
+      actionHelper("Custom Route", `Failed to delete Route Group: ${routeGroupToDelete.name || routeGroupToDelete.id}`, false);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleContextMenu = (e: React.MouseEvent, groupItem: any) => {
     e.preventDefault();
     setContextMenuPos({ x: e.clientX, y: e.clientY });
@@ -494,6 +524,15 @@ const CustomRoute: React.FC = () => {
             onClick: () => {
               setIsEditGroupModalOpen(true);
             },
+          },
+        ]
+        : []),
+      ...(canDelete
+        ? [
+          {
+            label: "Delete Route Group",
+            icon: <Trash2 size={16} color="red" />,
+            onClick: handleDeleteGroup,
           },
         ]
         : []),
@@ -764,6 +803,21 @@ const CustomRoute: React.FC = () => {
         editingRoute={null}
         isEditingGroupStatus={true}
         groupData={selectedRowGroup}
+      />
+
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDeleteGroup}
+        title="Delete Route Group"
+        message={
+          <>
+            Are you sure you want to delete the Route Group "{routeGroupToDelete?.name}"?
+            <br />
+            This action cannot be undone.
+          </>
+        }
+        isDeleting={isDeleting}
       />
     </div>
   );
