@@ -37,6 +37,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [existingRecords, setExistingRecords] = useState<IpWhitelistData[]>([]);
   const [showExisting, setShowExisting] = useState(false);
   const activeClientIdRef = useRef<number | null>(null);
@@ -45,6 +46,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
     if (fixedClient) {
       const requestedClientId = fixedClient.id;
       activeClientIdRef.current = requestedClientId;
+      setIsLoadingRecords(true);
       try {
         const res = await getIpWhitelistApi("ipWhitelist", 1, 1000, {
           client: requestedClientId,
@@ -56,6 +58,8 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
         setExistingRecords(filtered);
       } catch (e) {
         console.error("Failed to load existing access control records", e);
+      } finally {
+        setIsLoadingRecords(false);
       }
     }
   };
@@ -81,6 +85,13 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
     setExistingRecords([]);
     setShowExisting(false);
     onClose();
+  };
+
+  const handleToggleView = () => {
+    if (!showExisting && existingRecords.length === 0 && !isLoadingRecords) {
+      fetchRecords();
+    }
+    setShowExisting((prev) => !prev);
   };
 
   useEffect(() => {
@@ -247,79 +258,90 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
       </form>
 
       {/* Existing Records Section */}
-      {existingRecords.length > 0 && (
-        <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-semibold text-primary">
-              Existing Access Control Records
-            </h3>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowExisting(!showExisting)}
-            >
-              {showExisting ? "Hide" : "View"}
-            </Button>
-          </div>
-
-          {showExisting && (
-            <div className="space-y-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
-              {/* IP Tags */}
-              {existingRecords.filter((r) => r.access_type === "IP").length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Saved IPs</p>
-                  <div className="flex flex-wrap gap-2">
-                    {existingRecords
-                      .filter((r) => r.access_type === "IP")
-                      .map((r) => (
-                        <span
-                          key={r.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
-                        >
-                          {r.ip}
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(r)}
-                            className="ml-1 text-blue-500 hover:text-red-500 dark:text-blue-400 dark:hover:text-red-400 transition-colors"
-                            title={`Remove ${r.ip}`}
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-              {/* Hostname Tags */}
-              {existingRecords.filter((r) => r.access_type === "HOSTNAME" || r.access_type === "HOST").length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Saved Hostnames</p>
-                  <div className="flex flex-wrap gap-2">
-                    {existingRecords
-                      .filter((r) => r.access_type === "HOSTNAME" || r.access_type === "HOST")
-                      .map((r) => (
-                        <span
-                          key={r.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
-                        >
-                          {r.hostname}
-                          <button
-                            type="button"
-                            onClick={() => handleDelete(r)}
-                            className="ml-1 text-purple-500 hover:text-red-500 dark:text-purple-400 dark:hover:text-red-400 transition-colors"
-                            title={`Remove ${r.hostname}`}
-                          >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+      <div className="mt-6 pt-4 border-t border-gray-100 dark:border-gray-700">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-semibold text-primary">
+            Existing Access Control Records
+          </h3>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleToggleView}
+          >
+            {showExisting ? "Hide" : "View"}
+          </Button>
         </div>
-      )}
+
+        {showExisting && (
+          <div className="space-y-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
+            {isLoadingRecords ? (
+              <div className="flex items-center justify-center py-2 text-sm text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
+                Loading records...
+              </div>
+            ) : existingRecords.length === 0 ? (
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
+                No existing access control records found.
+              </p>
+            ) : (
+              <>
+                {/* IP Tags */}
+                {existingRecords.filter((r) => r.access_type === "IP").length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Saved IPs</p>
+                    <div className="flex flex-wrap gap-2">
+                      {existingRecords
+                        .filter((r) => r.access_type === "IP")
+                        .map((r) => (
+                          <span
+                            key={r.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300"
+                          >
+                            {r.ip}
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(r)}
+                              className="ml-1 text-blue-500 hover:text-red-500 dark:text-blue-400 dark:hover:text-red-400 transition-colors"
+                              title={`Remove ${r.ip}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                {/* Hostname Tags */}
+                {existingRecords.filter((r) => r.access_type === "HOSTNAME" || r.access_type === "HOST").length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wide">Saved Hostnames</p>
+                    <div className="flex flex-wrap gap-2">
+                      {existingRecords
+                        .filter((r) => r.access_type === "HOSTNAME" || r.access_type === "HOST")
+                        .map((r) => (
+                          <span
+                            key={r.id}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
+                          >
+                            {r.hostname}
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(r)}
+                              className="ml-1 text-purple-500 hover:text-red-500 dark:text-purple-400 dark:hover:text-red-400 transition-colors"
+                              title={`Remove ${r.hostname}`}
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
     </Modal>
   );
 };
