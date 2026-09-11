@@ -100,8 +100,11 @@ export const deleteClientApi = async (
 };
 
 // --- NEW: Generate Credentials API ---
-export const generateCredentialsApi = async (): Promise<{ username: string; password: string }> => {
-  const response = await api.get(`/generate-credentials`);
+export const generateCredentialsApi = async (companyName?: string): Promise<{ username: string; password: string }> => {
+  const url = companyName 
+    ? `/generate-credentials/?company_name=${encodeURIComponent(companyName)}`
+    : `/generate-credentials/`;
+  const response = await api.get(url);
   return response.data;
 };
 
