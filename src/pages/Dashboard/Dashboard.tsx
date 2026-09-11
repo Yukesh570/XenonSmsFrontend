@@ -446,6 +446,15 @@ const Dashboard: React.FC = () => {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
 
+          if (payload.status === "DISCONNECTED" || payload.status === "OFFLINE") {
+            setActiveSessionsCount((prev) => {
+              if (typeof prev === "number" && prev > 0) {
+                return prev - 1;
+              }
+              return prev;
+            });
+          }
+
           if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
 
