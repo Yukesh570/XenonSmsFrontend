@@ -72,6 +72,14 @@ export const updateRouteGroupApi = async (
   return response.data;
 };
 
+// DELETE GROUPED ROUTES
+export const deleteRouteGroupApi = async (
+  id: number,
+  _module?: string,
+): Promise<void> => {
+  await api.delete(`/routeGroup/${id}/`);
+};
+
 // GET DETAILED ROUTES (For Sub-Table inside Modal)
 export const getCustomRoutesApi = async (
   _module?: string,
