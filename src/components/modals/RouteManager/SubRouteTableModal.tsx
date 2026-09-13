@@ -1233,7 +1233,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         <div className="p-3 sm:p-4 flex flex-col gap-3.5 min-w-0 w-full">
 
           {/* Country Config (collapsible) */}
-          <div className="border-2 border-primary/20 dark:border-primary/30 rounded-xl bg-primary/[0.03] dark:bg-primary/[0.06] shadow-sm relative">
+          <div className="border-2 border-primary/20 dark:border-primary/30 rounded-xl bg-primary/[0.03] dark:bg-primary/[0.06] shadow-sm relative shrink-0">
             <button
               type="button"
               className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-primary/[0.07] dark:bg-primary/[0.12] text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-primary/[0.11] dark:hover:bg-primary/[0.16] transition-colors ${configSectionOpen ? 'rounded-t-xl' : 'rounded-xl'}`}
@@ -1392,7 +1392,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-0.5">
+          <div className="flex items-center gap-3 my-0.5 shrink-0">
             <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
               Routes by Country
@@ -1401,7 +1401,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           </div>
 
           {/* Per-country sections */}
-          <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[65vh] min-w-0 w-full">
+          <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[65vh] min-w-0 w-full custom-scrollbar pr-1">
             {sections.length === 0 && (
               <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
                 No countries configured. Open <strong>Country Routing Configuration</strong> above to add one.
@@ -1471,7 +1471,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
               return (
                 <div
                   key={countryId}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full"
+                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full shrink-0"
                 >
                   {/* Section header with Upper Bar Search Filters */}
                   <div
