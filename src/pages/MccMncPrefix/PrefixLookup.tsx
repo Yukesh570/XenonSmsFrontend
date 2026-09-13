@@ -170,13 +170,23 @@ const PrefixLookup: React.FC = () => {
 
       setTableData(formattedRows);
     } catch (error: any) {
-      const backendError =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.response?.data?.detail ||
-        (typeof error.response?.data === "string" ? error.response.data : null) ||
-        error.message ||
-        "Failed to lookup prefix for the provided number.";
+      let backendError = "Failed to lookup prefix for the provided number.";
+      if (error.response?.status === 404) {
+        backendError = "No prefix match found for this number.";
+      } else if (error.response?.data && typeof error.response.data === "object") {
+        backendError =
+          error.response.data.error ||
+          error.response.data.message ||
+          error.response.data.detail ||
+          backendError;
+      } else if (
+        typeof error.response?.data === "string" &&
+        !error.response.data.trim().startsWith("<")
+      ) {
+        backendError = error.response.data;
+      } else if (error.message && !error.message.includes("status code 404")) {
+        backendError = error.message;
+      }
       setSearchError(backendError);
       setTableData([]);
     } finally {
