@@ -41,13 +41,24 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
   const activeDefaultColumns = defaultColumns;
   const DROPDOWN_WIDTH = 280;
 
+  // Auto-merge any defaultColumns from code that are missing in selectedColumns (e.g. from older localStorage)
   useEffect(() => {
-    setTempSelectedKeys(selectedColumns);
-  }, [selectedColumns]);
+    if (!defaultColumns || defaultColumns.length === 0) return;
+    const missingDefaults = defaultColumns.filter((k) => !selectedColumns.includes(k));
+    if (missingDefaults.length > 0) {
+      const merged = Array.from(new Set([...defaultColumns, ...selectedColumns]));
+      onFilter(merged);
+    }
+  }, [defaultColumns, selectedColumns, onFilter]);
+
+  useEffect(() => {
+    const combined = Array.from(new Set([...activeDefaultColumns, ...selectedColumns]));
+    setTempSelectedKeys(combined);
+  }, [selectedColumns, activeDefaultColumns]);
 
   const handleToggleColumn = (key: string) => {
-    if (activeDefaultColumns.includes(key) && tempSelectedKeys.includes(key)) {
-      return;
+    if (activeDefaultColumns.includes(key)) {
+      return; // Default columns are permanently locked
     }
 
     setTempSelectedKeys((prev) =>
@@ -64,7 +75,8 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
   };
 
   const handleApply = (close: () => void) => {
-    onFilter(tempSelectedKeys);
+    const finalKeys = Array.from(new Set([...activeDefaultColumns, ...tempSelectedKeys]));
+    onFilter(finalKeys);
     close();
   };
 
@@ -124,8 +136,8 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
 
   // Column Item Renderer
   const renderColumnItem = (col: FilterColumn) => {
-    const isSelected = tempSelectedKeys.includes(col.key);
     const isDefault = activeDefaultColumns.includes(col.key);
+    const isSelected = isDefault || tempSelectedKeys.includes(col.key);
 
     return (
       <div
@@ -139,21 +151,21 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
         <button
           type="button"
           onClick={() => handleToggleColumn(col.key)}
-          disabled={isDefault && isSelected}
+          disabled={isDefault}
           className={`flex items-center gap-2 flex-1 text-left min-w-0 ${
-            isDefault && isSelected ? "cursor-not-allowed opacity-90" : "cursor-pointer"
+            isDefault ? "cursor-not-allowed opacity-90" : "cursor-pointer"
           }`}
         >
           <div
             className={`flex items-center justify-center w-4 h-4 rounded border transition-colors flex-shrink-0 ${
-              isDefault && isSelected
+              isDefault
                 ? "bg-gray-200 dark:bg-gray-700 border-gray-300 dark:border-gray-600 text-primary"
                 : isSelected
                 ? "bg-primary border-primary text-white"
                 : "border-gray-300 dark:border-gray-500 bg-white dark:bg-gray-800"
             }`}
           >
-            {isDefault && isSelected ? (
+            {isDefault ? (
               <Lock size={10} className="text-primary" />
             ) : (
               isSelected && <Check size={10} />
@@ -175,6 +187,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
           <StateResetter
             open={open}
             selectedColumns={selectedColumns}
+            defaultColumns={activeDefaultColumns}
             setTempSelectedKeys={setTempSelectedKeys}
             updatePosition={updatePosition}
           />
@@ -361,16 +374,18 @@ const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const StateResetter: React.FC<{
   open: boolean;
   selectedColumns: string[];
+  defaultColumns: string[];
   setTempSelectedKeys: (keys: string[]) => void;
   updatePosition: () => void;
-}> = ({ open, selectedColumns, setTempSelectedKeys, updatePosition }) => {
+}> = ({ open, selectedColumns, defaultColumns, setTempSelectedKeys, updatePosition }) => {
   useEffect(() => {
     if (open) {
       updatePosition();
     } else {
-      setTempSelectedKeys(selectedColumns);
+      const combined = Array.from(new Set([...defaultColumns, ...selectedColumns]));
+      setTempSelectedKeys(combined);
     }
-  }, [open, selectedColumns, setTempSelectedKeys, updatePosition]);
+  }, [open, selectedColumns, defaultColumns, setTempSelectedKeys, updatePosition]);
 
   return null;
 };
