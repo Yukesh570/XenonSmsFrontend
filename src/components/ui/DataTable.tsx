@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import Select from "./Select";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   ChevronLeft,
   ChevronRight,
@@ -188,9 +189,18 @@ export function DataTable<T extends { id?: number | string }>({
     activeTotal,
   )} of ${activeTotal}`;
 
+  // Check if first column is an S.N. column (non-reorderable serial number)
+  const hasSnColumn =
+    headers.length > 0 &&
+    typeof headers[0] === "string" &&
+    (headers[0].trim() === "S.N." ||
+      headers[0].trim() === "SN" ||
+      headers[0].trim() === "#");
+  const columnOffset = hasSnColumn ? 1 : 0;
+
   // Drag Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (index === 0) return; // Skip S.N. column
+    if (hasSnColumn && index === 0) return;
     hasDraggedRef.current = true;
     setDraggedHeaderIdx(index);
     e.dataTransfer.effectAllowed = "move";
@@ -198,7 +208,13 @@ export function DataTable<T extends { id?: number | string }>({
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (index === 0 || draggedHeaderIdx === null || draggedHeaderIdx === index) return;
+    if (
+      (hasSnColumn && index === 0) ||
+      draggedHeaderIdx === null ||
+      draggedHeaderIdx === index
+    ) {
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
@@ -207,12 +223,14 @@ export function DataTable<T extends { id?: number | string }>({
     const midpoint = rect.left + rect.width / 2;
     const side = e.clientX < midpoint ? "left" : "right";
 
-    setDragOverHeaderIdx(index);
-    setDropSide(side);
+    if (dragOverHeaderIdx !== index || dropSide !== side) {
+      setDragOverHeaderIdx(index);
+      setDropSide(side);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+    if (e.relatedTarget && !e.currentTarget.contains(e.relatedTarget as Node)) {
       setDragOverHeaderIdx(null);
       setDropSide(null);
     }
@@ -222,22 +240,34 @@ export function DataTable<T extends { id?: number | string }>({
     e.preventDefault();
     if (
       draggedHeaderIdx !== null &&
-      index !== 0 &&
+      (!hasSnColumn || index !== 0) &&
       draggedHeaderIdx !== index &&
       onReorderColumns
     ) {
-      // Calculate target index offset by S.N. column (-1)
-      let targetIdx = index - 1;
-      let fromIdx = draggedHeaderIdx - 1;
+      // Calculate drop position accurately from cursor coordinates
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midpoint = rect.left + rect.width / 2;
+      const currentSide = e.clientX < midpoint ? "left" : "right";
 
-      // Adjust target position if dropped on right half
-      if (dropSide === "right" && targetIdx < fromIdx) {
-        targetIdx += 1;
-      } else if (dropSide === "left" && targetIdx > fromIdx) {
-        targetIdx -= 1;
+      const fromIdx = draggedHeaderIdx - columnOffset;
+      const targetDataIdx = index - columnOffset;
+
+      let toIdx = targetDataIdx;
+      if (fromIdx < targetDataIdx) {
+        // Dragging right / forward:
+        // Dropping on left half means inserting before target -> targetDataIdx - 1
+        // Dropping on right half means inserting after target -> targetDataIdx
+        toIdx = currentSide === "left" ? targetDataIdx - 1 : targetDataIdx;
+      } else if (fromIdx > targetDataIdx) {
+        // Dragging left / backward:
+        // Dropping on left half means inserting before target -> targetDataIdx
+        // Dropping on right half means inserting after target -> targetDataIdx + 1
+        toIdx = currentSide === "left" ? targetDataIdx : targetDataIdx + 1;
       }
 
-      onReorderColumns(fromIdx, targetIdx);
+      if (toIdx !== fromIdx && toIdx >= 0) {
+        onReorderColumns(fromIdx, toIdx);
+      }
     }
 
     setDraggedHeaderIdx(null);
@@ -245,7 +275,7 @@ export function DataTable<T extends { id?: number | string }>({
     setDropSide(null);
     setTimeout(() => {
       hasDraggedRef.current = false;
-    }, 100);
+    }, 200);
   };
 
   const handleDragEnd = () => {
@@ -254,7 +284,7 @@ export function DataTable<T extends { id?: number | string }>({
     setDropSide(null);
     setTimeout(() => {
       hasDraggedRef.current = false;
-    }, 100);
+    }, 200);
   };
 
   return (
@@ -361,10 +391,10 @@ export function DataTable<T extends { id?: number | string }>({
           <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
             <tr>
               {headers.map((header, i) => {
-                const isDraggable = Boolean(onReorderColumns && i > 0);
+                const isDraggable = Boolean(onReorderColumns && (!hasSnColumn || i > 0));
                 const isBeingDragged = draggedHeaderIdx === i;
                 const isDragOver = dragOverHeaderIdx === i;
-                const isSortable = Boolean(onSort && i > 0);
+                const isSortable = Boolean(onSort && (!hasSnColumn || i > 0));
                 const isSorted = sortColumnIndex === i;
 
                 return (
@@ -448,11 +478,10 @@ export function DataTable<T extends { id?: number | string }>({
                   className="p-0 border-none"
                 >
                   <div
-                    className="sticky left-0 flex flex-col items-center justify-center py-16 text-center text-text-secondary dark:text-gray-400"
+                    className="sticky left-0"
                     style={{ width: containerWidth ? `${containerWidth}px` : "100%" }}
                   >
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-                    <span>Loading...</span>
+                    <LoadingSpinner className="py-16" />
                   </div>
                 </td>
               </tr>

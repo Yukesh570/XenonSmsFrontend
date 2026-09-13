@@ -51,6 +51,6 @@ export const getClientSessionsApi = async (
 
 // GET (Read-Only)
 export const getClientSessionSummaryApi = async (): Promise<ClientSessionSummaryData[]> => {
-  const response = await api.get(`/clientSession/`);
+  const response = await api.get(`/clientSessionSummary/`);
   return response.data;
 };

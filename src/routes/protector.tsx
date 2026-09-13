@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useContext } from "react";
 import { NavItemsContext } from "../context/navItemsContext";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 
 interface ProtectedRouteProps {
   path: string;
@@ -15,7 +16,7 @@ export const ProtectedRoute = ({ path }: ProtectedRouteProps) => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+        <LoadingSpinner size="lg" text={false} />
       </div>
     );
   }

@@ -14,6 +14,7 @@ import {
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import Cropper from 'react-easy-crop';
+import LoadingSpinner from "../../../components/ui/LoadingSpinner";
 
 import {
   getGeneralSettingsApi,
@@ -286,10 +287,7 @@ const GeneralSettings: React.FC = () => {
         </div>
 
         {isLoading ? (
-          <div className="p-10 flex flex-col items-center justify-center space-y-4">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-            <p className="text-gray-500 dark:text-gray-400 text-sm">Loading Configuration...</p>
-          </div>
+          <LoadingSpinner size="lg" text="Loading Configuration..." className="p-10" />
         ) : (
           <div className="animate-in fade-in zoom-in-95 duration-200">
             {activeTab === "setup" && (

@@ -3,47 +3,44 @@ import { Home, Search, RotateCcw, Info } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import { getRouteLookupApi } from "../../api/routeLookupApi/routeLookupApi";
-import { getClientsApi } from "../../api/clientApi/clientApi";
+import { getPrefixLookupApi, type PrefixLookupData } from "../../api/prefixLookupApi/prefixLookupApi";
 
 import Input from "../../components/ui/Input";
-import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 import DataTable from "../../components/ui/DataTable";
 import { actionHelper } from "../../helper/action";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 
-interface Option {
-  label: string;
-  value: string;
-}
-
-interface RouteLookupTableRow {
+export interface PrefixLookupTableRow {
   id: string | number;
+  searchedNumber: string;
+  normalizedNumber: string;
   countryName: string;
   mcc: string;
   mnc: string;
-  clientName: string;
-  routeGroup: string;
-  smppUsername: string;
-  terminatingVendor: string;
-  systemId: string;
-  companyName: string;
-  routingType: string;
-  clientCost?: number;
-  vendorCost?: number;
-  clientCurrencyCode?: string;
-  vendorCurrencyCode?: string;
+  mccmnc: string;
+  operator: string;
+  matchedPrefixStart: string;
+  matchedPrefixEnd: string;
 }
 
 interface ColumnDef {
-  key: keyof RouteLookupTableRow;
+  key: keyof PrefixLookupTableRow;
   label: string;
   className?: string;
-  render?: (row: RouteLookupTableRow) => React.ReactNode;
+  render?: (row: PrefixLookupTableRow) => React.ReactNode;
 }
 
 const DEFAULT_COLUMNS: ColumnDef[] = [
+  {
+    key: "searchedNumber",
+    label: "Searched Number",
+    className: "px-4 py-3 font-mono text-text-primary dark:text-white whitespace-nowrap",
+  },
+  {
+    key: "normalizedNumber",
+    label: "Normalized Number",
+    className: "px-4 py-3 font-mono text-primary font-medium whitespace-nowrap",
+  },
   {
     key: "countryName",
     label: "Country Name",
@@ -60,68 +57,35 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
     className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
   },
   {
-    key: "clientName",
-    label: "Client Name",
-    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "routeGroup",
-    label: "Route Group",
-    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "smppUsername",
-    label: "SMPP Username",
-    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-  {
-    key: "terminatingVendor",
-    label: "Terminating Vendor",
-    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "systemId",
-    label: "System ID",
-    className: "px-4 py-3 font-mono text-primary whitespace-nowrap",
-  },
-  {
-    key: "companyName",
-    label: "Company Name",
-    className: "px-4 py-3 text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-  {
-    key: "routingType",
-    label: "Routing Type",
-    className: "px-4 py-3 whitespace-nowrap",
+    key: "mccmnc",
+    label: "MCC/MNC",
+    className: "px-4 py-3 font-mono font-medium text-text-primary dark:text-white whitespace-nowrap",
     render: (row) => (
-      <StatusBadge
-        status={row.routingType === "NO_ROUTE" ? "NO_ROUTE" : "DELIVERED"}
-        customText={row.routingType}
-      />
+      <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">
+        {row.mccmnc}
+      </span>
     ),
   },
   {
-    key: "clientCost",
-    label: "Client Cost",
-    className: "px-4 py-3 font-semibold text-text-primary dark:text-white whitespace-nowrap",
-    render: (row) =>
-      row.clientCost != null ? `${row.clientCost} ${row.clientCurrencyCode || ""}` : "-",
+    key: "operator",
+    label: "Operator",
+    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
   },
   {
-    key: "vendorCost",
-    label: "Vendor Cost",
-    className: "px-4 py-3 font-semibold text-text-primary dark:text-white whitespace-nowrap",
-    render: (row) =>
-      row.vendorCost != null ? `${row.vendorCost} ${row.vendorCurrencyCode || ""}` : "-",
+    key: "matchedPrefixStart",
+    label: "Prefix Range Start",
+    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
+  },
+  {
+    key: "matchedPrefixEnd",
+    label: "Prefix Range End",
+    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
   },
 ];
 
-const FindRoute: React.FC = () => {
+const PrefixLookup: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [clientOptions, setClientOptions] = useState<Option[]>([]);
-
-  const [tableData, setTableData] = useState<RouteLookupTableRow[]>([]);
+  const [tableData, setTableData] = useState<PrefixLookupTableRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -129,44 +93,25 @@ const FindRoute: React.FC = () => {
   // Column Reordering & Sorting state
   const [columns, setColumns] = useState<ColumnDef[]>(DEFAULT_COLUMNS);
   const [sortConfig, setSortConfig] = useState<{
-    key: keyof RouteLookupTableRow;
+    key: keyof PrefixLookupTableRow;
     direction: "asc" | "desc";
   } | null>(null);
-
-  const routeName = "client";
 
   const hasLoggedOpening = useRef(false);
   useEffect(() => {
     if (!hasLoggedOpening.current) {
       setTimeout(() => {
-        actionHelper("Find Route", "Opened Find Route Module", false);
+        actionHelper("Prefix Lookup", "Opened Prefix Lookup Module", false);
       }, 100);
       hasLoggedOpening.current = true;
     }
   }, []);
 
-  // Fetch Clients for Dropdown
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        const res: any = await getClientsApi("client", 1, 1000);
-        const list = res.results || (Array.isArray(res) ? res : []);
-        const options: Option[] = list.map((c: any) => ({
-          label: c.name || `Client ${c.id}`,
-          value: String(c.id),
-        }));
-        setClientOptions(options.sort((a, b) => a.label.localeCompare(b.label)));
-      } catch (err) {
-        console.error("Failed to load clients", err);
-      }
-    };
-    loadClients();
-  }, []);
-
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    if (!phoneNumber.trim()) {
+    const trimmed = phoneNumber.trim();
+    if (!trimmed) {
       toast.error("Please enter a phone number to search.");
       return;
     }
@@ -174,61 +119,60 @@ const FindRoute: React.FC = () => {
     setIsLoading(true);
     setHasSearched(true);
     setSearchError(null);
+
     try {
-      const response = await getRouteLookupApi(
-        routeName,
-        phoneNumber.trim(),
-        selectedClientId || undefined
-      );
+      const response = await getPrefixLookupApi(trimmed);
 
       if (response?.error) {
         setSearchError(response.error);
         setTableData([]);
-      } else if (response && response.route && response.route.length > 0) {
-        const formattedRows: RouteLookupTableRow[] = response.route.map((item, idx) => ({
-          id: item.route_id || idx,
-          countryName: response.country?.name || "-",
-          mcc: item.mcc || response.mcc || "-",
-          mnc: item.mnc || response.mnc || "-",
-          clientName: item.client?.name || response.client?.name || "-",
-          routeGroup: item.route_group || "-",
-          smppUsername: item.client?.smpp_username || response.client?.smpp_username || "-",
-          terminatingVendor: item.terminating_vendor?.name || "-",
-          systemId: item.terminating_vendor?.system_id || "-",
-          companyName: item.terminating_vendor?.company_name || "-",
-          routingType: response.routing_type || "-",
-          clientCost: item.client_cost,
-          vendorCost: item.vendor_cost,
-          clientCurrencyCode: item.client?.currencyCode || response.client?.currencyCode,
-          vendorCurrencyCode: item.terminating_vendor?.currencyCode,
-        }));
-        setTableData(formattedRows);
-      } else if (response && (response.country || response.client || response.mcc)) {
-        const fallbackRow: RouteLookupTableRow = {
-          id: "no-route-found",
-          countryName: response.country?.name || "-",
-          mcc: response.mcc || "-",
-          mnc: response.mnc || "-",
-          clientName: response.client?.name || "-",
-          routeGroup: "-",
-          smppUsername: response.client?.smpp_username || "-",
-          terminatingVendor: "-",
-          systemId: "-",
-          companyName: "-",
-          routingType: response.routing_type || "NO_ROUTE",
-          clientCost: undefined,
-          vendorCost: undefined,
-          clientCurrencyCode: response.client?.currencyCode,
-          vendorCurrencyCode: undefined,
-        };
-        setTableData([fallbackRow]);
-      } else {
-        setTableData([]);
+        return;
       }
+
+      let items: any[] = [];
+      if (Array.isArray(response)) {
+        items = response;
+      } else if (response?.results && Array.isArray(response.results)) {
+        items = response.results;
+      } else if (response && typeof response === "object") {
+        if (
+          !response.searched_number &&
+          !response.normalized_number &&
+          !response.operator &&
+          !response.country &&
+          !response.mccmnc
+        ) {
+          setTableData([]);
+          setSearchError("No prefix match found for this number.");
+          return;
+        }
+        items = [response];
+      }
+
+      if (items.length === 0) {
+        setTableData([]);
+        setSearchError("No prefix match found for this number.");
+        return;
+      }
+
+      const formattedRows: PrefixLookupTableRow[] = items.map((item: PrefixLookupData, idx: number) => ({
+        id: idx + 1,
+        searchedNumber: item.searched_number || trimmed,
+        normalizedNumber: item.normalized_number || item.searched_number || trimmed,
+        countryName: item.country?.name || "-",
+        mcc: item.mcc || "-",
+        mnc: item.mnc || "-",
+        mccmnc: item.mccmnc || (item.mcc && item.mnc ? `${item.mcc}${item.mnc}` : "-"),
+        operator: item.operator || "-",
+        matchedPrefixStart: item.matchedPrefixStart != null ? String(item.matchedPrefixStart) : "-",
+        matchedPrefixEnd: item.matchedPrefixEnd != null ? String(item.matchedPrefixEnd) : "-",
+      }));
+
+      setTableData(formattedRows);
     } catch (error: any) {
-      let backendError = "Failed to lookup route for the provided number.";
+      let backendError = "Failed to lookup prefix for the provided number.";
       if (error.response?.status === 404) {
-        backendError = "No route match found for this number.";
+        backendError = "No prefix match found for this number.";
       } else if (error.response?.data && typeof error.response.data === "object") {
         backendError =
           error.response.data.error ||
@@ -252,7 +196,6 @@ const FindRoute: React.FC = () => {
 
   const handleClear = () => {
     setPhoneNumber("");
-    setSelectedClientId("");
     setTableData([]);
     setSearchError(null);
     setHasSearched(false);
@@ -311,7 +254,7 @@ const FindRoute: React.FC = () => {
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
-          Find Route
+          Prefix Lookup
         </h1>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
           <Home size={16} className="text-gray-400" />
@@ -319,27 +262,21 @@ const FindRoute: React.FC = () => {
             Home
           </NavLink>
           <span>/</span>
-          <span className="text-text-primary dark:text-white">Find Route</span>
+          <span className="text-text-primary dark:text-white">Prefix Lookup</span>
         </div>
       </div>
 
-      {/* Sleek, Compact Search Box */}
+      {/* Search Box */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-6">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row items-end gap-4">
-          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-end gap-4">
+          <div className="flex-1 w-full">
             <Input
               label="Phone Number"
-              placeholder="e.g. 579102200043"
+              placeholder="e.g. 573222000000"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               required
-            />
-            <Select
-              label="Client (Optional)"
-              placeholder="Select Client"
-              value={selectedClientId}
-              onChange={(val) => setSelectedClientId(val)}
-              options={clientOptions}
+              autoFocus
             />
           </div>
 
@@ -369,7 +306,7 @@ const FindRoute: React.FC = () => {
         <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-2.5 text-blue-700 dark:text-blue-400 text-xs sm:text-sm">
           <Info size={16} className="shrink-0 text-blue-500 dark:text-blue-400" />
           <p>
-            <span className="font-semibold">Instruction:</span> Please enter a valid phone number and click <span className="font-semibold">Search</span> to perform a route lookup.
+            <span className="font-semibold">Instruction:</span> Please enter a valid phone number and click <span className="font-semibold">Search</span> to perform a prefix lookup.
           </p>
         </div>
       )}
@@ -409,4 +346,4 @@ const FindRoute: React.FC = () => {
   );
 };
 
-export default FindRoute;
+export default PrefixLookup;

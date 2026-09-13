@@ -99,6 +99,7 @@ const Layout: React.FC = () => {
         const response = await getGeneralSettingsApi("generalSettings");
         if (response && response.defaultTimezone) {
           localStorage.setItem("app_timezone", response.defaultTimezone);
+          window.dispatchEvent(new Event("timezoneChanged"));
         }
       } catch (error) {
         console.error("Failed to fetch initial timezone settings:", error);

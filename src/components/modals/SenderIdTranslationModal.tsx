@@ -6,6 +6,7 @@ import Select from "../ui/Select";
 import { X, Plus, Shield, Settings } from "lucide-react";
 import DataTable from "../ui/DataTable";
 import { CountryFlag } from "../ui/CountryFlag";
+import LoadingSpinner from "../ui/LoadingSpinner";
 import type {
   SenderIdTranslationPolicy,
   SenderIdTranslationRule,
@@ -157,10 +158,7 @@ export const SenderIdTranslationModal: React.FC<Props> = ({ isOpen, onClose, cli
     >
       <div className="w-full max-h-[75vh] overflow-y-auto pr-1">
         {loading ? (
-          <div className="py-12 text-center text-text-secondary dark:text-gray-400">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-            <span>Loading...</span>
-          </div>
+          <LoadingSpinner className="py-12" />
         ) : (
           <>
             {/* Tabs Header */}
