@@ -109,7 +109,7 @@ export const getVendorRatesPerMNCMCCApi = async (
 export const findVendorRateApi = async (
   searchParams: { terminatingVendor: number | string; MCC: string | number; MNC: string | number },
 ): Promise<PaginatedResponse<VendorRateData>> => {
-  const response = await api.get(`/findVendorRate/vendorRate/`, { params: searchParams });
+  const response = await api.get(`/findVendorRate/`, { params: searchParams });
   return response.data;
 };
 
