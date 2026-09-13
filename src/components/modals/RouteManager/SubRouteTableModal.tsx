@@ -29,6 +29,7 @@ import { StatusBadge } from "../../ui/StatusBadge";
 import { CountryFlag } from "../../ui/CountryFlag";
 import ContextMenu, { type ContextMenuItem } from "../../ui/ContextMenu";
 import ToggleSwitch from "../../ui/ToggleSwitch";
+import LoadingSpinner from "../../ui/LoadingSpinner";
 import {
   Plus,
   Trash2,
@@ -331,6 +332,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const [deleteConfigData, setDeleteConfigData] = useState<{ id: number; countryName: string } | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
+  const hasFetchedRef = useRef(false);
+  const isOverallLoading = isLoadingConfigs || (isOpen && !hasFetchedRef.current);
   const [deleteRouteData, setDeleteRouteData] = useState<{ id: number; name: string; countryId: string } | null>(null);
 
   const [sectionErrors, setSectionErrors] = useState<Record<string, string>>({});
@@ -473,6 +477,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const fetchConfigs = useCallback(async () => {
     if (!routeGroupId) return;
+    setIsLoadingConfigs(true);
     try {
       const res = await getRouteGroupCountriesApi(moduleName, 1, 1000, {
         routeGroup: routeGroupId,
@@ -533,6 +538,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       if (results.length === 0) setConfigSectionOpen(true);
     } catch {
       toast.error("Failed to load country configurations.");
+    } finally {
+      setIsLoadingConfigs(false);
+      hasFetchedRef.current = true;
     }
   }, [routeGroupId, routeGroup, moduleName, initialCountryName, fetchNetworkCodesForCountry]);
 
@@ -577,8 +585,11 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setSectionErrors({});
       setCountrySearchTerm("");
       setIsCountrySearchExpanded(false);
+      setIsLoadingConfigs(false);
+      hasFetchedRef.current = false;
       return;
     }
+    hasFetchedRef.current = false;
     fetchConfigs();
     getCountriesApi("country", 1, 1000)
       .then((res: any) => {
@@ -1241,12 +1252,16 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             >
               <span className="flex items-center gap-2">
                 Country Routing Configuration
-                {sections.length > 0 && (
+                {isOverallLoading ? (
+                  <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500">
+                    <Loader2 size={12} className="animate-spin text-primary" />
+                    Loading...
+                  </span>
+                ) : sections.length > 0 ? (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                     {sections.length} configured
                   </span>
-                )}
-                {sections.length === 0 && (
+                ) : (
                   <span className="text-xs text-amber-600 dark:text-amber-400 font-normal">
                     — Add a country to start
                   </span>
@@ -1299,7 +1314,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                 {/* CONFIGURED COUNTRIES CHIPS WITH EXPANDABLE SEARCH ON THE LEFT */}
                 <div className="flex flex-col gap-2">
-                  {sections.length > 0 ? (
+                  {isOverallLoading ? (
+                    <LoadingSpinner size="sm" text="Loading configurations..." className="py-4" />
+                  ) : sections.length > 0 ? (
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Search country trigger / expanded input on the left */}
                       <div className="relative flex items-center">
@@ -1402,13 +1419,21 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
           {/* Per-country sections */}
           <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[65vh] min-w-0 w-full custom-scrollbar pr-1">
-            {sections.length === 0 && (
+            {isOverallLoading ? (
+              <LoadingSpinner
+                text="Loading routes..."
+                className="py-16 border border-dashed border-gray-200 dark:border-gray-700 rounded-lg"
+              />
+            ) : sections.length === 0 ? (
               <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
                 No countries configured. Open <strong>Country Routing Configuration</strong> above to add one.
               </div>
-            )}
-
-            {filteredSections.map((section) => {
+            ) : filteredSections.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 dark:text-gray-500 text-sm border border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
+                No countries match the search filter.
+              </div>
+            ) : (
+              filteredSections.map((section) => {
               const countryId = String(section.config.country);
               const isPercentage = section.config.routingType === "PERCENTAGE";
 
@@ -1654,8 +1679,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           <tbody>
                             {section.loading && (
                               <tr>
-                                <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-6 text-center text-gray-400 animate-pulse bg-white dark:bg-gray-900">
-                                  Loading…
+                                <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
+                                  <LoadingSpinner size="xs" text="Loading routes..." className="py-0" />
                                 </td>
                               </tr>
                             )}
@@ -2002,7 +2027,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                   )}
                 </div>
               );
-            })}
+            })
+            )}
           </div>
         </div>
 

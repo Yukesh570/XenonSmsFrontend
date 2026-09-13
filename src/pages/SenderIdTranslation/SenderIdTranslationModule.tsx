@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { NavLink } from "react-router-dom";
 import { Home, Plus, Shield, X, Info, RotateCcw } from "lucide-react";
 
@@ -8,6 +8,7 @@ import Select from "../../components/ui/Select";
 import DataTable from "../../components/ui/DataTable";
 import Modal from "../../components/ui/Modal";
 import { CountryFlag } from "../../components/ui/CountryFlag";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -44,6 +45,76 @@ const SenderIdTranslationModule: React.FC = () => {
     action: "FIXED_REPLACE",
     isActive: true,
   });
+
+  // Table Column Reorder & Sort state
+  interface RuleColumnDef {
+    key: string;
+    label: string;
+    className?: string;
+  }
+
+  const [ruleColumns, setRuleColumns] = useState<RuleColumnDef[]>([
+    { key: "country", label: "Country", className: "px-4 py-3" },
+    { key: "sourceSenderId", label: "Original", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
+    { key: "action", label: "Action", className: "px-4 py-3" },
+    { key: "outputParam", label: "Output Param", className: "px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs" },
+    { key: "actions", label: "Actions", className: "px-4 py-3" },
+  ]);
+
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleReorderRuleColumns = (fromIdx: number, toIdx: number) => {
+    setRuleColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const handleSortRules = (columnIndex: number) => {
+    const col = ruleColumns[columnIndex];
+    if (!col || col.key === "actions") return;
+    setSortConfig((prev) => {
+      if (prev?.key === col.key) {
+        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+        return null;
+      }
+      return { key: col.key, direction: "asc" };
+    });
+  };
+
+  const sortedRules = useMemo(() => {
+    if (!sortConfig) return rules;
+    return [...rules].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+      if (sortConfig.key === "country") {
+        aVal = countries.find((c) => c.id === a.country)?.name || a.country || "";
+        bVal = countries.find((c) => c.id === b.country)?.name || b.country || "";
+      } else if (sortConfig.key === "outputParam") {
+        aVal = a.action === "FIXED_REPLACE" ? a.replacementSenderId : a.truncateLength;
+        bVal = b.action === "FIXED_REPLACE" ? b.replacementSenderId : b.truncateLength;
+      } else {
+        aVal = (a as any)[sortConfig.key];
+        bVal = (b as any)[sortConfig.key];
+      }
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const aStr = String(aVal).toLowerCase();
+      const bStr = String(bVal).toLowerCase();
+      return sortConfig.direction === "asc"
+        ? aStr.localeCompare(bStr, undefined, { numeric: true })
+        : bStr.localeCompare(aStr, undefined, { numeric: true });
+    });
+  }, [rules, sortConfig, countries]);
 
   // Test form
   const [testSource, setTestSource] = useState("");
@@ -267,10 +338,7 @@ const SenderIdTranslationModule: React.FC = () => {
 
           {/* Tab Body - Single seamless card container */}
           {loading ? (
-            <div className="py-16 text-center text-text-secondary dark:text-gray-400">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2" />
-              <span>Loading Configuration...</span>
-            </div>
+            <LoadingSpinner text="Loading Configuration..." className="py-16" />
           ) : (
             <>
               {/* POLICY TAB */}
@@ -405,9 +473,15 @@ const SenderIdTranslationModule: React.FC = () => {
                     </Modal>
 
                     <DataTable
-                      data={rules}
-                      headers={["Country", "Original", "Action", "Output Param", "Actions"]}
+                      data={sortedRules}
+                      headers={ruleColumns.map((c) => c.label)}
                       density="compact"
+                      onReorderColumns={handleReorderRuleColumns}
+                      onSort={handleSortRules}
+                      sortColumnIndex={
+                        sortConfig ? ruleColumns.findIndex((c) => c.key === sortConfig.key) : null
+                      }
+                      sortDirection={sortConfig?.direction || null}
                       headerActions={
                         <Button
                           variant="primary"
@@ -427,55 +501,78 @@ const SenderIdTranslationModule: React.FC = () => {
                           key={rule.id || index}
                           className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors"
                         >
-                          <td className="px-4 py-3">
-                            {rule.country ? (
-                              <div className="flex items-center gap-2">
-                                <CountryFlag
-                                  iso2={countries.find((c) => c.id === rule.country)?.iso2 || ""}
-                                  width={16}
-                                  height={12}
-                                />
-                                <span className="text-text-primary dark:text-white font-medium">
-                                  {countries.find((c) => c.id === rule.country)?.name || rule.country}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-text-secondary dark:text-gray-400">Global</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 font-semibold text-text-primary dark:text-white">
-                            {rule.sourceSenderId}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20">
-                              {rule.action}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs">
-                            {rule.action === "FIXED_REPLACE"
-                              ? rule.replacementSenderId
-                              : rule.action === "TRUNCATE"
-                              ? `Max len: ${rule.truncateLength}`
-                              : "-"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => handleEditRule(rule)}
-                                className="text-primary hover:text-primary-dark font-medium text-xs sm:text-sm transition-colors"
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRule(rule.id!)}
-                                className="text-red-500 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </td>
+                          {ruleColumns.map((col) => {
+                            if (col.key === "country") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  {rule.country ? (
+                                    <div className="flex items-center gap-2">
+                                      <CountryFlag
+                                        iso2={countries.find((c) => c.id === rule.country)?.iso2 || ""}
+                                        width={16}
+                                        height={12}
+                                      />
+                                      <span className="text-text-primary dark:text-white font-medium">
+                                        {countries.find((c) => c.id === rule.country)?.name || rule.country}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-text-secondary dark:text-gray-400">Global</span>
+                                  )}
+                                </td>
+                              );
+                            }
+                            if (col.key === "sourceSenderId") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  {rule.sourceSenderId}
+                                </td>
+                              );
+                            }
+                            if (col.key === "action") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20">
+                                    {rule.action}
+                                  </span>
+                                </td>
+                              );
+                            }
+                            if (col.key === "outputParam") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  {rule.action === "FIXED_REPLACE"
+                                    ? rule.replacementSenderId
+                                    : rule.action === "TRUNCATE"
+                                    ? `Max len: ${rule.truncateLength}`
+                                    : "-"}
+                                </td>
+                              );
+                            }
+                            if (col.key === "actions") {
+                              return (
+                                <td key={col.key} className={col.className}>
+                                  <div className="flex items-center gap-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditRule(rule)}
+                                      className="text-primary hover:text-primary-dark font-medium text-xs sm:text-sm transition-colors"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteRule(rule.id!)}
+                                      className="text-red-500 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </td>
+                              );
+                            }
+                            return null;
+                          })}
                         </tr>
                       )}
                     />

@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { getCreditTransactionHistoryApi } from "../../../api/companyApi/companyApi";
 import Modal from "../../ui/Modal";
 import DataTable from "../../ui/DataTable";
+import LoadingSpinner from "../../ui/LoadingSpinner";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
 
 interface CreditTransactionHistoryModalProps {
   isOpen: boolean;
@@ -45,9 +45,7 @@ export const CreditTransactionHistoryModal: React.FC<CreditTransactionHistoryMod
     >
       <div className="space-y-4">
         {isLoading ? (
-          <div className="flex justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
-          </div>
+          <LoadingSpinner className="p-8" />
         ) : (
           <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
             <DataTable

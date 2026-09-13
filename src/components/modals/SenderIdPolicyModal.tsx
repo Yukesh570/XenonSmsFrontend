@@ -10,6 +10,7 @@ import { StatusBadge } from "../ui/StatusBadge";
 import { DeleteModal } from "./DeleteModal";
 import { formatDateTime } from "../../helper/dateFormatter";
 import { CountryFlag } from "../ui/CountryFlag";
+import LoadingSpinner from "../ui/LoadingSpinner";
 
 import {
   getSenderPolicyApi,
@@ -335,10 +336,7 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
 
             <div className="p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60">
               {policyLoading ? (
-                <div className="py-8 text-center text-text-secondary dark:text-gray-400">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto mb-2" />
-                  <span className="text-xs sm:text-sm">Loading policy...</span>
-                </div>
+                <LoadingSpinner size="sm" text="Loading policy..." className="py-8" />
               ) : (
                 <form onSubmit={handleSavePolicy} className="space-y-4 max-w-xl">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

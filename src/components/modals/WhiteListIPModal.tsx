@@ -5,6 +5,7 @@ import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import Select from "../ui/Select";
 import MultiEmailInput from "../ui/multiEmailInput";
+import LoadingSpinner from "../ui/LoadingSpinner";
 import {
   createIpWhitelistApi,
   deleteIpWhitelistApi,
@@ -197,10 +198,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
     >
       {isDeleting && (
         <div className="absolute inset-0 bg-white/75 dark:bg-gray-800/85 backdrop-blur-[1px] flex flex-col items-center justify-center z-50 rounded-xl">
-          <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-primary mb-2.5" />
-          <span className="text-sm font-medium text-text-primary dark:text-white">
-            Deleting
-          </span>
+          <LoadingSpinner size="lg" text="Deleting" className="py-0" />
         </div>
       )}
 
@@ -275,10 +273,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
         {showExisting && (
           <div className="space-y-4 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg border border-gray-100 dark:border-gray-700">
             {isLoadingRecords ? (
-              <div className="flex items-center justify-center py-2 text-sm text-gray-500 dark:text-gray-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2" />
-                Loading records...
-              </div>
+              <LoadingSpinner size="xs" text="Loading records..." className="py-2" />
             ) : existingRecords.length === 0 ? (
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-2">
                 No existing access control records found.

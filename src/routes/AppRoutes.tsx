@@ -63,10 +63,12 @@ import ImportRow from "../pages/Rate/ImportVendor/ImportRow";
 import MccMncPrefixRange from "../pages/MccMncPrefix/MccMncPrefixRange";
 import MccMncPrefixImportBatch from "../pages/MccMncPrefix/MccMncPrefixImportBatch";
 import FindRoute from "../pages/RouteManager/FindRoute";
+import PrefixLookup from "../pages/MccMncPrefix/PrefixLookup";
 import AnalyticsReport from "../pages/Report/AnalyticsReport";
 import UserCreation from "../pages/UserCreation/UserCreation";
 import VendorCampaign from "../pages/Campaign/VendorCampaign";
 import SenderIdTranslationModule from "../pages/SenderIdTranslation/SenderIdTranslationModule";
+import LoadingSpinner from "../components/ui/LoadingSpinner";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -128,6 +130,7 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   mccMncPrefixRange: MccMncPrefixRange,
   mccMncPrefixImportBatch: MccMncPrefixImportBatch,
   routeLookup: FindRoute,
+  prefixLookup: PrefixLookup,
   analyticsReport: AnalyticsReport,
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,
@@ -169,10 +172,7 @@ const AppRoutes = () => {
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Authenticating...</p>
-        </div>
+        <LoadingSpinner size="lg" text="Authenticating..." />
       </div>
     );
   }
@@ -215,10 +215,7 @@ const AppRoutes = () => {
   if (isNavLoading || !navItems || !navItems.results || navItems.results.length === 0) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-          <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Loading layout...</p>
-        </div>
+        <LoadingSpinner size="lg" text="Loading layout..." />
       </div>
     );
   }

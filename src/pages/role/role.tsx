@@ -8,8 +8,9 @@ import Button from "../../components/ui/Button";
 import Select from "../../components/ui/Select";
 import { toast } from "react-toastify";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { NavItemsContext } from "../../context/navItemsContext";
-import { ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { actionHelper } from "../../helper/action";
 
 const userTypeOptions = [
@@ -275,10 +276,7 @@ const PermissionsTable = () => {
                     colSpan={5}
                     className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
                   >
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      <span className="text-sm font-medium">Loading permissions...</span>
-                    </div>
+                    <LoadingSpinner text="Loading permissions..." className="py-0" />
                   </td>
                 </tr>
               ) : permissions.length === 0 ? (
