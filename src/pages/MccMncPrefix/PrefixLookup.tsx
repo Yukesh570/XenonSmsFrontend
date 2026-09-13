@@ -1,20 +1,23 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Home, Search, RotateCcw, Info } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import { getPrefixLookupApi, type PrefixLookupData } from "../../api/prefixLookupApi/prefixLookupApi";
+import {
+  getPrefixLookupApi,
+  type PrefixLookupData,
+} from "../../api/prefixLookupApi/prefixLookupApi";
 
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
-import DataTable from "../../components/ui/DataTable";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { actionHelper } from "../../helper/action";
 
-export interface PrefixLookupTableRow {
-  id: string | number;
+export interface PrefixLookupItem {
   searchedNumber: string;
   normalizedNumber: string;
   countryName: string;
+  countryCode: string;
   mcc: string;
   mnc: string;
   mccmnc: string;
@@ -23,79 +26,12 @@ export interface PrefixLookupTableRow {
   matchedPrefixEnd: string;
 }
 
-interface ColumnDef {
-  key: keyof PrefixLookupTableRow;
-  label: string;
-  className?: string;
-  render?: (row: PrefixLookupTableRow) => React.ReactNode;
-}
-
-const DEFAULT_COLUMNS: ColumnDef[] = [
-  {
-    key: "searchedNumber",
-    label: "Searched Number",
-    className: "px-4 py-3 font-mono text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "normalizedNumber",
-    label: "Normalized Number",
-    className: "px-4 py-3 font-mono text-primary font-medium whitespace-nowrap",
-  },
-  {
-    key: "countryName",
-    label: "Country Name",
-    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "mcc",
-    label: "MCC",
-    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-  {
-    key: "mnc",
-    label: "MNC",
-    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-  {
-    key: "mccmnc",
-    label: "MCC/MNC",
-    className: "px-4 py-3 font-mono font-medium text-text-primary dark:text-white whitespace-nowrap",
-    render: (row) => (
-      <span className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs">
-        {row.mccmnc}
-      </span>
-    ),
-  },
-  {
-    key: "operator",
-    label: "Operator",
-    className: "px-4 py-3 font-medium text-text-primary dark:text-white whitespace-nowrap",
-  },
-  {
-    key: "matchedPrefixStart",
-    label: "Prefix Range Start",
-    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-  {
-    key: "matchedPrefixEnd",
-    label: "Prefix Range End",
-    className: "px-4 py-3 font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap",
-  },
-];
-
 const PrefixLookup: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [tableData, setTableData] = useState<PrefixLookupTableRow[]>([]);
+  const [lookupResult, setLookupResult] = useState<PrefixLookupItem | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-
-  // Column Reordering & Sorting state
-  const [columns, setColumns] = useState<ColumnDef[]>(DEFAULT_COLUMNS);
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof PrefixLookupTableRow;
-    direction: "asc" | "desc";
-  } | null>(null);
 
   const hasLoggedOpening = useRef(false);
   useEffect(() => {
@@ -119,21 +55,25 @@ const PrefixLookup: React.FC = () => {
     setIsLoading(true);
     setHasSearched(true);
     setSearchError(null);
+    setLookupResult(null);
 
     try {
       const response = await getPrefixLookupApi(trimmed);
 
       if (response?.error) {
         setSearchError(response.error);
-        setTableData([]);
         return;
       }
 
-      let items: any[] = [];
-      if (Array.isArray(response)) {
-        items = response;
-      } else if (response?.results && Array.isArray(response.results)) {
-        items = response.results;
+      let item: PrefixLookupData | null = null;
+      if (Array.isArray(response) && response.length > 0) {
+        item = response[0];
+      } else if (
+        response?.results &&
+        Array.isArray(response.results) &&
+        response.results.length > 0
+      ) {
+        item = response.results[0];
       } else if (response && typeof response === "object") {
         if (
           !response.searched_number &&
@@ -142,38 +82,45 @@ const PrefixLookup: React.FC = () => {
           !response.country &&
           !response.mccmnc
         ) {
-          setTableData([]);
           setSearchError("No prefix match found for this number.");
           return;
         }
-        items = [response];
+        item = response;
       }
 
-      if (items.length === 0) {
-        setTableData([]);
+      if (!item) {
         setSearchError("No prefix match found for this number.");
         return;
       }
 
-      const formattedRows: PrefixLookupTableRow[] = items.map((item: PrefixLookupData, idx: number) => ({
-        id: idx + 1,
+      setLookupResult({
         searchedNumber: item.searched_number || trimmed,
         normalizedNumber: item.normalized_number || item.searched_number || trimmed,
         countryName: item.country?.name || "-",
+        countryCode: item.country?.code || "",
         mcc: item.mcc || "-",
         mnc: item.mnc || "-",
-        mccmnc: item.mccmnc || (item.mcc && item.mnc ? `${item.mcc}${item.mnc}` : "-"),
+        mccmnc:
+          item.mccmnc ||
+          (item.mcc && item.mnc ? `${item.mcc}${item.mnc}` : "-"),
         operator: item.operator || "-",
-        matchedPrefixStart: item.matchedPrefixStart != null ? String(item.matchedPrefixStart) : "-",
-        matchedPrefixEnd: item.matchedPrefixEnd != null ? String(item.matchedPrefixEnd) : "-",
-      }));
-
-      setTableData(formattedRows);
+        matchedPrefixStart:
+          item.matchedPrefixStart != null
+            ? String(item.matchedPrefixStart)
+            : "-",
+        matchedPrefixEnd:
+          item.matchedPrefixEnd != null
+            ? String(item.matchedPrefixEnd)
+            : "-",
+      });
     } catch (error: any) {
       let backendError = "Failed to lookup prefix for the provided number.";
       if (error.response?.status === 404) {
         backendError = "No prefix match found for this number.";
-      } else if (error.response?.data && typeof error.response.data === "object") {
+      } else if (
+        error.response?.data &&
+        typeof error.response.data === "object"
+      ) {
         backendError =
           error.response.data.error ||
           error.response.data.message ||
@@ -188,7 +135,6 @@ const PrefixLookup: React.FC = () => {
         backendError = error.message;
       }
       setSearchError(backendError);
-      setTableData([]);
     } finally {
       setIsLoading(false);
     }
@@ -196,62 +142,14 @@ const PrefixLookup: React.FC = () => {
 
   const handleClear = () => {
     setPhoneNumber("");
-    setTableData([]);
+    setLookupResult(null);
     setSearchError(null);
     setHasSearched(false);
-    setSortConfig(null);
   };
-
-  // Column Reordering
-  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
-    if (fromIdx === toIdx) return;
-    setColumns((prev) => {
-      const next = [...prev];
-      const [moved] = next.splice(fromIdx, 1);
-      next.splice(toIdx, 0, moved);
-      return next;
-    });
-  };
-
-  // Sorting Handler: Ignore index 0 (S.N.)
-  const handleSort = (columnIndex: number) => {
-    if (columnIndex === 0) return;
-    const col = columns[columnIndex - 1];
-    if (!col) return;
-    setSortConfig((prev) => {
-      if (prev?.key === col.key) {
-        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
-        return null;
-      }
-      return { key: col.key, direction: "asc" };
-    });
-  };
-
-  // Client-side sorted data
-  const sortedData = useMemo(() => {
-    if (!sortConfig) return tableData;
-    return [...tableData].sort((a, b) => {
-      const aVal = a[sortConfig.key];
-      const bVal = b[sortConfig.key];
-      if (aVal == null && bVal == null) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      const aStr = String(aVal).toLowerCase();
-      const bStr = String(bVal).toLowerCase();
-      return sortConfig.direction === "asc"
-        ? aStr.localeCompare(bStr, undefined, { numeric: true })
-        : bStr.localeCompare(aStr, undefined, { numeric: true });
-    });
-  }, [tableData, sortConfig]);
-
-  const tableHeaders = ["S.N.", ...columns.map((c) => c.label)];
 
   return (
-    <div className="container mx-auto pb-8">
-      {/* Header */}
+    <div className="container mx-auto pb-10">
+      {/* Page Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
           Prefix Lookup
@@ -266,7 +164,7 @@ const PrefixLookup: React.FC = () => {
         </div>
       </div>
 
-      {/* Search Box */}
+      {/* Search Input Card */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-6">
         <form onSubmit={handleSearch} className="flex flex-col sm:flex-row items-end gap-4">
           <div className="flex-1 w-full">
@@ -303,44 +201,141 @@ const PrefixLookup: React.FC = () => {
 
       {/* Instruction Note on Initial Load */}
       {!hasSearched && (
-        <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-2.5 text-blue-700 dark:text-blue-400 text-xs sm:text-sm">
-          <Info size={16} className="shrink-0 text-blue-500 dark:text-blue-400" />
+        <div className="p-4 rounded-xl bg-blue-50/60 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-3 text-blue-700 dark:text-blue-400 text-xs sm:text-sm">
+          <Info size={18} className="shrink-0 text-blue-500 dark:text-blue-400" />
           <p>
             <span className="font-semibold">Instruction:</span> Please enter a valid phone number and click <span className="font-semibold">Search</span> to perform a prefix lookup.
           </p>
         </div>
       )}
 
-      {/* Results Table with Drag-and-Drop & Asc/Desc Sorting */}
+      {/* Results View - Clean Client-Style Card */}
       {hasSearched && (
-        <DataTable
-          data={sortedData}
-          headers={tableHeaders}
-          isLoading={isLoading}
-          errorMessage={searchError}
-          density="compact"
-          onReorderColumns={handleReorderColumns}
-          onSort={handleSort}
-          sortColumnIndex={
-            sortConfig ? columns.findIndex((c) => c.key === sortConfig.key) + 1 : null
-          }
-          sortDirection={sortConfig?.direction || null}
-          renderRow={(row, index) => (
-            <tr
-              key={row.id || index}
-              className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 transition-colors text-sm"
-            >
-              <td className="px-4 py-3 text-text-primary dark:text-white">
-                {index + 1}
-              </td>
-              {columns.map((col) => (
-                <td key={col.key} className={col.className}>
-                  {col.render ? col.render(row) : (row[col.key] as any)}
-                </td>
-              ))}
-            </tr>
-          )}
-        />
+        <>
+          {isLoading ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-12 flex flex-col items-center justify-center min-h-[260px] max-w-2xl mx-auto">
+              <LoadingSpinner text="Searching prefix database..." />
+            </div>
+          ) : searchError ? (
+            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8 text-center max-w-2xl mx-auto">
+              <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto mb-3">
+                <Info size={24} />
+              </div>
+              <h3 className="text-base font-semibold text-text-primary dark:text-white mb-1">
+                No Prefix Match
+              </h3>
+              <p className="text-sm text-text-secondary dark:text-gray-400 max-w-md mx-auto">
+                {searchError}
+              </p>
+            </div>
+          ) : lookupResult ? (
+            <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+              {/* Centered Card Title */}
+              <h2 className="text-center font-semibold text-base sm:text-lg text-text-primary dark:text-white py-5 border-b border-gray-100 dark:border-gray-700/80">
+                Prefix Lookup Results
+              </h2>
+
+              {/* 2-Column Minimal Timeline matching client screenshot */}
+              <div className="p-8 sm:p-12">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 sm:gap-14">
+                  {/* Left Column */}
+                  <div className="relative pl-7 before:absolute before:left-[4px] before:top-2 before:bottom-3 before:w-[2px] before:bg-primary/40 dark:before:bg-primary/50 space-y-7">
+                    {/* Item 1: MCC MNC */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        MCC MNC
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.mccmnc}
+                      </span>
+                    </div>
+
+                    {/* Item 2: MCC */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        MCC
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.mcc}
+                      </span>
+                    </div>
+
+                    {/* Item 3: MNC */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        MNC
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.mnc}
+                      </span>
+                    </div>
+
+                    {/* Item 4: Normalized Number (Vpc in Client UI) */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        Normalized Number
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.normalizedNumber}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Column */}
+                  <div className="relative pl-7 before:absolute before:left-[4px] before:top-2 before:bottom-3 before:w-[2px] before:bg-primary/40 dark:before:bg-primary/50 space-y-7">
+                    {/* Item 1: Country */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        Country
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.countryName}
+                      </span>
+                    </div>
+
+                    {/* Item 2: Operator */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        Operator
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.operator}
+                      </span>
+                    </div>
+
+                    {/* Item 3: Prefix Start Range */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        Prefix Start Range
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.matchedPrefixStart}
+                      </span>
+                    </div>
+
+                    {/* Item 4: Prefix End Range */}
+                    <div className="relative">
+                      <div className="absolute -left-[28px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
+                      <span className="text-xs text-text-secondary dark:text-gray-400 block font-normal">
+                        Prefix End Range
+                      </span>
+                      <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white block mt-0.5">
+                        {lookupResult.matchedPrefixEnd}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
