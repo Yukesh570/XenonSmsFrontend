@@ -118,7 +118,7 @@ export const getCustomerRatesPerMNCMCCApi = async (
 export const findCustomerRateApi = async (
   searchParams: { routeGroupName: string; MCC: string | number; MNC: string | number },
 ): Promise<PaginatedResponse<CustomerRateData>> => {
-  const response = await api.get(`/findCustomerRate/customerRate/`, { params: searchParams });
+  const response = await api.get(`/findCustomerRate/`, { params: searchParams });
   return response.data;
 };
 
