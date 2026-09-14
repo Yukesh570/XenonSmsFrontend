@@ -743,7 +743,7 @@ const MessageReport: React.FC = () => {
     }
   }, []);
 
-  const tableHeaders = ["S.N", ...visibleTableFields.map((col) => col.label)];
+  const tableHeaders = ["S.N.", ...visibleTableFields.map((col) => col.label)];
   const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
   return (

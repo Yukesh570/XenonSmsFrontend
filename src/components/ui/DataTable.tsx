@@ -194,6 +194,7 @@ export function DataTable<T extends { id?: number | string }>({
     headers.length > 0 &&
     typeof headers[0] === "string" &&
     (headers[0].trim() === "S.N." ||
+      headers[0].trim() === "S.N" ||
       headers[0].trim() === "SN" ||
       headers[0].trim() === "#");
   const columnOffset = hasSnColumn ? 1 : 0;
