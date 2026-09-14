@@ -660,39 +660,15 @@ const MessageReport: React.FC = () => {
     }
 
     try {
-      let groupRes: any = await getGroupedCustomRoutesApi("customRoute", 1, 10, { name: targetName });
-      let groupList = groupRes?.results || (Array.isArray(groupRes) ? groupRes : []);
-
-      if (groupList.length === 0) {
-        groupRes = await getGroupedCustomRoutesApi("customRoute", 1, 10, { name__icontains: targetName });
-        groupList = groupRes?.results || (Array.isArray(groupRes) ? groupRes : []);
-      }
-
-      if (groupList.length > 0) {
-        setActiveRouteGroup(groupList[0].name);
-        setActiveRouteGroupId(groupList[0].id);
-        setIsRouteModalOpen(true);
-        return;
-      }
-
       if (clientName) {
-        const clientRes: any = await getClientsApi("client", 1, 10, { name__icontains: clientName });
+        const clientRes: any = await getClientsApi("client", 1, 10, { name: clientName });
         const clientList = clientRes?.results || (Array.isArray(clientRes) ? clientRes : []);
         if (clientList.length > 0) {
           const c = clientList[0];
           const matchedRouteGroup = c.routeGroup || c.customRoute || c.routeGroupName || c.customRouteName;
-          if (typeof matchedRouteGroup === "number") {
-            const rgRes: any = await getGroupedCustomRoutesApi("customRoute", 1, 1, { id: matchedRouteGroup });
-            const rgList = rgRes?.results || (Array.isArray(rgRes) ? rgRes : []);
-            if (rgList.length > 0) {
-              setActiveRouteGroup(rgList[0].name);
-              setActiveRouteGroupId(rgList[0].id);
-              setIsRouteModalOpen(true);
-              return;
-            }
-          } else if (typeof matchedRouteGroup === "string") {
-            setActiveRouteGroup(matchedRouteGroup);
-            setActiveRouteGroupId(null);
+          if (matchedRouteGroup) {
+            setActiveRouteGroup(c.routeGroupName || c.customRouteName || targetName);
+            setActiveRouteGroupId(typeof matchedRouteGroup === 'object' ? matchedRouteGroup.id : matchedRouteGroup);
             setIsRouteModalOpen(true);
             return;
           }
