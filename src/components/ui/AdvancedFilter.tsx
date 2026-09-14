@@ -375,7 +375,7 @@ const StateResetter: React.FC<{
   open: boolean;
   selectedColumns: string[];
   defaultColumns: string[];
-  setTempSelectedKeys: (keys: string[]) => void;
+  setTempSelectedKeys: React.Dispatch<React.SetStateAction<string[]>>;
   updatePosition: () => void;
 }> = ({ open, selectedColumns, defaultColumns, setTempSelectedKeys, updatePosition }) => {
   useEffect(() => {
@@ -383,7 +383,12 @@ const StateResetter: React.FC<{
       updatePosition();
     } else {
       const combined = Array.from(new Set([...defaultColumns, ...selectedColumns]));
-      setTempSelectedKeys(combined);
+      setTempSelectedKeys((prev) => {
+        if (prev.length === combined.length && prev.every((v, i) => v === combined[i])) {
+          return prev;
+        }
+        return combined;
+      });
     }
   }, [open, selectedColumns, defaultColumns, setTempSelectedKeys, updatePosition]);
 
