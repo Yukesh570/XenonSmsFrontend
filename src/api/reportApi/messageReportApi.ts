@@ -31,6 +31,8 @@ export interface MessageLogData {
 
   clientName?: string;
   vendorName?: string;
+  client_route_group_id?: number | null;
+  vendor_route_group_id?: number | null;
   smppName?: string;
   systemId?: string;
   createdAt?: string;

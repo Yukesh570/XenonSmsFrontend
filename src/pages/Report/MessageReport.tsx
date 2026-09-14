@@ -651,6 +651,14 @@ const MessageReport: React.FC = () => {
       return;
     }
 
+    const exactRouteGroupId = log.client_route_group_id || log.vendor_route_group_id;
+    if (exactRouteGroupId) {
+      setActiveRouteGroup(targetName);
+      setActiveRouteGroupId(exactRouteGroupId);
+      setIsRouteModalOpen(true);
+      return;
+    }
+
     try {
       let groupRes: any = await getGroupedCustomRoutesApi("customRoute", 1, 10, { name: targetName });
       let groupList = groupRes?.results || (Array.isArray(groupRes) ? groupRes : []);
