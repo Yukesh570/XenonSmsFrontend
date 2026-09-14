@@ -256,7 +256,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     try {
       const selectedCompany = companyOptions.find(c => c.value === String(formData.company));
       const companyName = selectedCompany ? selectedCompany.label : formData.name;
-      const credentials = await generateCredentialsApi(companyName);
+      const credentials = await generateCredentialsApi(companyName, formData.route);
       setFormData((prev) => ({
         ...prev,
         smppUsername: credentials.username,

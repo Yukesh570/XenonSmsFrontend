@@ -100,10 +100,13 @@ export const deleteClientApi = async (
 };
 
 // --- NEW: Generate Credentials API ---
-export const generateCredentialsApi = async (companyName?: string): Promise<{ username: string; password: string }> => {
-  const url = companyName 
-    ? `/generate-credentials/?company_name=${encodeURIComponent(companyName)}`
-    : `/generate-credentials/`;
+export const generateCredentialsApi = async (companyName?: string, routeType?: string): Promise<{ username: string; password: string }> => {
+  const params = new URLSearchParams();
+  if (companyName) params.append("company_name", companyName);
+  if (routeType) params.append("route_type", routeType);
+  
+  const queryString = params.toString();
+  const url = queryString ? `/generate-credentials/?${queryString}` : `/generate-credentials/`;
   const response = await api.get(url);
   return response.data;
 };
