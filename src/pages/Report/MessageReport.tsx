@@ -9,7 +9,6 @@ import {
   type MessageLogData,
 } from "../../api/reportApi/messageReportApi";
 import {
-  getGroupedCustomRoutesApi,
   getCustomRoutesApi,
 } from "../../api/routeManagerApi/customRouteApi";
 import { CountryFlag } from "../../components/ui/CountryFlag";
@@ -892,7 +891,7 @@ const MessageReport: React.FC = () => {
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => tableColumnsConfig.some(c => c.key === key));
-            const next = [...validKeys];
+              const next = [...validKeys];
               const [moved] = next.splice(fromIdx, 1);
               next.splice(toIdx, 0, moved);
               return next;
