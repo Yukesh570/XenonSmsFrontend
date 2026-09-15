@@ -39,6 +39,16 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const parseDateValue = (val?: string) => {
+  if (!val) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const [y, m, d] = val.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+};
+
 const formatLocalDateTime = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -239,6 +249,7 @@ const AnalyticsReport: React.FC = () => {
   const [hasMore, setHasMore] = useState(true);
 
   const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
+  const [dateMode, setDateMode] = useState<"whole_day" | "specific_time">("whole_day");
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("analytics_report_search_columns");
@@ -321,8 +332,16 @@ const AnalyticsReport: React.FC = () => {
       const colDef = allColumns.find((c) => c.key === key);
 
       if (colDef?.type === "date") {
-        params.start_date = val;
-        params.end_date = val;
+        const datePart = val.split("T")[0];
+        if (dateMode === "specific_time" && val.includes("T")) {
+          const timePart = val.split("T")[1] || "00:00:00";
+          const [hh, mm] = timePart.split(":");
+          params.start_date = `${datePart}T${hh || "00"}:${mm || "00"}:00`;
+          params.end_date = `${datePart}T${hh || "00"}:${mm || "00"}:59`;
+        } else {
+          params.start_date = `${datePart}T00:00:00`;
+          params.end_date = `${datePart}T23:59:59`;
+        }
       } else if (colDef?.type === "date_gt_lt") {
         const [gt, lt] = val.split(",");
         if (gt && gt.trim() !== "") {
@@ -547,6 +566,7 @@ const AnalyticsReport: React.FC = () => {
 
   const handleClearFilters = () => {
     setActivePreset("today");
+    setDateMode("whole_day");
     setFilterValues({});
     resetTreeState();
     fetchCompanyData(1, false, {}, "today");
@@ -608,14 +628,43 @@ const AnalyticsReport: React.FC = () => {
               <DatePicker
                 key={col.key}
                 label={`Search ${baseLabel}`}
-                showTimeSelect={true}
+                showTimeSelect={dateMode === "specific_time"}
+                enableModeToggle={true}
+                dateMode={dateMode}
+                onDateModeChange={(newMode) => {
+                  setDateMode(newMode);
+                  if (newMode === "whole_day") {
+                    if (filterValues[col.key]) {
+                      const datePart = filterValues[col.key].split("T")[0];
+                      handleFilterChange(col.key, datePart);
+                    }
+                  } else {
+                    if (filterValues[col.key] && !filterValues[col.key].includes("T")) {
+                      handleFilterChange(col.key, `${filterValues[col.key]}T00:00:00`);
+                    }
+                  }
+                }}
                 selected={
-                  filterValues[col.key] ? new Date(filterValues[col.key]) : null
+                  filterValues[col.key]
+                    ? parseDateValue(filterValues[col.key])
+                    : null
                 }
-                onChange={(val: Date | null) =>
-                  handleFilterChange(col.key, val ? formatLocalDateTime(val) : "")
+                onChange={(val: Date | null) => {
+                  if (!val) {
+                    handleFilterChange(col.key, "");
+                    return;
+                  }
+                  if (dateMode === "specific_time") {
+                    handleFilterChange(col.key, formatLocalDateTime(val));
+                  } else {
+                    handleFilterChange(col.key, formatLocalDate(val));
+                  }
+                }}
+                placeholder={
+                  dateMode === "specific_time"
+                    ? "Select Date & Time"
+                    : "Select Date"
                 }
-                placeholder="Select Date & Time"
               />
             );
           }

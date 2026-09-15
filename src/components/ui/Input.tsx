@@ -55,6 +55,15 @@ const Input: React.FC<InputProps> = ({
     }
   };
 
+  const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
+    if (props.type === "number") {
+      e.currentTarget.blur();
+    }
+    if (props.onWheel) {
+      props.onWheel(e);
+    }
+  };
+
   const hasValue = value !== undefined && value !== null && value !== "";
   const showClear = isClearable && !disabled && !props.readOnly && hasValue && !rightIcon;
 
@@ -85,6 +94,7 @@ const Input: React.FC<InputProps> = ({
           min={props.type === "number" && props.min === undefined ? 0 : props.min}
           onInput={handleInput}
           onKeyDown={handleKeyDown}
+          onWheel={handleWheel}
           className={`w-full rounded-lg border px-3 py-2.5 text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary 
           ${
             disabled

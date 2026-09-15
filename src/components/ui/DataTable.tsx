@@ -346,6 +346,7 @@ export function DataTable<T extends { id?: number | string }>({
                   max={totalPages}
                   value={jumpInput}
                   onChange={(e) => setJumpInput(e.target.value)}
+                  onWheel={(e) => e.currentTarget.blur()}
                   onBlur={handleJumpBlur}
                   disabled={isLoading || totalPages <= 1}
                   className="w-8 sm:w-10 h-5 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all"

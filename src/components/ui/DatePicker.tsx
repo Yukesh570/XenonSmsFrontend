@@ -102,29 +102,16 @@ const customDatePickerStyles = `
   }
   
   /* Selected State */
-  .react-datepicker__day--selected, 
-  .react-datepicker__day--keyboard-selected {
+  .react-datepicker__day--selected {
     background-color: var(--color-primary) !important; 
     color: #ffffff !important;
     font-weight: 600;
     border-radius: 0.5rem;
   }
 
-  /* Timezone Current Day (Today) Highlight */
-  .react-datepicker__day.custom-tz-today:not(.react-datepicker__day--selected) {
-    background-color: var(--color-primary) !important; 
-    color: #ffffff !important;
-    font-weight: 600;
-  }
-
-  /* Neutralize browser local today */
-  .react-datepicker__day--today:not(.custom-tz-today):not(.react-datepicker__day--selected) {
-    background-color: transparent !important;
-    color: inherit !important;
-    font-weight: normal !important;
-  }
-
-  .react-datepicker__day--keyboard-selected:not(.custom-tz-today):not(.react-datepicker__day--selected) {
+  /* Neutralize today date highlight & keyboard focus */
+  .react-datepicker__day--today:not(.react-datepicker__day--selected):not(:hover),
+  .react-datepicker__day--keyboard-selected:not(.react-datepicker__day--selected):not(:hover) {
     background-color: transparent !important;
     color: inherit !important;
     font-weight: normal !important;
@@ -237,6 +224,51 @@ const customDatePickerStyles = `
     color: #ffffff !important;
     font-weight: 600 !important;
   }
+
+  /* --- MODE TOGGLE (INSIDE POPUP) --- */
+  .react-datepicker.has-mode-toggle {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .react-datepicker.has-mode-toggle .react-datepicker__children-container {
+    order: -1 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    box-sizing: border-box !important;
+  }
+
+  .dark .react-datepicker.has-mode-toggle .react-datepicker__children-container,
+  body.dark .react-datepicker.has-mode-toggle .react-datepicker__children-container {
+    border-bottom-color: #374151 !important;
+  }
+
+  /* Mode: Whole Day */
+  .react-datepicker.has-mode-toggle.mode-whole-day {
+    padding-right: 0 !important;
+  }
+  .react-datepicker.has-mode-toggle.mode-whole-day .react-datepicker__time-container {
+    display: none !important;
+  }
+  .react-datepicker.has-mode-toggle.mode-whole-day .react-datepicker__children-container {
+    width: 100% !important;
+    margin-right: 0 !important;
+  }
+
+  /* Mode: Specific Time */
+  .react-datepicker.has-mode-toggle.mode-specific-time {
+    padding-right: 124px !important;
+  }
+  .react-datepicker.has-mode-toggle.mode-specific-time .react-datepicker__time-container {
+    display: flex !important;
+    top: 41px !important;
+  }
+  .react-datepicker.has-mode-toggle.mode-specific-time .react-datepicker__children-container {
+    width: calc(100% + 124px) !important;
+    margin-right: -124px !important;
+  }
 `;
 
 interface DatePickerProps {
@@ -248,6 +280,9 @@ interface DatePickerProps {
   minDate?: Date;
   disabled?: boolean;
   isClearable?: boolean;
+  enableModeToggle?: boolean;
+  dateMode?: "whole_day" | "specific_time";
+  onDateModeChange?: (mode: "whole_day" | "specific_time") => void;
 }
 
 const CustomInput = forwardRef<HTMLInputElement, any>(
@@ -765,6 +800,9 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   minDate,
   disabled = false,
   isClearable = true,
+  enableModeToggle = false,
+  dateMode = "whole_day",
+  onDateModeChange,
 }) => {
   const [appTimezone, setAppTimezone] = useState<string>(
     () => localStorage.getItem("app_timezone") || "UTC"
@@ -792,6 +830,9 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     if (!disabled) onChange(null);
   };
 
+  const effectiveShowTime = enableModeToggle ? true : showTimeSelect;
+  const isTimeActive = enableModeToggle ? dateMode === "specific_time" : showTimeSelect;
+
   return (
     <div className="flex flex-col w-full">
       <style>{customDatePickerStyles}</style>
@@ -807,10 +848,10 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
           selected={selected}
           openToDate={selected || nowInTz}
           onChange={handleDateChange}
-          showTimeSelect={showTimeSelect}
-          dateFormat={showTimeSelect ? "MMMM d, yyyy h:mm aa" : "yyyy-MM-dd"}
+          showTimeSelect={effectiveShowTime}
+          dateFormat={isTimeActive ? "MMMM d, yyyy h:mm aa" : "yyyy-MM-dd"}
           timeCaption={
-            showTimeSelect
+            effectiveShowTime
               ? ((
                   <ManualTimePicker
                     selected={selected}
@@ -820,16 +861,9 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
                 ) as any)
               : "Time"
           }
-          dayClassName={(date) => {
-            const isTodayInTz =
-              date.getDate() === nowInTz.getDate() &&
-              date.getMonth() === nowInTz.getMonth() &&
-              date.getFullYear() === nowInTz.getFullYear();
-            return isTodayInTz ? "custom-tz-today" : "";
-          }}
           placeholderText={
             placeholder ||
-            (showTimeSelect ? "Select Date & Time" : "Select Date")
+            (isTimeActive ? "Select Date & Time" : "Select Date")
           }
           customInput={
             <CustomInput
@@ -846,12 +880,58 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
           popperPlacement="bottom-start"
           calendarClassName={`${
             document.documentElement.classList.contains("dark") ? "dark" : ""
-          } ${showTimeSelect ? "has-time-select" : ""}`}
+          } ${effectiveShowTime ? "has-time-select" : ""} ${
+            enableModeToggle
+              ? `has-mode-toggle ${
+                  dateMode === "whole_day"
+                    ? "mode-whole-day"
+                    : "mode-specific-time"
+                }`
+              : ""
+          }`}
           popperProps={{
             strategy: "fixed",
           }}
           renderCustomHeader={(headerProps) => <CalendarHeader {...headerProps} />}
-        />
+        >
+          {enableModeToggle && (
+            <div
+              className="w-full h-10 px-2 flex items-center justify-center bg-gray-50/90 dark:bg-gray-900/80 select-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-full grid grid-cols-2 p-0.5 bg-gray-200/70 dark:bg-gray-800 rounded-lg border border-gray-300/50 dark:border-gray-700">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDateModeChange?.("whole_day");
+                  }}
+                  className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                    dateMode === "whole_day"
+                      ? "bg-white dark:bg-gray-700 text-primary dark:text-white shadow-2xs"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Whole Day
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDateModeChange?.("specific_time");
+                  }}
+                  className={`py-1 text-[11px] font-semibold rounded-md transition-all text-center ${
+                    dateMode === "specific_time"
+                      ? "bg-white dark:bg-gray-700 text-primary dark:text-white shadow-2xs"
+                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200"
+                  }`}
+                >
+                  Specific Time
+                </button>
+              </div>
+            </div>
+          )}
+        </DatePicker>
       </div>
     </div>
   );
