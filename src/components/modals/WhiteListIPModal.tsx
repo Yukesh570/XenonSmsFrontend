@@ -210,7 +210,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
             onChange={(v) => handleSelect("access_type", v)}
             options={[
               { label: "IP Address", value: "IP" },
-              { label: "Hostname", value: "HOSTNAME" },
+              { label: "Hostname", value: "HOST" },
             ]}
           />
 
@@ -229,7 +229,7 @@ const IpWhitelistModal: React.FC<IpWhitelistModalProps> = ({
             </div>
           )}
 
-          {formData.access_type === "HOSTNAME" && (
+          {formData.access_type === "HOST" && (
             <div>
               <MultiEmailInput
                 label="Hostname"
