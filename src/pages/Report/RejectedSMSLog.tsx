@@ -15,6 +15,7 @@ import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedF
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 import { RejectedSMSLogModal } from "../../components/modals/Report/RejectedSMSLogModal";
 
 interface Option { label: string; value: string; }
@@ -73,7 +74,7 @@ const RejectedSMSLog: React.FC = () => {
     { key: "available_credit", label: "Available Credit", type: "text", isSearchable: false },
     { key: "used_credit", label: "Used Credit", type: "text", isSearchable: false },
     { key: "smpp_command_status", label: "Status Code", type: "text", isSearchable: false },
-    { key: "timestamp", label: "Timestamp (Single Day)", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", render: (data: any) => data.timestamp ? new Date(data.timestamp).toLocaleString() : "-" },
+    { key: "timestamp", label: "Timestamp (Single Day)", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", render: (data: any) => data.timestamp ? formatDateTime(data.timestamp) : "-" },
     { key: "timestamp__range", label: "Timestamp (Range)", type: "date_range", filterKey: "timestamp__range", isSearchOnly: true },
   ];
 

@@ -14,6 +14,7 @@ import FilterCard from "../../components/ui/FilterCard";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface Option { label: string; value: string; }
 
@@ -119,7 +120,7 @@ const VendorTransaction: React.FC = () => {
     { key: "baseAmount", label: `Base Amount ${baseCurrencyCode ? `(${baseCurrencyCode})` : ""}`, type: "number", filterKey: "baseAmount" },
     { key: "exchangeRateToBase", label: `Exchange Rate to Base ${baseCurrencyCode ? `(${baseCurrencyCode})` : ""}`, type: "number", filterKey: "exchangeRateToBase" },
 
-    { key: "createdAt", label: "Created At (Single Day)", tableLabel: "Created At", type: "date", filterKey: "createdAt__range", render: (log) => (<span>{log.createdAt ? new Date(log.createdAt).toLocaleString() : "-"}</span>) },
+    { key: "createdAt", label: "Created At (Single Day)", tableLabel: "Created At", type: "date", filterKey: "createdAt__range", render: (log) => (<span>{log.createdAt ? formatDateTime(log.createdAt) : "-"}</span>) },
     { key: "createdAt__range", label: "Created At (Range)", type: "date_range", filterKey: "createdAt__range", isSearchOnly: true },
   ];
 
