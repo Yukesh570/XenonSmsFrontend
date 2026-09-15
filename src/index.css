@@ -167,6 +167,22 @@ div[class*="justify-between"][class*="flex-col"][class*="sm:flex-row"] {
   font-size: 0.8125rem !important;
 }
 
+/* Modal locking and scroll containment */
+.page-modal-wrapper {
+  overscroll-behavior: contain;
+}
 
+.modal-dialog-panel {
+  overscroll-behavior: contain;
+}
 
+/* Ensure inner modal forms and direct wrappers don't create double scrollbars */
+.modal-content-body > form,
+.modal-content-body > div[class*="max-h-"] {
+  max-height: none !important;
+  overflow-y: visible !important;
+}
 
+.modal-content-body {
+  overscroll-behavior: contain;
+}
