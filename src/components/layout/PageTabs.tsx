@@ -272,9 +272,10 @@ export const PageTabs: React.FC = () => {
               data-active-tab={isActive ? "true" : "false"}
               onClick={() => switchTab(tab.path)}
               onContextMenu={(e) => handleContextMenu(e, tab)}
+              style={isActive ? { borderColor: "var(--color-primary)" } : undefined}
               className={`group relative flex items-center gap-1.5 h-[25px] px-2 text-[11.5px] font-medium rounded transition-all cursor-pointer border shrink-0 max-w-[160px] sm:max-w-[210px] ${
                 isActive
-                  ? "bg-white dark:bg-gray-900 text-primary border-primary/40 shadow-xs font-semibold"
+                  ? "bg-white dark:bg-gray-900 text-primary shadow-xs font-semibold"
                   : "bg-gray-200/70 dark:bg-gray-900/40 text-gray-600 dark:text-gray-400 border-transparent hover:bg-white/80 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-200"
               }`}
             >
@@ -394,9 +395,10 @@ export const PageTabs: React.FC = () => {
                       setDropdownPos(null);
                     }}
                     onContextMenu={(e) => handleContextMenu(e, tab)}
+                    style={isActive ? { borderLeftColor: "var(--color-primary)" } : undefined}
                     className={`flex items-center justify-between px-3 py-1.5 cursor-pointer transition-colors ${
                       isActive
-                        ? "bg-primary/10 text-primary font-semibold dark:bg-primary/20"
+                        ? "bg-gray-100 dark:bg-gray-800 text-primary font-semibold border-l-2"
                         : "hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
                     }`}
                   >
