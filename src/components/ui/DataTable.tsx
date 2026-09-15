@@ -40,6 +40,10 @@ interface DataTableProps<T> {
 
   emptyMessage?: string;
   errorMessage?: string | null;
+
+  // Column Resizing & Persistence
+  storageKey?: string;
+  resizableColumns?: boolean;
 }
 
 const rowsOptions = [
@@ -73,12 +77,50 @@ export function DataTable<T extends { id?: number | string }>({
   sortDirection = null,
   emptyMessage,
   errorMessage,
+  storageKey,
+  resizableColumns = true,
 }: DataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
   const [clientRows, setClientRows] = useState(50);
 
   // Jump-to-page input state
   const [jumpInput, setJumpInput] = useState("");
+
+  // Column Resizing & Persistence state
+  const effectiveStorageKey =
+    storageKey ||
+    (typeof window !== "undefined" && window.location
+      ? `table_col_widths_${window.location.pathname.replace(/^\/|\/$/g, "").replace(/\//g, "_") || "default"}`
+      : "table_col_widths_default");
+
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(effectiveStorageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") return parsed;
+        }
+      } catch (e) {
+        console.error("Error loading column widths from localStorage", e);
+      }
+    }
+    return {};
+  });
+
+  const saveWidths = (widths: Record<string, number>) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(effectiveStorageKey, JSON.stringify(widths));
+      } catch (e) {
+        console.error("Error saving column widths to localStorage", e);
+      }
+    }
+  };
+
+  const thRefs = useRef<(HTMLTableCellElement | null)[]>([]);
+  const isResizingRef = useRef(false);
+  const [resizingHeaderIdx, setResizingHeaderIdx] = useState<number | null>(null);
 
   // Drag-and-drop states with Left/Right positioning
   const [draggedHeaderIdx, setDraggedHeaderIdx] = useState<number | null>(null);
@@ -288,6 +330,176 @@ export function DataTable<T extends { id?: number | string }>({
     }, 200);
   };
 
+  // --- Dynamic Column Resizing Handlers ---
+  const handleResizeStart = (
+    e: React.MouseEvent,
+    index: number,
+    header: string
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const thEl = thRefs.current[index];
+    if (!thEl) return;
+
+    isResizingRef.current = true;
+    setResizingHeaderIdx(index);
+
+    const startX = e.clientX;
+    const startWidth = thEl.getBoundingClientRect().width;
+    const minWidth = hasSnColumn && index === 0 ? 56 : 80;
+
+    // Snapshot currently rendered widths for any unset columns so they stay steady
+    const baseWidths: Record<string, number> = { ...columnWidths };
+    headers.forEach((h, idx) => {
+      if (!baseWidths[h]) {
+        if (hasSnColumn && idx === 0) {
+          baseWidths[h] = 56;
+        } else if (thRefs.current[idx]) {
+          baseWidths[h] = Math.max(50, Math.round(thRefs.current[idx]!.getBoundingClientRect().width));
+        }
+      }
+    });
+
+    let lastWidth = startWidth;
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(minWidth, Math.round(startWidth + deltaX));
+      lastWidth = newWidth;
+
+      setColumnWidths({
+        ...baseWidths,
+        [header]: newWidth,
+      });
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+
+      const finalWidths = {
+        ...baseWidths,
+        [header]: lastWidth,
+      };
+      setColumnWidths(finalWidths);
+      saveWidths(finalWidths);
+
+      setTimeout(() => {
+        isResizingRef.current = false;
+        setResizingHeaderIdx(null);
+      }, 100);
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const handleAutoFitColumn = (e: React.MouseEvent, index: number, header: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const thEl = thRefs.current[index];
+    if (!thEl) return;
+
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // 1. Calculate required full header width (all words completely visible)
+    if (ctx) {
+      ctx.font = "bold 12px Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    }
+    const uppercaseHeader = typeof header === "string" ? header.toUpperCase() : "";
+    const headerTextWidth = ctx && uppercaseHeader
+      ? ctx.measureText(uppercaseHeader).width * 1.08
+      : (thEl.querySelector("span")?.scrollWidth || 50);
+    // Include 32px padding + 14px grip icon + 6px gap + 16px sort icon + 8px pr-2 + 12px resizer + 16px buffer
+    const headerWidth = Math.max(hasSnColumn && index === 0 ? 56 : 95, Math.round(headerTextWidth + 95));
+
+    // 2. Calculate required data width by scanning visible cells in this column
+    let maxDataTextWidth = 0;
+    const tableEl = scrollContainerRef.current?.querySelector("table");
+    if (tableEl) {
+      const rows = tableEl.querySelectorAll("tbody tr");
+      const sampleLimit = Math.min(rows.length, 50);
+
+      if (ctx) {
+        ctx.font = "14px Inter, system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+      }
+
+      for (let r = 0; r < sampleLimit; r++) {
+        const cell = rows[r].children[index] as HTMLElement;
+        if (cell && !cell.hasAttribute("colspan")) {
+          const text = cell.innerText.replace(/\n/g, " ").trim();
+          if (text && text !== "-") {
+            const textWidth = ctx ? ctx.measureText(text).width : text.length * 8.5;
+            if (textWidth > maxDataTextWidth) {
+              maxDataTextWidth = textWidth;
+            }
+          }
+        }
+      }
+    }
+
+    // Measure width required to show AT LEAST the first full word of the header (never just 1 letter)
+    const firstWord = (typeof header === "string" ? header.trim().split(/\s+/)[0] : "") || "";
+    const firstWordUpper = firstWord.toUpperCase();
+    const firstWordTextWidth = ctx && firstWordUpper
+      ? ctx.measureText(firstWordUpper).width * 1.08
+      : (firstWordUpper.length * 8.5);
+    const minFirstWordWidth = Math.max(85, Math.round(firstWordTextWidth + 72));
+
+    // Minimum data column width: must show AT LEAST the first full word of the header
+    const minDataW = hasSnColumn && index === 0 ? 56 : minFirstWordWidth;
+    const dataWidth = maxDataTextWidth > 0
+      ? Math.max(minDataW, Math.round(maxDataTextWidth + 36))
+      : headerWidth;
+
+    // 3. Toggle logic:
+    // If currently already near dataWidth, toggle back to full headerWidth!
+    // Otherwise, toggle to dataWidth!
+    const currentWidth = columnWidths[header] || Math.round(thEl.getBoundingClientRect().width);
+
+    let nextWidth: number;
+    if (Math.abs(currentWidth - dataWidth) <= 12 && dataWidth !== headerWidth) {
+      // It's already shrunk to data length -> toggle back to full header length!
+      nextWidth = headerWidth;
+    } else {
+      // It's at header length (or custom) -> shrink to data length (showing at least 1 full word)!
+      nextWidth = dataWidth;
+    }
+
+    setColumnWidths((prev) => {
+      const next = { ...prev, [header]: nextWidth };
+      saveWidths(next);
+      return next;
+    });
+  };
+
+  const hasCustomWidths = Object.keys(columnWidths).length > 0;
+  const isResizingActive = resizingHeaderIdx !== null;
+  const isFixedLayout = Boolean(resizableColumns && (hasCustomWidths || isResizingActive));
+
+  const getColWidth = (header: string, index: number) => {
+    if (columnWidths[header]) {
+      return columnWidths[header];
+    }
+    if (hasSnColumn && index === 0) {
+      return 56;
+    }
+    return undefined;
+  };
+
+  const totalTableWidth = headers.reduce((sum, h, i) => {
+    const w = getColWidth(h, i) || (hasSnColumn && i === 0 ? 56 : 140);
+    return sum + w;
+  }, 0);
+
   return (
     <div
       className={`rounded-xl bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col relative z-0 app-data-table ${
@@ -389,38 +601,95 @@ export function DataTable<T extends { id?: number | string }>({
         ref={scrollContainerRef}
         className="overflow-auto max-h-[72vh] min-h-[300px] relative z-0 custom-scrollbar"
       >
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
+        <table
+          className={`min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 ${
+            isFixedLayout ? "table-resizable-active" : ""
+          }`}
+          style={
+            isFixedLayout
+              ? {
+                  tableLayout: "fixed",
+                  width: `${Math.max(totalTableWidth, containerWidth || 0)}px`,
+                }
+              : undefined
+          }
+        >
+          {isFixedLayout && (
+            <colgroup>
+              {headers.map((h, i) => {
+                const w = getColWidth(h, i);
+                return (
+                  <col
+                    key={i}
+                    style={{
+                      width: w ? `${w}px` : undefined,
+                      minWidth: w ? `${w}px` : undefined,
+                    }}
+                  />
+                );
+              })}
+            </colgroup>
+          )}
           <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
             <tr>
               {headers.map((header, i) => {
-                const isDraggable = Boolean(onReorderColumns && (!hasSnColumn || i > 0));
+                const isDraggable = Boolean(
+                  onReorderColumns && (!hasSnColumn || i > 0)
+                );
                 const isBeingDragged = draggedHeaderIdx === i;
                 const isDragOver = dragOverHeaderIdx === i;
-                const isSortable = Boolean(onSort && (!hasSnColumn || i > 0));
+                const isSortable = Boolean(
+                  onSort && (!hasSnColumn || i > 0)
+                );
                 const isSorted = sortColumnIndex === i;
+                const colWidth = getColWidth(header, i);
+                const isBeingResized = resizingHeaderIdx === i;
 
                 return (
                   <th
                     key={i}
-                    draggable={isDraggable}
-                    onDragStart={(e) => handleDragStart(e, i)}
-                    onDragOver={(e) => handleDragOver(e, i)}
+                    ref={(el) => {
+                      thRefs.current[i] = el;
+                    }}
+                    draggable={isDraggable && !isBeingResized}
+                    onDragStart={(e) => {
+                      if (isResizingRef.current || isBeingResized) {
+                        e.preventDefault();
+                        return;
+                      }
+                      handleDragStart(e, i);
+                    }}
+                    onDragOver={(e) => {
+                      if (isResizingRef.current || isBeingResized) return;
+                      handleDragOver(e, i);
+                    }}
                     onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, i)}
+                    onDrop={(e) => {
+                      if (isResizingRef.current || isBeingResized) return;
+                      handleDrop(e, i);
+                    }}
                     onDragEnd={handleDragEnd}
-                    className={`group px-4 py-3 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap min-w-[120px] transition-all select-none ${
+                    style={
+                      isFixedLayout
+                        ? {
+                            width: colWidth ? `${colWidth}px` : undefined,
+                            minWidth: colWidth
+                              ? `${colWidth}px`
+                              : hasSnColumn && i === 0
+                              ? "56px"
+                              : "50px",
+                            maxWidth: colWidth ? `${colWidth}px` : undefined,
+                          }
+                        : undefined
+                    }
+                    title={typeof header === "string" ? header : undefined}
+                    className={`group px-4 py-3 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                      !colWidth && (!hasSnColumn || i > 0) ? "min-w-[80px]" : ""
+                    } ${
                       isSorted
                         ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
                         : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
-                    } ${
-                      isDraggable
-                        ? "cursor-grab active:cursor-grabbing hover:bg-gray-100 dark:hover:bg-gray-800"
-                        : ""
-                    } ${
-                      isSortable
-                        ? "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
-                        : ""
-                    } ${
+                    } hover:bg-gray-100 dark:hover:bg-gray-800 ${
                       isBeingDragged
                         ? "opacity-30 border border-dashed border-primary bg-primary/5"
                         : ""
@@ -434,20 +703,25 @@ export function DataTable<T extends { id?: number | string }>({
                         : ""
                     }`}
                     onClick={() => {
-                      if (hasDraggedRef.current) return;
+                      if (hasDraggedRef.current || isResizingRef.current || isBeingResized) return;
                       if (isSortable && onSort) {
                         onSort(i);
                       }
                     }}
                   >
-                    <div className="flex items-center gap-1.5 pointer-events-none">
+                    <div className="flex items-center gap-1.5 min-w-0 pr-2 overflow-hidden">
                       {isDraggable && (
                         <GripVertical
                           size={14}
-                          className="text-gray-400 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity"
+                          className="text-gray-400 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing pointer-events-auto"
                         />
                       )}
-                      <span className={isSorted ? "font-semibold text-primary dark:text-white" : ""}>
+                      <span
+                        className={`truncate pointer-events-none ${
+                          isSorted ? "font-semibold text-primary dark:text-white" : ""
+                        }`}
+                        title={typeof header === "string" ? header : undefined}
+                      >
                         {header}
                       </span>
                       {isSortable && (
@@ -467,12 +741,43 @@ export function DataTable<T extends { id?: number | string }>({
                         </span>
                       )}
                     </div>
+
+                    {/* Single Boundary Line that acts as Column Resizer */}
+                    {resizableColumns && (
+                      <div
+                        onMouseDown={(e) => handleResizeStart(e, i, header)}
+                        onDoubleClick={(e) => handleAutoFitColumn(e, i, header)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-20 flex items-center justify-end group/resizer select-none"
+                        title="Drag to resize column (Double-click to auto-fit)"
+                      >
+                        <div
+                          className={`w-px h-full transition-all ${
+                            isBeingResized
+                              ? "bg-primary w-[2px]"
+                              : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
+                          }`}
+                        />
+                      </div>
+                    )}
                   </th>
                 );
               })}
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
+          <tbody
+            className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
+            onMouseOver={(e) => {
+              const target = e.target as HTMLElement;
+              const td = target.closest("td");
+              if (td && !td.getAttribute("title")) {
+                const text = td.innerText?.trim();
+                if (text && text !== "-") {
+                  td.setAttribute("title", text);
+                }
+              }
+            }}
+          >
             {isLoading ? (
               <tr>
                 <td
@@ -529,6 +834,38 @@ export function DataTable<T extends { id?: number | string }>({
 
         .app-data-table tbody tr:hover { background-color: #f3f4f6; }
         .dark .app-data-table tbody tr:hover { background-color: #374151; }
+
+        /* Dynamic adjustable column widths & text truncation with ellipsis */
+        .app-data-table table.table-resizable-active {
+          table-layout: fixed !important;
+        }
+        .app-data-table table.table-resizable-active th {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .app-data-table table.table-resizable-active td {
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          max-width: 0 !important;
+        }
+        .app-data-table table.table-resizable-active td[colspan] {
+          white-space: normal !important;
+          max-width: none !important;
+          overflow: visible !important;
+        }
+        .app-data-table table.table-resizable-active td > span:not([class*="badge"]),
+        .app-data-table table.table-resizable-active td > a,
+        .app-data-table table.table-resizable-active td > p,
+        .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]) {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          display: inline-block;
+          max-width: 100%;
+          vertical-align: middle;
+        }
 
         .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
