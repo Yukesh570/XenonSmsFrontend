@@ -2,6 +2,7 @@ import React, { Fragment, useState, useEffect, useRef, useCallback } from "react
 import { createPortal } from "react-dom";
 import { Combobox, Transition } from "@headlessui/react";
 import { ChevronDown, Check, X } from "lucide-react";
+import LoadingSpinner from "./LoadingSpinner";
 
 export interface SelectOption {
   value: string;
@@ -25,6 +26,7 @@ interface SelectProps {
   className?: string;
   allowCustomValue?: boolean;
   renderTrigger?: (selectedOption?: SelectOption, open?: boolean) => React.ReactNode;
+  isLoading?: boolean;
 }
 
 const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
@@ -41,10 +43,12 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   className = "",
   allowCustomValue = false,
   renderTrigger,
+  isLoading,
   open,
 }) => {
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(50);
+  const [isTimedOut, setIsTimedOut] = useState(false);
   const hasLabel = !!label;
 
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -58,8 +62,20 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
     if (!open) {
       setQuery("");
       setIsTyping(false);
+      setIsTimedOut(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && options.length === 0 && isLoading !== false) {
+      const timer = setTimeout(() => {
+        setIsTimedOut(true);
+      }, 7000);
+      return () => clearTimeout(timer);
+    } else {
+      setIsTimedOut(false);
+    }
+  }, [open, options.length, isLoading]);
 
   useEffect(() => {
     if (!value) {
@@ -315,8 +331,12 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 }}
                 className="z-[99999] overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm border border-gray-100 dark:border-gray-700 custom-grid-scroll max-h-60"
               >
-                {filteredOptions.length === 0 ? (
-                  <div className="relative cursor-default select-none py-2 px-4 text-text-secondary dark:text-gray-400">
+                {isLoading || (options.length === 0 && !isTimedOut && isLoading !== false) ? (
+                  <div className="py-4 px-4 flex flex-col items-center justify-center">
+                    <LoadingSpinner size="sm" text="Loading..." className="py-0" />
+                  </div>
+                ) : filteredOptions.length === 0 ? (
+                  <div className="relative cursor-default select-none py-2 px-4 text-text-secondary dark:text-gray-400 text-sm">
                     Nothing found.
                   </div>
                 ) : (

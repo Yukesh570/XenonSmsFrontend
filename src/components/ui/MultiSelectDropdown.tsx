@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, Fragment } from "react";
 import ReactDOM from "react-dom";
 import { Popover, Transition } from "@headlessui/react";
 import { Check, X, ChevronDown } from "lucide-react";
+import LoadingSpinner from "./LoadingSpinner";
 
 export interface MultiSelectOption {
   label: string;
@@ -19,6 +20,7 @@ interface MultiSelectDropdownProps {
   onChange: (selectedValues: string[], clickedOption?: MultiSelectOption) => void;
   disabled?: boolean;
   placeholder?: string;
+  isLoading?: boolean;
 }
 
 const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -255,11 +257,15 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
                       }
                       return renderOptionBtn(opt, isSelected, onChange);
                     })}
-                    {filteredOptions.length === 0 && (
+                    {options.length === 0 ? (
+                      <div className="py-6 px-4 flex flex-col items-center justify-center">
+                        <LoadingSpinner size="sm" text="Loading..." className="py-0" />
+                      </div>
+                    ) : filteredOptions.length === 0 ? (
                       <div className="py-6 px-4 text-center text-gray-500 text-sm">
                         No matching options found
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </Transition>

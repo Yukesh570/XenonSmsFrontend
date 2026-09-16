@@ -116,7 +116,7 @@ const Modal: React.FC<ModalProps> = ({
 
       {/* Centering Dialog Box - constrained within viewport, pinned header, locked in place */}
       <div
-        className={`modal-dialog-panel relative z-10 pointer-events-auto w-full max-w-full min-w-0 box-border flex flex-col rounded-xl p-5 sm:p-6 text-left align-middle shadow-2xl 
+        className={`modal-dialog-panel relative z-10 pointer-events-auto w-full min-w-0 box-border flex flex-col rounded-xl p-5 sm:p-6 text-left align-middle shadow-2xl 
         
         /* LIGHT MODE */
         bg-white text-gray-900 
@@ -128,7 +128,6 @@ const Modal: React.FC<ModalProps> = ({
         overscroll-contain
         
         ${className}`}
-        style={{ maxWidth: "100%" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - pinned to top of modal card, never scrolls off */}

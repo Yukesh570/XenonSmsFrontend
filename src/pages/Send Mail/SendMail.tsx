@@ -21,6 +21,7 @@ import { actionHelper } from "../../helper/action";
 interface Option {
   label: string;
   value: string;
+  subject?: string;
   content?: string;
   email?: string;
 }
@@ -66,6 +67,7 @@ const SendMailPage: React.FC = () => {
           templatesData.map((t: EmailTemplateData) => ({
             value: t.id!.toString(),
             label: t.name,
+            subject: t.subject,
             content: t.content,
           }))
         );
@@ -103,9 +105,11 @@ const SendMailPage: React.FC = () => {
   const handleTemplateChange = (value: string) => {
     const template = templateOptions.find((t) => t.value === value);
     setSelectedTemplate(value);
-    if (template && template.content) {
-      setContent(template.content);
+    if (template) {
+      setSubject(template.subject || "");
+      setContent(template.content || "");
     } else {
+      setSubject("");
       setContent("");
     }
   };
