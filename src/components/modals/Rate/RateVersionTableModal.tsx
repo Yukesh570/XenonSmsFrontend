@@ -169,9 +169,9 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={title}
-        className="max-w-[95vw] w-full" 
+        className="max-w-full w-full" 
       >
-        <div className="p-1 flex flex-col space-y-4" onClick={() => setContextMenuPos(null)}>
+        <div className="p-1 w-full min-w-0 flex flex-col space-y-4" onClick={() => setContextMenuPos(null)}>
           <div className="flex items-start gap-2 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300">
             <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
             <div className="flex flex-col gap-1">
@@ -185,7 +185,7 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar">
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar w-full min-w-0">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">

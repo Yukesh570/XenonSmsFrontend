@@ -262,9 +262,9 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
           <span>Sender ID Authorization - {client.name}</span>
         </div>
       }
-      className="max-w-6xl"
+      className="max-w-6xl w-full"
     >
-      <div className="w-full max-h-[80vh] overflow-y-auto pr-1 space-y-4">
+      <div className="w-full min-w-0 max-h-[80vh] overflow-y-auto pr-1 space-y-4">
         {/* Tab Navigation */}
         <div className="flex border-b border-gray-200 dark:border-gray-700 gap-6 mb-4 overflow-x-auto">
           <button

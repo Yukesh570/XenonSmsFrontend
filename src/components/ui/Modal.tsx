@@ -116,7 +116,7 @@ const Modal: React.FC<ModalProps> = ({
 
       {/* Centering Dialog Box - constrained within viewport, pinned header, locked in place */}
       <div
-        className={`modal-dialog-panel relative z-10 pointer-events-auto w-full flex flex-col rounded-xl p-5 sm:p-6 text-left align-middle shadow-2xl 
+        className={`modal-dialog-panel relative z-10 pointer-events-auto w-full max-w-full min-w-0 box-border flex flex-col rounded-xl p-5 sm:p-6 text-left align-middle shadow-2xl 
         
         /* LIGHT MODE */
         bg-white text-gray-900 
@@ -128,18 +128,19 @@ const Modal: React.FC<ModalProps> = ({
         overscroll-contain
         
         ${className}`}
+        style={{ maxWidth: "100%" }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - pinned to top of modal card, never scrolls off */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6 shrink-0">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 shrink-0 min-w-0">
           {title && (
-            <h3 className="text-lg font-semibold leading-6">
+            <h3 className="text-lg font-semibold leading-6 truncate pr-3">
               {title}
             </h3>
           )}
           <button
             type="button"
-            className="rounded-md p-1.5 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors ml-auto"
+            className="rounded-md p-1.5 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors ml-auto shrink-0"
             onClick={onClose}
           >
             <span className="sr-only">Close</span>
@@ -148,7 +149,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body - scrolls cleanly with overscroll containment */}
-        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
+        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
           {children}
         </div>
       </div>

@@ -317,9 +317,9 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={`Customer Rates: ${rateGroup || ""}`}
-        className="max-w-[95vw] w-full"
+        className="max-w-full w-full"
       >
-        <div className="p-4 w-full flex flex-col" onClick={() => setContextMenuPos(null)}>
+        <div className="p-4 w-full min-w-0 flex flex-col" onClick={() => setContextMenuPos(null)}>
           <div className="flex flex-col sm:flex-row items-center justify-between mb-4 gap-4 bg-gray-50 dark:bg-gray-800/50 p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 w-full shrink-0">
             <div className="flex items-start gap-3 flex-1">
               <div className="flex flex-col space-y-1.5 text-[13px] text-gray-600 dark:text-gray-300 leading-tight">
@@ -384,7 +384,7 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
             )}
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar">
+          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar w-full min-w-0">
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">

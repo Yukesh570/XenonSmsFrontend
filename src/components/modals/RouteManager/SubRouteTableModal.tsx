@@ -1228,7 +1228,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={`Manage Route Group: ${routeGroup || ""}`}
-        className="max-w-[95vw] w-full relative min-w-0"
+        className="max-w-full w-full relative min-w-0"
       >
         {/* Top Right "All Types" Filter Dropdown beside Modal Close Button with Spacing */}
         <div className="absolute top-5 right-20 z-30 w-36 config-filter-wrapper" onClick={(e) => e.stopPropagation()}>
