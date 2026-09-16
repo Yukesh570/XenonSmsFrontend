@@ -53,13 +53,43 @@ const SenderIdTranslationModule: React.FC = () => {
     className?: string;
   }
 
-  const [ruleColumns, setRuleColumns] = useState<RuleColumnDef[]>([
+  const DEFAULT_RULE_COLUMNS: RuleColumnDef[] = [
     { key: "country", label: "Country", className: "px-4 py-3" },
     { key: "sourceSenderId", label: "Original", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
     { key: "action", label: "Action", className: "px-4 py-3" },
     { key: "outputParam", label: "Output Param", className: "px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs" },
     { key: "actions", label: "Actions", className: "px-4 py-3" },
-  ]);
+  ];
+
+  const [ruleColumns, setRuleColumns] = useState<RuleColumnDef[]>(() => {
+    try {
+      const saved = localStorage.getItem("sender_id_rule_columns");
+      if (saved) {
+        const parsedKeys: string[] = JSON.parse(saved);
+        if (Array.isArray(parsedKeys) && parsedKeys.length > 0) {
+          const reordered = parsedKeys
+            .map((k) => DEFAULT_RULE_COLUMNS.find((c) => c.key === k))
+            .filter((c): c is RuleColumnDef => Boolean(c));
+          const missing = DEFAULT_RULE_COLUMNS.filter((c) => !parsedKeys.includes(c.key));
+          return [...reordered, ...missing];
+        }
+      }
+    } catch (e) {
+      console.error("Error loading sender id rule columns from localStorage", e);
+    }
+    return DEFAULT_RULE_COLUMNS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "sender_id_rule_columns",
+        JSON.stringify(ruleColumns.map((c) => c.key))
+      );
+    } catch (e) {
+      console.error("Error saving sender id rule columns to localStorage", e);
+    }
+  }, [ruleColumns]);
 
   const [sortConfig, setSortConfig] = useState<{
     key: string;

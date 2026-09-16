@@ -127,7 +127,35 @@ const FindRoute: React.FC = () => {
   const [searchError, setSearchError] = useState<string | null>(null);
 
   // Column Reordering & Sorting state
-  const [columns, setColumns] = useState<ColumnDef[]>(DEFAULT_COLUMNS);
+  const [columns, setColumns] = useState<ColumnDef[]>(() => {
+    try {
+      const saved = localStorage.getItem("findroute_table_columns");
+      if (saved) {
+        const parsedKeys: string[] = JSON.parse(saved);
+        if (Array.isArray(parsedKeys) && parsedKeys.length > 0) {
+          const reordered = parsedKeys
+            .map((k) => DEFAULT_COLUMNS.find((c) => c.key === k))
+            .filter((c): c is ColumnDef => Boolean(c));
+          const missing = DEFAULT_COLUMNS.filter((c) => !parsedKeys.includes(c.key));
+          return [...reordered, ...missing];
+        }
+      }
+    } catch (e) {
+      console.error("Error loading findroute columns from localStorage", e);
+    }
+    return DEFAULT_COLUMNS;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        "findroute_table_columns",
+        JSON.stringify(columns.map((c) => c.key))
+      );
+    } catch (e) {
+      console.error("Error saving findroute columns to localStorage", e);
+    }
+  }, [columns]);
   const [sortConfig, setSortConfig] = useState<{
     key: keyof RouteLookupTableRow;
     direction: "asc" | "desc";

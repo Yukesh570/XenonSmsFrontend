@@ -318,9 +318,9 @@ const hasLoggedOpening = useRef(false);
   const visibleSearchFields = filterOptionsConfig.filter((col) =>
     searchColumns.includes(col.key),
   );
-  const visibleTableFields = tableColumnsConfig.filter((col) =>
-    tableColumns.includes(col.key),
-  );
+  const visibleTableFields = tableColumns
+    .map((key) => tableColumnsConfig.find((col) => col.key === key))
+    .filter((col): col is ColumnConfig => Boolean(col));
 
   const fetchLogs = async () => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
@@ -560,6 +560,19 @@ const hasLoggedOpening = useRef(false);
         onRowsPerPageChange={setRowsPerPage}
         headers={tableHeaders}
         isLoading={isLoading}
+        onReorderColumns={(fromIdx, toIdx) => {
+          const maxIdx = visibleTableFields.length - 1;
+          if (fromIdx > maxIdx || toIdx > maxIdx || fromIdx < 0 || toIdx < 0) return;
+          setTableColumns((prev) => {
+            const validKeys = prev.filter((key) =>
+              tableColumnsConfig.some((c) => c.key === key)
+            );
+            const next = [...validKeys];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+            return next;
+          });
+        }}
         headerActions={
           <div className="flex gap-2">
             <Button

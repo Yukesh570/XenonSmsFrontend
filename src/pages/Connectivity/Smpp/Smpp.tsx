@@ -159,9 +159,9 @@ const Smpp: React.FC = () => {
   const visibleSearchFields = allColumns.filter((col) =>
     searchColumns.includes(col.key)
   );
-  const visibleTableFields = allColumns.filter((col) =>
-    tableColumns.includes(col.key)
-  );
+  const visibleTableFields = tableColumns
+    .map((key) => allColumns.find((col) => col.key === key))
+    .filter((col): col is ColumnConfig => Boolean(col));
 
   const tableFilterColumns = allColumns
     .filter((c) => !c.isSearchOnly)
@@ -599,6 +599,17 @@ const Smpp: React.FC = () => {
         onRowsPerPageChange={setRowsPerPage}
         headers={tableHeaders}
         isLoading={isLoading}
+        onReorderColumns={(fromIdx, toIdx) => {
+          setTableColumns((prev) => {
+            const validKeys = prev.filter((key) =>
+              allColumns.some((c) => c.key === key)
+            );
+            const next = [...validKeys];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+            return next;
+          });
+        }}
         onSort={handleSort}
         sortColumnIndex={sortConfig ? visibleTableFields.findIndex(c => c.key === sortConfig.key) + 1 : null}
         sortDirection={sortConfig?.direction || null}
