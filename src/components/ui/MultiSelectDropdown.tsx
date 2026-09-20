@@ -171,7 +171,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
 
   return (
     <>
-      <label className="text-sm font-medium text-text-secondary dark:text-gray-400 mb-1">
+      <label title={label} className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
         {label}
       </label>
 

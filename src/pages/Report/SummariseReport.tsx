@@ -5,7 +5,6 @@ import { toast } from "react-toastify";
 
 import {
   getSummariseSummaryApi,
-  getSummariseDetailedApi,
   downloadSummariseReportCsvApi,
   type SummariseSummaryData,
   type SummariseReportFilters,
@@ -19,12 +18,9 @@ import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import MultiSelectDropdown, { type MultiSelectOption } from "../../components/ui/MultiSelectDropdown";
 import DatePicker from "../../components/ui/DatePicker";
-import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 
 const formatLocalDateTime = (date: Date) => {
   const year = date.getFullYear();
@@ -182,16 +178,6 @@ const SummariseReport: React.FC = () => {
       }
 
       // Fetch detailed report if viewMode isn't summary-only
-      if (viewMode !== "summary") {
-        calls.push(
-          getSummariseDetailedApi(page, BATCH_SIZE, payload).catch((err) => {
-            if (err.name !== "AbortError") console.error(err);
-            return null;
-          })
-        );
-      } else {
-        calls.push(Promise.resolve(null));
-      }
 
       const [summaryResponse, detailedResponse] = await Promise.all(calls);
 
@@ -249,9 +235,9 @@ const SummariseReport: React.FC = () => {
         filters: filterValues,
         group_by: groupBy,
       };
-      
+
       const blob = await downloadSummariseReportCsvApi(payload);
-      
+
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -260,7 +246,7 @@ const SummariseReport: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.update(toastId, { render: "Export successful!", type: "success", isLoading: false, autoClose: 3000 });
     } catch (error) {
       console.error(error);
@@ -489,8 +475,8 @@ const SummariseReport: React.FC = () => {
                   </tr>
                 ) : (
                   summaryData.map((row, idx) => (
-                    <tr 
-                      key={idx} 
+                    <tr
+                      key={idx}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                       onContextMenu={handleContextMenu}
                     >
