@@ -166,6 +166,8 @@ const getPresetDateRange = (
 const DEFAULT_SEARCH_COLUMNS = [
   "text_message_id",
   "destination",
+  "countryMCC",
+  "operatorMNC",
   "senderId",
   "countryName",
   "submitStatus",
@@ -178,6 +180,8 @@ const DEFAULT_SEARCH_COLUMNS = [
 const DEFAULT_TABLE_COLUMNS = [
   "text_message_id",
   "destination",
+  "countryMCC",
+  "operatorMNC",
   "senderId",
   "countryName",
   "submitStatus",
@@ -336,14 +340,12 @@ const DetailedReport: React.FC = () => {
       label: "Country MCC",
       type: "text",
       filterKey: "countryMCC__icontains",
-      isSearchOnly: true,
     },
     {
       key: "operatorMNC",
       label: "Operator MNC",
       type: "text",
       filterKey: "operatorMNC__icontains",
-      isSearchOnly: true,
     },
     {
       key: "client",
@@ -415,10 +417,14 @@ const DetailedReport: React.FC = () => {
       render: (log) => <StatusBadge status={log.submitStatus} />,
     },
     {
-      key: "clientRate",
-      label: "Client Rate",
+      key: "base_clientRate",
+      label: "Base Client Rate",
+      tableLabel: `Base Client Rate (${currencySymbol})`,
       type: "number",
-      filterKey: "clientRate__icontains",
+      filterKey: "base_clientRate__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_clientRate || 0).toFixed(6)}</span>
+      ),
     },
     {
       key: "base_client_charge",
@@ -431,10 +437,14 @@ const DetailedReport: React.FC = () => {
       ),
     },
     {
-      key: "vendorRate",
-      label: "Vendor Rate",
+      key: "base_vendorRate",
+      label: "Base Vendor Rate",
+      tableLabel: `Base Vendor Rate (${currencySymbol})`,
       type: "number",
-      filterKey: "vendorRate__icontains",
+      filterKey: "base_vendorRate__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_vendorRate || 0).toFixed(6)}</span>
+      ),
     },
     {
       key: "base_vendor_charge",

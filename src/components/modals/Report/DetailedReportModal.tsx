@@ -60,12 +60,12 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
               <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.client || "-"}</div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client Rate</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.clientRate || "0"}</div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Client Rate</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_clientRate ?? viewLog.clientRate ?? "0"}</div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client Charge</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.client_charge || "0"}</div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Client Charge</label>
+              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_client_charge ?? viewLog.client_charge ?? "0"}</div>
             </div>
           </div>
         </fieldset>
@@ -85,12 +85,20 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
               <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor_msg_id || "-"}</div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Rate</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendorRate || "0"}</div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Vendor Rate</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_vendorRate ?? viewLog.vendorRate ?? "0"}</div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Charge</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor_charge || "0"}</div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Vendor Charge</label>
+              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_vendor_charge ?? viewLog.vendor_charge ?? "0"}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Country MCC</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.countryMCC || "-"}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Operator MNC</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.operatorMNC || "-"}</div>
             </div>
           </div>
         </fieldset>

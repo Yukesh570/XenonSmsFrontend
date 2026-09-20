@@ -1216,8 +1216,11 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
     const status = "isNew" in item ? item.row.status : String(item.status || "");
 
+    const network = "isNew" in item ? (item.row.network || "") : ((item as any).network || "");
+    const mncWithNetwork = `${mnc} ${network}`;
+
     if (filters.mcc && !mcc.toLowerCase().includes(filters.mcc.toLowerCase())) return false;
-    if (filters.mnc && !mnc.toLowerCase().includes(filters.mnc.toLowerCase())) return false;
+    if (filters.mnc && !mncWithNetwork.toLowerCase().includes(filters.mnc.toLowerCase())) return false;
     if (filters.vendor && !vendorName.toLowerCase().includes(filters.vendor.toLowerCase())) return false;
     if (filters.status && filters.status.trim() !== "" && status.toUpperCase() !== filters.status.toUpperCase()) return false;
 
@@ -1654,8 +1657,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                               <tr>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-10">#</th>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-32">MNC</th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px]">Network</th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px] w-56">MNC</th>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
                                 <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
                                   {isPercentage ? "Traffic %" : "Priority"}
@@ -1681,7 +1683,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                             <tbody>
                               {section.loading && (
                                 <tr>
-                                  <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
+                                  <td colSpan={(canUpdate || canDelete) ? 11 : 10} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
                                     <LoadingSpinner size="xs" text="Loading routes..." className="py-0" />
                                   </td>
                                 </tr>
@@ -1708,7 +1710,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                   return (
                                     <React.Fragment key={groupKey}>
                                       <tr className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700">
-                                        <td colSpan={11} className="px-3 py-1.5 text-xs font-semibold">
+                                        <td colSpan={10} className="px-3 py-1.5 text-xs font-semibold">
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                               <Layers size={13} className="text-primary" />
@@ -1780,7 +1782,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                               ...opt,
                                               label,
                                               value: cleanVal,
-                                              displayLabel: cleanVal,
+                                              displayLabel: label,
                                             };
                                           }).filter((opt) => {
                                             if (opt.value === row.MNC) return true;
@@ -1831,7 +1833,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[130px] overflow-visible">
+                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[200px] w-56 overflow-visible">
                                                 <div className="inline-table-field">
                                                   <Select
                                                     label=""
@@ -1841,18 +1843,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     placeholder="MNC"
                                                     placement="bottom"
                                                     clearable={false}
-                                                  />
-                                                </div>
-                                              </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[200px]">
-                                                <div className="inline-table-field">
-                                                  <Input
-                                                    label=""
-                                                    name="network"
-                                                    value={row.network || ""}
-                                                    onChange={(e) => updateRow(countryId, row._id, "network", e.target.value)}
-                                                    placeholder="Network"
-                                                    readOnly
+                                                    menuWidth={280}
                                                   />
                                                 </div>
                                               </td>
@@ -1926,6 +1917,15 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                         const vendorName = vendorMatch?.label || (route as any).terminatingVendorProfileName || route.terminatingVendor || "-";
                                         const isLocallyModified = (route as any).isModified;
 
+                                        const rawMnc = route.MNC ? String(route.MNC) : "";
+                                        const cleanMnc = rawMnc.includes("(") ? rawMnc.split("(")[0].trim() : rawMnc.trim();
+                                        const networkName = (route as any).network || brandMap[cleanMnc] || brandMap[rawMnc] || "";
+                                        const mncDisplay = cleanMnc
+                                          ? networkName
+                                            ? `${cleanMnc} (${networkName})`
+                                            : rawMnc
+                                          : "-";
+
                                         return (
                                           <tr
                                             key={route.id}
@@ -1939,11 +1939,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                             <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
                                               {route.MCC || "-"}
                                             </td>
-                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-32">
-                                              {route.MNC || "-"}
-                                            </td>
-                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px]">
-                                              {(route as any).network || "-"}
+                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px] w-56" title={mncDisplay}>
+                                              {mncDisplay}
                                             </td>
                                             <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
                                               {vendorName}
@@ -2017,7 +2014,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                               {!section.loading && mccMncGroups.length === 0 && (
                                 <tr>
-                                  <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-5 text-center text-gray-400 dark:text-gray-500 text-xs">
+                                  <td colSpan={(canUpdate || canDelete) ? 11 : 10} className="px-4 py-5 text-center text-gray-400 dark:text-gray-500 text-xs">
                                     No routes match your search filters.{canUpdate && " Click \"Add Route\" to create one."}
                                   </td>
                                 </tr>

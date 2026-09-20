@@ -14,21 +14,29 @@ export interface DetailedReportData {
   failure_reason?: string;
 
   countryName?: string;
+  countryMCC?: string;
+  operatorMNC?: string;
+  networkName?: string;
   client: string;
   destination: string;
-  clientRate: string | number;
-  client_charge: string | number;
+  base_clientRate?: string | number;
+  base_client_charge?: string | number;
+  clientRate?: string | number;
+  client_charge?: string | number;
   part_total: number;
   senderId: string;
   effectiveSenderId?: string;
   senderTranslationAction?: string;
   senderTranslationRuleId?: number | string;
   vendor: string;
-  vendorRate: string | number;
-  vendor_charge: string | number;
+  base_vendorRate?: string | number;
+  base_vendor_charge?: string | number;
+  vendorRate?: string | number;
+  vendor_charge?: string | number;
   content: string; // The message text
   submitStatus: string;
   request_time: string;
+  delivery_time?: string;
   text_message_id: string;
   vendor_msg_id: string;
 }

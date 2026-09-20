@@ -28,6 +28,8 @@ interface SelectProps {
   allowCustomValue?: boolean;
   renderTrigger?: (selectedOption?: SelectOption, open?: boolean) => React.ReactNode;
   isLoading?: boolean;
+  menuWidth?: number | string;
+  minMenuWidth?: number | string;
 }
 
 const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
@@ -45,6 +47,8 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   allowCustomValue = false,
   renderTrigger,
   isLoading,
+  menuWidth,
+  minMenuWidth,
   open,
 }) => {
   const [query, setQuery] = useState("");
@@ -335,9 +339,21 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                       : undefined,
                   left: renderTrigger
                     ? Math.max(8, Math.min(coords.left, window.innerWidth - Math.max(coords.width, 130) - 8))
-                    : coords.left,
-                  width: renderTrigger ? Math.max(coords.width, 130) : coords.width,
-                  minWidth: renderTrigger ? 130 : undefined,
+                    : Math.max(
+                        8,
+                        Math.min(
+                          coords.left,
+                          window.innerWidth -
+                            (typeof menuWidth === "number"
+                              ? menuWidth
+                              : typeof minMenuWidth === "number"
+                              ? minMenuWidth
+                              : coords.width) -
+                            8
+                        )
+                      ),
+                  width: menuWidth ?? (renderTrigger ? Math.max(coords.width, 130) : coords.width),
+                  minWidth: minMenuWidth ?? (renderTrigger ? 130 : undefined),
                 }}
                 className="z-[99999] overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm border border-gray-100 dark:border-gray-700 custom-grid-scroll max-h-60"
               >
