@@ -188,7 +188,8 @@ const ClientSession: React.FC = () => {
 
     {
       key: "connectedAt",
-      label: "Connected At (Exact)",
+      label: "Connected At",
+      isSearchable: false,
       tableLabel: "Connected At",
       type: "date",
       filterKey: "connectedAt",
@@ -196,7 +197,7 @@ const ClientSession: React.FC = () => {
     },
     {
       key: "connectedAt__gt_lt",
-      label: "Connected At (After/Before)",
+      label: "Connected At (From / To)",
       type: "date_gt_lt",
       filterKey: "connectedAt",
       isSearchOnly: true,
@@ -204,7 +205,8 @@ const ClientSession: React.FC = () => {
 
     {
       key: "boundAt",
-      label: "Bound At (Exact)",
+      label: "Bound At",
+      isSearchable: false,
       tableLabel: "Bound At",
       type: "date",
       filterKey: "boundAt",
@@ -212,14 +214,14 @@ const ClientSession: React.FC = () => {
     },
     {
       key: "boundAt__gt_lt",
-      label: "Bound At (After/Before)",
+      label: "Bound At (From / To)",
       type: "date_gt_lt",
       filterKey: "boundAt",
       isSearchOnly: true,
     },
     {
       key: "disconnectedAt",
-      label: "Disconnected At (Exact)",
+      label: "Disconnected At",
       tableLabel: "Disconnected At",
       type: "date",
       filterKey: "disconnectedAt",
@@ -244,7 +246,8 @@ const ClientSession: React.FC = () => {
 
     {
       key: "last_activityAt",
-      label: "Last Activity (Exact)",
+      label: "Last Activity",
+      isSearchable: false,
       tableLabel: "Last Activity",
       type: "date",
       filterKey: "last_activityAt",
@@ -253,7 +256,7 @@ const ClientSession: React.FC = () => {
     },
     {
       key: "last_activityAt__gt_lt",
-      label: "Last Activity (After/Before)",
+      label: "Last Activity (From / To)",
       type: "date_gt_lt",
       filterKey: "last_activityAt",
       isSearchOnly: true,

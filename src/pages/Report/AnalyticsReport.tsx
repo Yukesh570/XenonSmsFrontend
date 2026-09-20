@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import FilterCard from "../../components/ui/FilterCard";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { type DatePickerMode } from "../../components/ui/DatePicker";
 import Input from "../../components/ui/Input";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import { actionHelper } from "../../helper/action";
@@ -59,18 +59,13 @@ const formatLocalDateTime = (date: Date) => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["account_manager", "date", "date__gt_lt"];
+const DEFAULT_SEARCH_COLUMNS = ["account_manager", "date__gt_lt"];
 const BATCH_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 200;
 
 const allColumns: ColumnConfig[] = [
   { key: "account_manager", label: "Account Manager", type: "text", filterKey: "account_manager__icontains" },
-  { key: "date", label: "Date (Exact)", type: "date" },
   { key: "date__gt_lt", label: "Date (From / To)", type: "date_gt_lt", isSearchOnly: true },
-  // { key: "date__gt", label: "Date After (>)", type: "date" },
-  // { key: "date__gte", label: "Date From (>=)", type: "date" },
-  // { key: "date__lt", label: "Date Before (<)", type: "date" },
-  // { key: "date__lte", label: "Date To (<=)", type: "date" },
 ];
 
 const ExpandButton: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => {
@@ -345,10 +340,10 @@ const AnalyticsReport: React.FC = () => {
       } else if (colDef?.type === "date_gt_lt") {
         const [gt, lt] = val.split(",");
         if (gt && gt.trim() !== "") {
-          params.start_date = gt;
+          params.start_date = gt.includes("T") ? gt : `${gt}T00:00:00`;
         }
         if (lt && lt.trim() !== "") {
-          params.end_date = lt;
+          params.end_date = lt.includes("T") ? lt : `${lt}T23:59:59`;
         }
       } else {
         params[colDef?.filterKey || key] = val;
@@ -675,9 +670,10 @@ const AnalyticsReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     handleFilterChange(
                       col.key,
@@ -689,9 +685,10 @@ const AnalyticsReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     handleFilterChange(
                       col.key,

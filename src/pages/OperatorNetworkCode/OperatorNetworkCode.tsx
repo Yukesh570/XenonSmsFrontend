@@ -230,7 +230,9 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "effectiveFrom",
-      label: "Effective From (Exact)",
+      label: "Effective From",
+      isSearchable: false,
+
       tableLabel: "Effective From",
       type: "date",
       filterKey: "effectiveFrom",
@@ -245,7 +247,9 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "effectiveTo",
-      label: "Effective To (Exact)",
+      label: "Effective To",
+      isSearchable: false,
+
       tableLabel: "Effective To",
       type: "date",
       filterKey: "effectiveTo",
@@ -285,7 +289,9 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "createdAt",

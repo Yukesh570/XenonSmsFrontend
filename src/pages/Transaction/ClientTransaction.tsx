@@ -120,8 +120,8 @@ const ClientTransaction: React.FC = () => {
     { key: "baseAmount", label: `Base Amount ${baseCurrencyCode ? `(${baseCurrencyCode})` : ""}`, type: "number", filterKey: "baseAmount" },
     { key: "exchangeRateToBase", label: `Exchange Rate to Base ${baseCurrencyCode ? `(${baseCurrencyCode})` : ""}`, type: "number", filterKey: "exchangeRateToBase" },
 
-    { key: "createdAt", label: "Created At (Single Day)", tableLabel: "Created At", type: "date", filterKey: "createdAt__range", render: (log) => (<span>{log.createdAt ? formatDateTime(log.createdAt) : "-"}</span>) },
-    { key: "createdAt__range", label: "Created At (Range)", type: "date_range", filterKey: "createdAt__range", isSearchOnly: true },
+    { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt__range", isSearchable: false, render: (log) => (<span>{log.createdAt ? formatDateTime(log.createdAt) : "-"}</span>) },
+    { key: "createdAt__range", label: "Created At (From / To)", type: "date_range", filterKey: "createdAt__range", isSearchOnly: true },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);

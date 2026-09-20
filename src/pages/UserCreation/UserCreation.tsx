@@ -155,7 +155,8 @@ const UserCreation: React.FC = () => {
     },
     {
       key: "date_joined",
-      label: "Date Joined (Exact)",
+      label: "Date Joined",
+      isSearchable: false,
       tableLabel: "Date Joined",
       type: "date",
       filterKey: "date_joined",
@@ -164,7 +165,7 @@ const UserCreation: React.FC = () => {
     },
     {
       key: "date_joined__range",
-      label: "Date Joined (Range)",
+      label: "Date Joined (From / To)",
       type: "date_range",
       isSearchOnly: true,
       render: () => null,

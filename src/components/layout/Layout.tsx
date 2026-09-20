@@ -192,7 +192,6 @@ const Layout: React.FC = () => {
           </main>
         </div>
       </div>
-      <div id="page-modal-root" className="pointer-events-none fixed inset-0 z-[99999]" />
     </div>
   );
 };

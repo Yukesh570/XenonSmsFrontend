@@ -274,7 +274,9 @@ const ImportBatch: React.FC = () => {
 
     {
       key: "publishedAt",
-      label: "Published At (Exact)",
+      label: "Published At",
+      isSearchable: false,
+
       tableLabel: "Published At",
       type: "date",
       filterKey: "publishedAt",
@@ -291,7 +293,9 @@ const ImportBatch: React.FC = () => {
 
     {
       key: "createdAt",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "createdAt",

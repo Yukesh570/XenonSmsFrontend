@@ -134,7 +134,9 @@ const AllNotifications: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Date (Exact)",
+      label: "Date",
+      isSearchable: false,
+
       tableLabel: "Date",
       type: "date",
       filterKey: "createdAt",

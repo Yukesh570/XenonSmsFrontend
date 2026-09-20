@@ -163,10 +163,11 @@ const ImportMail: React.FC = () => {
     { key: "failureReason", label: "Failure Reason", type: "text", isSearchable: false },
     {
       key: "receivedAt",
-      label: "Received At (Exact)",
+      label: "Received At",
       tableLabel: "Received At",
       type: "date",
       filterKey: "receivedAt",
+      isSearchable: false,
       render: (c) => (c.receivedAt ? formatDateTime(c.receivedAt) : "-"),
     },
     {

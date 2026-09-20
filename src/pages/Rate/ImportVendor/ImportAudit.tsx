@@ -126,7 +126,9 @@ const ImportAudit: React.FC = () => {
     },
     { 
       key: "actionTime", 
-      label: "Action Time (Exact)", 
+      label: "Action Time",
+      isSearchable: false, 
+
       tableLabel: "Action Time", 
       type: "date", 
       filterKey: "actionTime", 

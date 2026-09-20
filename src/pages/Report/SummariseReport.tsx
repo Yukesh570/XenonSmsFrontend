@@ -16,11 +16,23 @@ import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
-import MultiSelectDropdown, { type MultiSelectOption } from "../../components/ui/MultiSelectDropdown";
-import DatePicker from "../../components/ui/DatePicker";
+import MultiSelectDropdown, {
+  type MultiSelectOption,
+} from "../../components/ui/MultiSelectDropdown";
+import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
+import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
-import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
+import ContextMenu, {
+  type ContextMenuItem,
+} from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
+
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const formatLocalDateTime = (date: Date) => {
   const year = date.getFullYear();
@@ -32,7 +44,86 @@ const formatLocalDateTime = (date: Date) => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
-const BATCH_SIZE = 50;
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "2days"
+  | "7days"
+  | "15days"
+  | "30days"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "2days", label: "2 Days" },
+  { key: "7days", label: "7 Days" },
+  { key: "15days", label: "15 Days" },
+  { key: "30days", label: "30 Days" },
+];
+
+const getPresetDateRange = (
+  preset: DatePresetKey,
+): { start: string; end: string } | null => {
+  const now = new Date();
+  const todayStr = formatLocalDate(now);
+
+  switch (preset) {
+    case "today":
+      return { start: `${todayStr}T00:00:00`, end: `${todayStr}T23:59:59` };
+
+    case "yesterday": {
+      const y = new Date(now);
+      y.setDate(now.getDate() - 1);
+      const yStr = formatLocalDate(y);
+      return { start: `${yStr}T00:00:00`, end: `${yStr}T23:59:59` };
+    }
+
+    case "2days": {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 1);
+      return {
+        start: `${formatLocalDate(start)}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "7days": {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 6);
+      return {
+        start: `${formatLocalDate(start)}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "15days": {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 14);
+      return {
+        start: `${formatLocalDate(start)}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "30days": {
+      const start = new Date(now);
+      start.setDate(now.getDate() - 29);
+      return {
+        start: `${formatLocalDate(start)}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    default:
+      return null;
+  }
+};
 
 const statusOptions = [
   { label: "Queued", value: "QUEUED" },
@@ -55,44 +146,32 @@ const groupByOptions: MultiSelectOption[] = [
   { label: "Destination", value: "destination" },
 ];
 
-const ALL_TABLE_COLUMNS = [
-  { key: "sn", label: "S.N" },
-  { key: "message_id", label: "Message ID" },
-  { key: "destination", label: "Destination" },
-  { key: "country", label: "Country" },
-  { key: "client", label: "Client" },
-  { key: "vendor", label: "Vendor" },
-  { key: "status", label: "Status" },
-  { key: "client_charge", label: "Client Charge" },
-  { key: "vendor_charge", label: "Vendor Charge" },
-  { key: "margin", label: "Margin" },
-  { key: "request_time", label: "Request Time" },
-];
-
-type ViewMode = "all" | "summary" | "detailed";
-
 const SummariseReport: React.FC = () => {
   const [summaryData, setSummaryData] = useState<SummariseSummaryData[]>([]);
-  const [detailedReports, setDetailedReports] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>("all");
-  const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadedPage, setLoadedPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [currencySymbol, setCurrencySymbol] = useState<string>("$");
 
-  const [filterValues, setFilterValues] = useState<SummariseReportFilters>({
-    start_date: formatLocalDateTime(new Date(new Date().setHours(0, 0, 0, 0))),
-    end_date: formatLocalDateTime(new Date(new Date().setHours(23, 59, 59, 999))),
-  });
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
+
+  const [filterValues, setFilterValues] = useState<SummariseReportFilters>({});
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
-  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
 
-  const [clientOptions, setClientOptions] = useState<{ label: string; value: string }[]>([]);
-  const [vendorOptions, setVendorOptions] = useState<{ label: string; value: string }[]>([]);
-  const [countryOptions, setCountryOptions] = useState<{ label: string; value: string }[]>([]);
+  const [clientOptions, setClientOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [vendorOptions, setVendorOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+  const [countryOptions, setCountryOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
+
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -103,9 +182,21 @@ const SummariseReport: React.FC = () => {
           getCountriesApi("country", 1, 1000),
         ]);
 
-        const cOpts = clientsRes.results?.map((item: any) => ({ label: item.name, value: item.name })) || [];
-        const vOpts = vendorsRes.results?.map((item: any) => ({ label: item.profileName, value: item.profileName })) || [];
-        const cntOpts = countriesRes.results?.map((item: any) => ({ label: item.name, value: item.name })) || [];
+        const cOpts =
+          clientsRes.results?.map((item: any) => ({
+            label: item.name,
+            value: item.name,
+          })) || [];
+        const vOpts =
+          vendorsRes.results?.map((item: any) => ({
+            label: item.profileName,
+            value: item.profileName,
+          })) || [];
+        const cntOpts =
+          countriesRes.results?.map((item: any) => ({
+            label: item.name,
+            value: item.name,
+          })) || [];
 
         setClientOptions(cOpts);
         setVendorOptions(vOpts);
@@ -117,122 +208,142 @@ const SummariseReport: React.FC = () => {
     fetchOptions();
   }, []);
 
-  const [tableColumns, setTableColumns] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("summarise_table_columns");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        const validKeys = ALL_TABLE_COLUMNS.map(c => c.key);
-        // Only use saved columns if they exactly match the currently available columns
-        const isExactMatch = Array.isArray(parsed) && parsed.length === validKeys.length && parsed.every((k: string) => validKeys.includes(k));
-        if (isExactMatch) return parsed;
-      }
-    } catch { }
-    return ALL_TABLE_COLUMNS.map(c => c.key);
-  });
-
-  const abortControllerRef = useRef<AbortController | null>(null);
-
   const hasLoggedOpening = useRef(false);
   useEffect(() => {
     if (!hasLoggedOpening.current) {
       setTimeout(() => {
-        actionHelper("Summarise Report", `Opened Summarise Report Module`, false);
+        actionHelper(
+          "Summarise Report",
+          `Opened Summarise Report Module`,
+          false,
+        );
       }, 100);
       hasLoggedOpening.current = true;
     }
   }, []);
 
   const handleFilterChange = (key: string, value: string) => {
+    if (key === "start_date" || key === "end_date") {
+      setActivePreset("custom");
+    }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
   };
 
-  const fetchReports = async (page: number = 1, append: boolean = false, overrideFilters?: SummariseReportFilters, overrideGroupBy?: string[]) => {
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    const nextPreset: DatePresetKey =
+      activePreset === presetKey ? "custom" : presetKey;
+    setActivePreset(nextPreset);
+
+    const nextFilters = { ...filterValues };
+    delete nextFilters.start_date;
+    delete nextFilters.end_date;
+    setFilterValues(nextFilters);
+
+    fetchReports(nextFilters, undefined, nextPreset);
+  };
+
+  const fetchReports = async (
+    overrideFilters?: SummariseReportFilters,
+    overrideGroupBy?: string[],
+    presetOverride?: DatePresetKey,
+  ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
     abortControllerRef.current = newController;
 
-    if (append) setIsFetchingMore(true);
-    else setIsLoading(true);
+    setIsLoading(true);
 
     try {
+      const activeFilters: SummariseReportFilters = {
+        ...(overrideFilters || filterValues),
+      };
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+
+      if (
+        (!activeFilters.start_date || !activeFilters.end_date) &&
+        currentPreset &&
+        currentPreset !== "custom"
+      ) {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          if (!activeFilters.start_date) activeFilters.start_date = range.start;
+          if (!activeFilters.end_date) activeFilters.end_date = range.end;
+        }
+      }
+
+      const finalFilters = { ...activeFilters };
+      if (finalFilters.start_date && !finalFilters.start_date.includes("T")) {
+        finalFilters.start_date = `${finalFilters.start_date}T00:00:00`;
+      }
+      if (finalFilters.end_date && !finalFilters.end_date.includes("T")) {
+        finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
+      }
+
       const payload = {
-        filters: overrideFilters || filterValues,
+        filters: finalFilters,
         group_by: overrideGroupBy || groupBy,
       };
 
-      const calls: Promise<any>[] = [];
-
-      // Fetch summary if it's not a pagination append, AND the view mode isn't detailed-only
-      // However, if we don't have access to viewMode directly we'll just fetch both unless appending.
-      // Wait, viewMode is in state so we can access it here!
-      if (!append && viewMode !== "detailed") {
-        calls.push(
-          getSummariseSummaryApi(payload).catch((err) => {
-            if (err.name !== "AbortError") console.error(err);
-            return null;
-          })
-        );
-      } else {
-        calls.push(Promise.resolve(null));
-      }
-
-      // Fetch detailed report if viewMode isn't summary-only
-
-      const [summaryResponse, detailedResponse] = await Promise.all(calls);
+      const summaryResponse = await getSummariseSummaryApi(payload);
 
       if (newController.signal.aborted) return;
 
-      if (!append && summaryResponse) {
+      if (summaryResponse) {
         setAppliedGroupBy(overrideGroupBy || groupBy);
         setSummaryData(summaryResponse.summary || []);
         if (summaryResponse.currency?.symbol) {
           setCurrencySymbol(summaryResponse.currency.symbol);
         }
-      } else if (!append && viewMode === "detailed") {
-        // If we switched to detailed-only, we might want to still update applied groupBy to keep it in sync,
-        // though it isn't rendered. Let's just keep it in sync.
-        setAppliedGroupBy(overrideGroupBy || groupBy);
-      }
-
-      if (detailedResponse && detailedResponse.results) {
-        setDetailedReports((prev) =>
-          append ? [...prev, ...detailedResponse.results] : detailedResponse.results
-        );
-        setTotalItems(detailedResponse.count);
-        setHasMore(Boolean(detailedResponse.next));
-        setLoadedPage(page);
-      } else if (!append) {
-        setDetailedReports([]);
-        setTotalItems(0);
-        setHasMore(false);
+      } else {
+        setSummaryData([]);
       }
     } catch (error: any) {
       if (error.name !== "AbortError") {
         toast.error("Failed to fetch summarise report.");
+        setSummaryData([]);
       }
     } finally {
       if (abortControllerRef.current === newController) {
         setIsLoading(false);
-        setIsFetchingMore(false);
       }
     }
   };
 
   useEffect(() => {
-    fetchReports(1, false);
+    fetchReports();
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, []); // Initial load
+  }, []);
 
   const handleDownloadCSV = async () => {
     try {
       const toastId = toast.loading("Downloading CSV...");
+      const activeFilters: SummariseReportFilters = { ...filterValues };
+      if (
+        (!activeFilters.start_date || !activeFilters.end_date) &&
+        activePreset &&
+        activePreset !== "custom"
+      ) {
+        const range = getPresetDateRange(activePreset);
+        if (range) {
+          if (!activeFilters.start_date) activeFilters.start_date = range.start;
+          if (!activeFilters.end_date) activeFilters.end_date = range.end;
+        }
+      }
+      const finalFilters = { ...activeFilters };
+      if (finalFilters.start_date && !finalFilters.start_date.includes("T")) {
+        finalFilters.start_date = `${finalFilters.start_date}T00:00:00`;
+      }
+      if (finalFilters.end_date && !finalFilters.end_date.includes("T")) {
+        finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
+      }
+
       const payload = {
-        filters: filterValues,
+        filters: finalFilters,
         group_by: groupBy,
       };
 
@@ -241,13 +352,21 @@ const SummariseReport: React.FC = () => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `summarise_report_${formatLocalDateTime(new Date())}.xlsx`);
+      link.setAttribute(
+        "download",
+        `summarise_report_${formatLocalDateTime(new Date())}.xlsx`,
+      );
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast.update(toastId, { render: "Export successful!", type: "success", isLoading: false, autoClose: 3000 });
+      toast.update(toastId, {
+        render: "Export successful!",
+        type: "success",
+        isLoading: false,
+        autoClose: 3000,
+      });
     } catch (error) {
       console.error(error);
       toast.error("Failed to download CSV");
@@ -271,74 +390,41 @@ const SummariseReport: React.FC = () => {
   ];
 
   const handleSearch = () => {
-    fetchReports(1, false);
+    fetchReports();
   };
 
   const handleClearFilters = () => {
-    const defaultFilters = {
-      start_date: formatLocalDateTime(new Date(new Date().setHours(0, 0, 0, 0))),
-      end_date: formatLocalDateTime(new Date(new Date().setHours(23, 59, 59, 999))),
-    };
-    setFilterValues(defaultFilters);
+    setActivePreset("today");
+    setFilterValues({});
     setGroupBy([]);
-    fetchReports(1, false, defaultFilters, []);
+    fetchReports({}, [], "today");
   };
 
-  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
-    setTableColumns((prev) => {
-      const next = [...prev];
-      // DataTable subtracts 1 for the S.N. column, but our state array includes it at index 0.
-      // Therefore, we must add 1 back to accurately target the draggable columns.
-      const actualFrom = fromIdx + 1;
-      const actualTo = toIdx + 1;
-
-      const [moved] = next.splice(actualFrom, 1);
-      next.splice(actualTo, 0, moved);
-      localStorage.setItem("summarise_table_columns", JSON.stringify(next));
-      return next;
-    });
-  };
-
-  // Detailed Report Table Headers dynamically generated
-  const tableHeaders = tableColumns.map((key) => {
-    const col = ALL_TABLE_COLUMNS.find((c) => c.key === key);
-    return col ? col.label : key;
-  });
-
-  const tableWrapperRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
-      ".custom-scrollbar"
-    );
-    if (!scrollEl) return;
-
-    const handleScroll = () => {
-      if (isLoading || isFetchingMore || !hasMore) return;
-      const { scrollTop, scrollHeight, clientHeight } = scrollEl;
-      if (scrollHeight - scrollTop - clientHeight < 200) {
-        fetchReports(loadedPage + 1, true);
-      }
-    };
-
-    scrollEl.addEventListener("scroll", handleScroll);
-    return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, groupBy, detailedReports.length]);
+  const summaryHeaders = [
+    ...(appliedGroupBy.length > 0
+      ? appliedGroupBy.map(
+          (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
+        )
+      : ["Total"]),
+    "Attempts",
+    "Successful",
+    "Delivered",
+    "Failed",
+    `Revenue (${currencySymbol})`,
+    `Vendor Cost (${currencySymbol})`,
+    `Margin (${currencySymbol})`,
+    "ASR %",
+    "DLR %",
+  ];
 
   return (
     <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
+      {/* Top Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
             Summarise Report
           </h1>
-          <button
-            onClick={handleDownloadCSV}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary transition-colors"
-            title="Download summary data as CSV"
-          >
-            <Download size={15} />
-            Export CSV
-          </button>
         </div>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
           <Home size={16} className="text-gray-400" />
@@ -350,23 +436,35 @@ const SummariseReport: React.FC = () => {
         </div>
       </div>
 
-
+      {/* Filter Card */}
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
         <DatePicker
           label="Start Date & Time"
           showTimeSelect={true}
-          selected={filterValues.start_date ? new Date(filterValues.start_date) : null}
-          onChange={(val: Date | null) =>
-            handleFilterChange("start_date", val ? formatLocalDateTime(val) : "")
+          selected={
+            filterValues.start_date ? parseDateValue(filterValues.start_date) : null
+          }
+          dateMode={filterValues.start_date ? (filterValues.start_date.includes("T") ? "specific_time" : "whole_day") : undefined}
+          onChange={(val: Date | null, mode?: DatePickerMode) =>
+            handleFilterChange(
+              "start_date",
+              val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "",
+            )
           }
           placeholder="Select Start Date"
         />
         <DatePicker
           label="End Date & Time"
           showTimeSelect={true}
-          selected={filterValues.end_date ? new Date(filterValues.end_date) : null}
-          onChange={(val: Date | null) =>
-            handleFilterChange("end_date", val ? formatLocalDateTime(val) : "")
+          selected={
+            filterValues.end_date ? parseDateValue(filterValues.end_date) : null
+          }
+          dateMode={filterValues.end_date ? (filterValues.end_date.includes("T") ? "specific_time" : "whole_day") : undefined}
+          onChange={(val: Date | null, mode?: DatePickerMode) =>
+            handleFilterChange(
+              "end_date",
+              val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "",
+            )
           }
           placeholder="Select End Date"
         />
@@ -408,102 +506,113 @@ const SummariseReport: React.FC = () => {
           onChange={(e) => handleFilterChange("sender_id", e.target.value)}
           placeholder="Search Sender ID"
         />
-        <Select
-          label="View Mode"
-          value={viewMode}
-          onChange={(val) => setViewMode(val as ViewMode)}
-          options={[
-            { label: "All Reports", value: "all" },
-            { label: "Summary Only", value: "summary" },
-            { label: "Detailed Only", value: "detailed" },
-          ]}
-          clearable={false}
-        />
         <MultiSelectDropdown
           label="Group By"
           selected={groupBy}
           onChange={(val) => {
             setGroupBy(val);
-            fetchReports(1, false, filterValues, val);
+            fetchReports(filterValues, val);
           }}
           options={groupByOptions}
           placeholder="Group By..."
         />
       </FilterCard>
 
-      {/* Summary Section */}
-      {(viewMode === "all" || viewMode === "summary") && (
-        <div className="mt-6 rounded-xl bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-          <div className="border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-gray-50 dark:bg-gray-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-text-primary dark:text-white">Aggregated Summary</h2>
-            <div className="w-full sm:w-64">
-
+      {/* Reusable DataTable for Aggregated Summary */}
+      <div className="mt-6">
+        <DataTable
+          headers={summaryHeaders}
+          data={summaryData.map((row, idx) => ({ ...row, id: idx }))}
+          totalItems={summaryData.length}
+          showCountOnly={true}
+          isLoading={isLoading}
+          emptyMessage="No summary data found."
+          density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
+                      isActive
+                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
             </div>
-          </div>
-          <div className="overflow-auto max-h-[40vh] custom-scrollbar">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
-              <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-xs">
-                <tr>
-                  {appliedGroupBy.map(gb => {
-                    const opt = groupByOptions.find(o => o.value === gb);
-                    return (
-                      <th key={gb} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">
-                        {opt ? opt.label : gb}
-                      </th>
-                    );
-                  })}
-                  {appliedGroupBy.length === 0 && <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Total</th>}
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Attempts</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Successful</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Delivered</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Failed</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Revenue</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Vendor Cost</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">Margin</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">ASR %</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]">DLR %</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
-                {isLoading && loadedPage === 1 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-text-secondary dark:text-gray-400">Loading summary...</td>
-                  </tr>
-                ) : summaryData.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} className="px-4 py-8 text-center text-text-secondary dark:text-gray-400">No summary data found.</td>
-                  </tr>
-                ) : (
-                  summaryData.map((row, idx) => (
-                    <tr
-                      key={idx}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                      onContextMenu={handleContextMenu}
-                    >
-                      {appliedGroupBy.map(gb => (
-                        <td key={gb} className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap">
-                          {row[gb] || "-"}
-                        </td>
-                      ))}
-                      {appliedGroupBy.length === 0 && <td className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap">Grand Total</td>}
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{Number(row.attempts || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{Number(row.successful || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{Number(row.delivered || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{Number(row.failed || 0).toLocaleString()}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">{currencySymbol}{Number(row.revenue || 0).toFixed(4)}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">{currencySymbol}{Number(row.vendor_cost || 0).toFixed(4)}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono font-semibold text-emerald-600 dark:text-emerald-400">{currencySymbol}{Number(row.profit_margin || 0).toFixed(4)}</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">{Number(row.asr_percent || 0).toFixed(2)}%</td>
-                      <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">{Number(row.dlr_percent || 0).toFixed(2)}%</td>
-                    </tr>
-                  ))
+          }
+          renderRow={(row, idx) => {
+            const margin = Number(row.profit_margin || 0);
+            return (
+              <tr
+                key={idx}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                onContextMenu={handleContextMenu}
+              >
+                {appliedGroupBy.map((gb) => (
+                  <td
+                    key={gb}
+                    className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
+                  >
+                    {(row as any)[gb] || "-"}
+                  </td>
+                ))}
+                {appliedGroupBy.length === 0 && (
+                  <td className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-semibold whitespace-nowrap">
+                    Grand Total
+                  </td>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number(row.attempts || 0).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number(row.successful || 0).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number(row.delivered || 0).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number(row.failed || 0).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {currencySymbol}
+                  {Number(row.revenue || 0).toFixed(4)}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {currencySymbol}
+                  {Number(row.vendor_cost || 0).toFixed(4)}
+                </td>
+                <td
+                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${
+                    margin >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-600 dark:text-red-400"
+                  }`}
+                >
+                  {currencySymbol}
+                  {margin.toFixed(4)}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {Number(row.asr_percent || 0).toFixed(2)}%
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {Number(row.dlr_percent || 0).toFixed(2)}%
+                </td>
+              </tr>
+            );
+          }}
+        />
+      </div>
 
+      {/* Context Menu for right-click download */}
       <ContextMenu
         position={contextMenuPos}
         onClose={() => setContextMenuPos(null)}

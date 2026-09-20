@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, Fragment } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { Check, X, ChevronDown } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
@@ -177,13 +177,13 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
 
       <div
         ref={buttonRef}
-        onClick={(e) => {
+        onClick={() => {
           updatePosition();
           toggle();
         }}
-        className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 flex justify-between items-center transition-all focus:outline-none focus:ring-1 focus:ring-primary shadow-sm ${disabled
-            ? "bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed"
-            : "bg-white dark:bg-gray-900 cursor-pointer hover:border-primary"
+        className={`w-full border rounded-lg px-3 py-2.5 flex justify-between items-center shadow-input transition duration-150 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary ${disabled
+            ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
+            : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:border-primary"
           } ${open ? "ring-1 ring-primary border-primary" : ""}`}
       >
         <input
@@ -199,7 +199,11 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
             }
           }}
           onKeyDown={(e) => e.stopPropagation()}
-          className="flex-1 w-full bg-transparent outline-none truncate text-sm text-text-primary dark:text-white placeholder:text-text-primary dark:placeholder:text-white"
+          className={`flex-1 w-full bg-transparent outline-none truncate text-sm text-text-primary dark:text-white ${
+            selected.length === 0
+              ? "placeholder:text-gray-400 dark:placeholder:text-gray-500"
+              : "placeholder:text-text-primary dark:placeholder:text-white font-medium"
+          }`}
         />
 
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
@@ -221,7 +225,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
 
       {open && buttonRect && !disabled && (
         <CustomPortal>
-          <div className="fixed inset-0 z-[9999]" onClick={() => { close(); }}>
+          <div className="fixed inset-0 z-[99999]" onClick={() => { close(); }}>
             <div
               ref={portalRef}
               className="absolute flex flex-col transition-all duration-100 ease-out opacity-100 translate-y-0"

@@ -36,15 +36,15 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Destination</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.destination || "-"}</div>
+              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.destination || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Status</label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.submitStatus || "-"}</div>
+              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.submitStatus || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Sender ID</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.senderId || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.senderId || "-"}</div>
             </div>
           </div>
         </fieldset>
@@ -57,15 +57,15 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.client || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.client || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client Rate</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.clientRate || "0"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.clientRate || "0"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client Charge</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.client_charge || "0"}</div>
+              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.client_charge || "0"}</div>
             </div>
           </div>
         </fieldset>
@@ -78,7 +78,7 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.vendor || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Msg ID</label>
@@ -86,11 +86,11 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Rate</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.vendorRate || "0"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendorRate || "0"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Charge</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.vendor_charge || "0"}</div>
+              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor_charge || "0"}</div>
             </div>
           </div>
         </fieldset>
@@ -103,33 +103,33 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Encoding</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.encoding || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.encoding || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Character Count</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.characterCount || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.characterCount || "-"}</div>
             </div>
             <div className="md:col-span-2">
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Failure Reason</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.failure_reason || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.failure_reason || "-"}</div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Request Time</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.request_time || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.request_time || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Queued At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.message_queued_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_queued_at || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Delivered At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.message_delivered_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_delivered_at || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Failed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.message_failed_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_failed_at || "-"}</div>
             </div>
           </div>
         </fieldset>

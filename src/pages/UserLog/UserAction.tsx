@@ -131,7 +131,9 @@ const UserAction: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Time (Exact)",
+      label: "Time",
+      isSearchable: false,
+
       tableLabel: "Time",
       type: "date",
       filterKey: "createdAt",

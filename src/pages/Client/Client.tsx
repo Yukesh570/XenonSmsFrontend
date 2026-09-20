@@ -371,7 +371,7 @@ const Client: React.FC = () => {
       filterKey: "updatedBy__username__icontains",
       render: (c: any) => c.updatedByName || c.updatedBy || "-",
     },
-    { key: "createdAt", label: "Created At (Exact)", tableLabel: "Created At", type: "date", filterKey: "createdAt", render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
+    { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt", isSearchable: false, render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
     { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", isSearchOnly: true },
   ];
 

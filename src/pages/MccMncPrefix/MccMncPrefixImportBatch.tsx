@@ -157,26 +157,43 @@ const MccMncPrefixImportBatch: React.FC = () => {
     },
     { 
       key: "uploadedAt", 
-      label: "Uploaded At (Exact)", 
+      label: "Uploaded At", 
       tableLabel: "Uploaded At", 
       type: "date", 
       filterKey: "uploadedAt", 
+      isSearchable: false, 
       render: (c) => (c.uploadedAt ? formatDateTime(c.uploadedAt) : "-") 
     },
     { 
+      key: "uploadedAt__gt_lt", 
+      label: "Uploaded At (From / To)", 
+      type: "date_gt_lt", 
+      filterKey: "uploadedAt", 
+      isSearchOnly: true 
+    },
+    { 
       key: "completedAt", 
-      label: "Completed At (Exact)", 
+      label: "Completed At", 
       tableLabel: "Completed At", 
       type: "date", 
       filterKey: "completedAt", 
+      isSearchable: false, 
       render: (c) => (c.completedAt ? formatDateTime(c.completedAt) : "-") 
     },
     { 
+      key: "completedAt__gt_lt", 
+      label: "Completed At (From / To)", 
+      type: "date_gt_lt", 
+      filterKey: "completedAt", 
+      isSearchOnly: true 
+    },
+    { 
       key: "createdAt", 
-      label: "Created At (Exact)", 
+      label: "Created At", 
       tableLabel: "Created At", 
       type: "date", 
       filterKey: "createdAt", 
+      isSearchable: false, 
       render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") 
     },
     { 

@@ -166,7 +166,9 @@ const VendorInvoice: React.FC = () => {
     },
     {
       key: "billingPeriodStart",
-      label: "Period Start (Exact)",
+      label: "Period Start",
+      isSearchable: false,
+
       tableLabel: "Period Start",
       type: "date",
       filterKey: "billingPeriodStart",
@@ -180,7 +182,9 @@ const VendorInvoice: React.FC = () => {
     },
     {
       key: "billingPeriodEnd",
-      label: "Period End (Exact)",
+      label: "Period End",
+      isSearchable: false,
+
       tableLabel: "Period End",
       type: "date",
       filterKey: "billingPeriodEnd",
@@ -194,7 +198,9 @@ const VendorInvoice: React.FC = () => {
     },
     {
       key: "invoiceDate",
-      label: "Invoice Date (Exact)",
+      label: "Invoice Date",
+      isSearchable: false,
+
       tableLabel: "Invoice Date",
       type: "date",
       filterKey: "invoiceDate",
@@ -240,7 +246,9 @@ const VendorInvoice: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "createdAt",

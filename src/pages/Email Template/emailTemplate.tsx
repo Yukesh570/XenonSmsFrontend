@@ -189,7 +189,9 @@ const EmailTemplatePage: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "createdAt",
