@@ -23,7 +23,6 @@ import { findVendorRateApi } from "../../../api/rateApi/vendorRateApi";
 import { findCustomerRateApi } from "../../../api/rateApi/customerRateApi";
 import { toast } from "react-toastify";
 import Button from "../../ui/Button";
-import { MultiSelectDropdown, type MultiSelectOption } from "../../ui/MultiSelectDropdown";
 import Select from "../../ui/Select";
 import Input from "../../ui/Input";
 import { StatusBadge } from "../../ui/StatusBadge";

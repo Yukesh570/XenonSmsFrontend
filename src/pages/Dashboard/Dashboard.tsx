@@ -40,7 +40,6 @@ import {
   type ClientSessionSummaryData,
 } from "../../api/clientSessionApi/clientSessionApi";
 import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
-import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getNotificationApi, type NotificationData } from "../../api/userActionApi/notificationApi";
 import {
   getSmsDailyApi,
@@ -280,15 +279,6 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchOnlineClients = async () => {
-    try {
-      const res = await getClientsApi("client", 1, 1, { bindStatus: "ONLINE" });
-      if (res?.count !== undefined) setOnlineClients(res.count);
-    } catch (e) {
-      console.error("fetchOnlineClients failed", e);
-    }
-  };
-
   const fetchNotifications = async () => {
     try {
       const res = await getNotificationApi(1, 5);
@@ -462,9 +452,6 @@ const Dashboard: React.FC = () => {
 
           if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
-
-            const currentPath = window.location.pathname;
-
             if (isMetricsLiveRef.current && activeRangeRef.current === "today") {
               if (data.smsStats) {
                 setTotalSms(Number(data.smsStats.count).toLocaleString());

@@ -166,13 +166,6 @@ const ImportBatch: React.FC = () => {
     { label: "Rolled Back", value: "ROLLED_BACK" },
   ];
 
-  const approvalStatusOptions: Option[] = [
-    { label: "Pending", value: "PENDING" },
-    { label: "Auto Approved", value: "AUTO_APPROVED" },
-    { label: "Manual Approved", value: "MANUAL_APPROVED" },
-    { label: "Rejected", value: "REJECTED" },
-  ];
-
   const allColumns: ColumnConfig[] = [
     {
       key: "vendor",
