@@ -73,3 +73,16 @@ export const getSummariseDetailedApi = async (
   });
   return response.data;
 };
+
+/**
+ * Download summarised report as CSV
+ * POST /api/reports/summarise/downloadCsv/
+ */
+export const downloadSummariseReportCsvApi = async (
+  payload: SummariseReportParams = {}
+): Promise<Blob> => {
+  const response = await axiosInstance.post(`/api/reports/summarise/downloadCsv/`, payload, {
+    responseType: "blob",
+  });
+  return response.data;
+};

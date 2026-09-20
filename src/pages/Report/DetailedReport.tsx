@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Eye } from "lucide-react";
+import { Home, Eye, Download } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
   getDetailedReportsApi,
+  downloadDetailedReportCsvApi,
   type DetailedReportData,
 } from "../../api/reportApi/detailedReportApi";
 import { DetailedReportModal } from "../../components/modals/Report/DetailedReportModal";
+import { handleCsvExportWithApi } from "../../helper/csvExport";
 
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -133,6 +135,8 @@ const DetailedReport: React.FC = () => {
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Track the latest resolved search params so the Download button always uses current filters
+  const currentSearchParamsRef = useRef<Record<string, string>>({});
 
   const [countryOptions, setCountryOptions] = useState<Option[]>([]);
 
@@ -434,21 +438,21 @@ const DetailedReport: React.FC = () => {
       label: "Queued At",
       type: "date",
       isSearchable: false,
-      render: (log) => <span>{log.message_queued_at || "-"}</span>,
+      render: (log) => <span>{log.message_queued_at ? formatDateTime(log.message_queued_at) : "-"}</span>,
     },
     {
       key: "message_delivered_at",
       label: "Delivered At",
       type: "date",
       isSearchable: false,
-      render: (log) => <span>{log.message_delivered_at || "-"}</span>,
+      render: (log) => <span>{log.message_delivered_at ? formatDateTime(log.message_delivered_at) : "-"}</span>,
     },
     {
       key: "message_failed_at",
       label: "Failed At",
       type: "date",
       isSearchable: false,
-      render: (log) => <span>{log.message_failed_at || "-"}</span>,
+      render: (log) => <span>{log.message_failed_at ? formatDateTime(log.message_failed_at) : "-"}</span>,
     },
   ];
 
@@ -550,6 +554,9 @@ const DetailedReport: React.FC = () => {
         }
       });
 
+      // Keep ref in sync so the Download button always has the latest params
+      currentSearchParamsRef.current = currentSearchParams;
+
       const response: any = await getDetailedReportsApi(
         page,
         BATCH_SIZE,
@@ -632,6 +639,13 @@ const DetailedReport: React.FC = () => {
           setIsModalOpen(true);
         },
       },
+      {
+        label: "Download CSV Report",
+        icon: <Download size={16} />,
+        onClick: () => {
+          handleCsvExportWithApi(downloadDetailedReportCsvApi, currentSearchParamsRef.current);
+        },
+      },
     ]
     : [];
 
@@ -689,6 +703,16 @@ const DetailedReport: React.FC = () => {
           <span>/</span>
           <span className="text-text-primary dark:text-white">Reports</span>
         </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => handleCsvExportWithApi(downloadDetailedReportCsvApi, currentSearchParamsRef.current)}
+          className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary transition-colors"
+          title="Download filtered data as CSV"
+        >
+          <Download size={15} />
+          Export CSV
+        </button>
       </div>
 
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>

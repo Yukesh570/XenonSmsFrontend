@@ -56,13 +56,11 @@ export const getDetailedReportsApi = async (
   return response.data;
 };
 
-export const exportDetailedReportsApi = async (
-  searchParams?: Record<string, any>
+export const downloadDetailedReportCsvApi = async (
+  searchParams?: Record<string, any>,
 ) => {
-  // FIX: Added the missing '/api/' prefix here
-  const response = await api.get(`/api/reports/detailed/export/`, {
+  const response = await api.get(`/api/reports/detailed/downloadCsv/`, {
     params: searchParams,
-    responseType: "blob",
   });
-  return response.data;
+  return response.data; // { task_id: "...", status: "processing" }
 };

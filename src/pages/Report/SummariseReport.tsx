@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home } from "lucide-react";
+import { Home, Download } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
   getSummariseSummaryApi,
   getSummariseDetailedApi,
+  downloadSummariseReportCsvApi,
   type SummariseSummaryData,
   type SummariseReportFilters,
 } from "../../api/reportApi/summariseReportApi";
@@ -20,6 +21,7 @@ import MultiSelectDropdown, { type MultiSelectOption } from "../../components/ui
 import DatePicker from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
+import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
 import { formatDateTime } from "../../helper/dateFormatter";
 import { StatusBadge } from "../../components/ui/StatusBadge";
@@ -90,6 +92,7 @@ const SummariseReport: React.FC = () => {
   });
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const [clientOptions, setClientOptions] = useState<{ label: string; value: string }[]>([]);
   const [vendorOptions, setVendorOptions] = useState<{ label: string; value: string }[]>([]);
@@ -233,9 +236,53 @@ const SummariseReport: React.FC = () => {
   useEffect(() => {
     fetchReports(1, false);
     return () => {
-      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, []); // Initial load
+
+  const handleDownloadCSV = async () => {
+    try {
+      const toastId = toast.loading("Downloading CSV...");
+      const payload = {
+        filters: filterValues,
+        group_by: groupBy,
+      };
+      
+      const blob = await downloadSummariseReportCsvApi(payload);
+      
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `summarise_report_${formatLocalDateTime(new Date())}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.update(toastId, { render: "Export successful!", type: "success", isLoading: false, autoClose: 3000 });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to download CSV");
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const menuItems: ContextMenuItem[] = [
+    {
+      label: "Download CSV Report",
+      icon: <Download size={16} />,
+      onClick: () => {
+        handleDownloadCSV();
+        setContextMenuPos(null);
+      },
+    },
+  ];
 
   const handleSearch = () => {
     fetchReports(1, false);
@@ -292,12 +339,20 @@ const SummariseReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, groupBy, detailedReports.length]);
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
             Summarise Report
           </h1>
+          <button
+            onClick={handleDownloadCSV}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary transition-colors"
+            title="Download summary data as CSV"
+          >
+            <Download size={15} />
+            Export CSV
+          </button>
         </div>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
           <Home size={16} className="text-gray-400" />
@@ -308,6 +363,7 @@ const SummariseReport: React.FC = () => {
           <span className="text-text-primary dark:text-white">Reports</span>
         </div>
       </div>
+
 
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
         <DatePicker
@@ -378,7 +434,7 @@ const SummariseReport: React.FC = () => {
           clearable={false}
         />
         <MultiSelectDropdown
-          label=""
+          label="Group By"
           selected={groupBy}
           onChange={(val) => {
             setGroupBy(val);
@@ -433,7 +489,11 @@ const SummariseReport: React.FC = () => {
                   </tr>
                 ) : (
                   summaryData.map((row, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    <tr 
+                      key={idx} 
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      onContextMenu={handleContextMenu}
+                    >
                       {appliedGroupBy.map(gb => (
                         <td key={gb} className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap">
                           {row[gb] || "-"}
@@ -458,7 +518,11 @@ const SummariseReport: React.FC = () => {
         </div>
       )}
 
-
+      <ContextMenu
+        position={contextMenuPos}
+        onClose={() => setContextMenuPos(null)}
+        items={menuItems}
+      />
     </div>
   );
 };
