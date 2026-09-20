@@ -246,7 +246,7 @@ const CampaignList: React.FC = () => {
     },
     {
       key: "createdAt__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
@@ -554,7 +554,7 @@ const CampaignList: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
                     const newGt = val ? formatLocalDate(val) : "";
@@ -564,10 +564,10 @@ const CampaignList: React.FC = () => {
                       newGt || currentLt ? `${newGt},${currentLt}` : "",
                     );
                   }}
-                  placeholder="> After"
+                  placeholder="From"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
                     const newLt = val ? formatLocalDate(val) : "";
@@ -577,7 +577,7 @@ const CampaignList: React.FC = () => {
                       currentGt || newLt ? `${currentGt},${newLt}` : "",
                     );
                   }}
-                  placeholder="< Before"
+                  placeholder="To"
                 />
               </React.Fragment>
             );

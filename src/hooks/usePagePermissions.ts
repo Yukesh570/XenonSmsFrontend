@@ -28,12 +28,24 @@ export const usePagePermissions = () => {
     flattenTree(navItems.results);
 
     // 3. Match exact path or direct child path (e.g. "rate/vendorRate/123" -> "rate/vendorRate")
-    const matchedItem = allItems.find((item) => {
+    // Sort by URL length descending so more specific paths (children) match before general ones (parents)
+    const sortedItems = [...allItems].sort((a, b) => {
+      const aLen = (a.url || "").length;
+      const bLen = (b.url || "").length;
+      return bLen - aLen;
+    });
+
+    const matchedItem = sortedItems.find((item) => {
       const itemUrl = (item.url || "").replace(/^\/+|\/+$/g, "");
       return itemUrl && (itemUrl === currentPath || currentPath.startsWith(`${itemUrl}/`));
     });
 
-    // 4. Return permissions (default to false if not found)
+    console.log("DEBUG PERMISSIONS", { currentPath, matchedItem, permissions: {
+      canRead: matchedItem?.permission?.read ?? false,
+      canCreate: matchedItem?.permission?.write ?? false,
+      canUpdate: matchedItem?.permission?.put ?? false,
+      canDelete: matchedItem?.permission?.delete ?? false,
+    }});
     return {
       canRead: matchedItem?.permission?.read ?? false,
       canCreate: matchedItem?.permission?.write ?? false, // Maps to "Add" button

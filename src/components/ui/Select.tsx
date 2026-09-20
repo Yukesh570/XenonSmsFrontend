@@ -292,7 +292,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
             />
           </Combobox.Button>
 
-          {(value || query) && clearable && !disabled && (
+          {(value || query) && clearable && !disabled && !open && (
             <span
               onClick={handleClear}
               className="absolute inset-y-0 right-8 flex items-center pr-2 cursor-pointer hover:text-red-500 group z-10"

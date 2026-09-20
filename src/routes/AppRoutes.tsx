@@ -69,6 +69,7 @@ import UserCreation from "../pages/UserCreation/UserCreation";
 import VendorCampaign from "../pages/Campaign/VendorCampaign";
 import SenderIdTranslationModule from "../pages/SenderIdTranslation/SenderIdTranslationModule";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
+import SummariseReport from "../pages/Report/SummariseReport";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -135,6 +136,7 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,
   senderIdTranslation: SenderIdTranslationModule,
+  summariseReport: SummariseReport,
 };
 
 export const getComponentByPath = (pathname: string): React.ComponentType<any> => {

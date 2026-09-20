@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, Fragment } from "react";
 import ReactDOM from "react-dom";
-import { Popover, Transition } from "@headlessui/react";
 import { Check, X, ChevronDown } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
 
@@ -23,12 +22,12 @@ interface MultiSelectDropdownProps {
   isLoading?: boolean;
 }
 
-const Portal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const CustomPortal: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (typeof document === "undefined") return null;
   return ReactDOM.createPortal(children, document.body);
 };
 
-const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: boolean; close: () => void }> = ({
+const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: boolean; close: () => void; toggle: () => void; portalRef: React.RefObject<HTMLDivElement | null> }> = ({
   label,
   options,
   selected,
@@ -37,9 +36,11 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
   placeholder = "Select...",
   open,
   close,
+  toggle,
+  portalRef,
 }) => {
   const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const buttonRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -123,10 +124,15 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
   // const unselectedOptions = filteredOptions.filter(opt => !selected.includes(opt.value) || opt.isAll);
 
   const renderOptionBtn = (opt: MultiSelectOption, isSelected: boolean, onChangeHandler: any) => (
-    <button
+    <div
       key={opt.value}
-      type="button"
-      onClick={() => {
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.nativeEvent) e.nativeEvent.stopImmediatePropagation();
+        
         if (opt.isAll) {
           onChangeHandler(selected, opt);
         } else {
@@ -137,7 +143,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
           }
         }
       }}
-      className={`w-full flex items-center justify-between px-4 py-2 text-left text-sm transition-colors
+      className={`w-full flex items-center justify-between px-4 py-2 text-left text-sm transition-colors cursor-pointer
         ${opt.isAll
           ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 font-bold border-y border-gray-300 dark:border-gray-600"
           : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -145,7 +151,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
         ${isSelected && !opt.isAll ? "text-primary dark:text-primary font-medium bg-primary/5 hover:bg-primary/10" : ""}
       `}
     >
-      <span className="truncate flex items-center gap-2">
+      <span className="flex items-center gap-2 break-words text-wrap">
         {opt.icon && <span>{opt.icon}</span>}
         {opt.label}
       </span>
@@ -156,7 +162,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
       ) : isSelected && opt.isAll ? (
         <Check size={16} className="text-gray-800 dark:text-gray-200" strokeWidth={2.5} />
       ) : null}
-    </button>
+    </div>
   );
 
   if (open && !buttonRect) {
@@ -169,11 +175,12 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
         {label}
       </label>
 
-      <Popover.Button
-        as="div"
+      <div
         ref={buttonRef}
-        onClick={updatePosition}
-        disabled={disabled}
+        onClick={(e) => {
+          updatePosition();
+          toggle();
+        }}
         className={`w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2.5 flex justify-between items-center transition-all focus:outline-none focus:ring-1 focus:ring-primary shadow-sm ${disabled
             ? "bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed"
             : "bg-white dark:bg-gray-900 cursor-pointer hover:border-primary"
@@ -210,36 +217,27 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
             className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
           />
         </div>
-      </Popover.Button>
+      </div>
 
       {open && buttonRect && !disabled && (
-        <Portal>
+        <CustomPortal>
           <div className="fixed inset-0 z-[9999]" onClick={() => { close(); }}>
             <div
-              className="absolute flex flex-col"
+              ref={portalRef}
+              className="absolute flex flex-col transition-all duration-100 ease-out opacity-100 translate-y-0"
               style={{
                 top: topPosition,
                 left: leftPosition,
                 width: dropdownWidth,
                 maxHeight: maxDropdownHeight,
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: any) => e.stopPropagation()}
+              onMouseDown={(e: any) => e.stopPropagation()}
             >
-              <Transition
-                appear={true}
-                show={true}
-                as={Fragment}
-                enter="transition ease-out duration-100"
-                enterFrom="opacity-0 translate-y-1"
-                enterTo="opacity-100 translate-y-0"
-                leave="transition ease-in duration-75"
-                leaveFrom="opacity-100 translate-y-0"
-                leaveTo="opacity-0 translate-y-1"
+              <div
+                className="w-full rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
+                style={{ maxHeight: "inherit" }}
               >
-                <div
-                  className="w-full rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden"
-                  style={{ maxHeight: "inherit" }}
-                >
                   {/* Scrolling List Container */}
                   <div className="flex-1 overflow-y-auto min-h-0 relative py-1 custom-grid-scroll bg-white dark:bg-gray-800">
 
@@ -268,20 +266,45 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
                     ) : null}
                   </div>
                 </div>
-              </Transition>
+              </div>
             </div>
-          </div>
-        </Portal>
+        </CustomPortal>
       )}
     </>
   );
 };
 
 export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = (props) => {
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      const clickedOutsideDropdown = dropdownRef.current && !dropdownRef.current.contains(target);
+      const clickedOutsidePortal = !portalRef.current || !portalRef.current.contains(target);
+
+      if (clickedOutsideDropdown && clickedOutsidePortal) {
+        setOpen(false);
+      }
+    };
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
   return (
-    <Popover className="relative flex flex-col w-full">
-      {({ open, close }) => <MultiSelectDropdownContent {...props} open={open} close={close} />}
-    </Popover>
+    <div className="relative flex flex-col w-full" ref={dropdownRef}>
+      <MultiSelectDropdownContent 
+        {...props} 
+        open={open} 
+        close={() => setOpen(false)} 
+        toggle={() => setOpen(!open)} 
+        portalRef={portalRef} 
+      />
+    </div>
   );
 };
 

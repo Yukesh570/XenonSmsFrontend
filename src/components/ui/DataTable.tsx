@@ -799,7 +799,7 @@ export function DataTable<T extends { id?: number | string }>({
                   className="p-0 border-none"
                 >
                   <div
-                    className="sticky left-0 flex flex-col items-center justify-center py-16 text-center text-text-secondary dark:text-gray-400"
+                    className="empty-state-container sticky left-0 flex flex-col items-center justify-center py-16 text-center text-text-secondary dark:text-gray-400"
                     style={{ width: containerWidth ? `${containerWidth}px` : "100%" }}
                   >
                     <Database
@@ -858,7 +858,7 @@ export function DataTable<T extends { id?: number | string }>({
         .app-data-table table.table-resizable-active td > span:not([class*="badge"]),
         .app-data-table table.table-resizable-active td > a,
         .app-data-table table.table-resizable-active td > p,
-        .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]) {
+        .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container) {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;

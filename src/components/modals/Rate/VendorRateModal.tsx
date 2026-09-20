@@ -18,6 +18,7 @@ import { CountryFlag } from "../../ui/CountryFlag";
 import TextArea from "../../ui/TextArea";
 import CustomDatePicker from "../../ui/DatePicker";
 import ToggleSwitch from "../../ui/ToggleSwitch";
+import MultiSelectDropdown from "../../ui/MultiSelectDropdown";
 
 interface VendorRateModalProps {
   isOpen: boolean;
@@ -156,19 +157,23 @@ export const VendorRateModal: React.FC<VendorRateModalProps> = ({
       );
       const countryNameParam = selectedCountry ? selectedCountry.name : "";
 
-      getOperatorNetworkCodesApi("operatorNetworkCode", 1, 10, {
-        country__name: countryNameParam,
-        MCC: formData.MCC,
-        MNC: formData.MNC,
-      })
-        .then((res: any) => {
-          const list = res.results || (Array.isArray(res) ? res : []);
-          const match = list[0];
-          if (match?.operator) {
-            setFormData((prev) => ({ ...prev, network: match.operator }));
-          }
+      if (formData.MNC.includes(",")) {
+        setFormData((prev) => ({ ...prev, network: "Multiple" }));
+      } else {
+        getOperatorNetworkCodesApi("operatorNetworkCode", 1, 10, {
+          country__name: countryNameParam,
+          MCC: formData.MCC,
+          MNC: formData.MNC,
         })
-        .catch(console.error);
+          .then((res: any) => {
+            const list = res.results || (Array.isArray(res) ? res : []);
+            const match = list[0];
+            if (match?.operator) {
+              setFormData((prev) => ({ ...prev, network: match.operator }));
+            }
+          })
+          .catch(console.error);
+      }
     }
   }, [formData.country, formData.MCC, formData.MNC, fullCountriesList]);
 
@@ -454,23 +459,36 @@ export const VendorRateModal: React.FC<VendorRateModalProps> = ({
                 disabled={!formData.country || isViewMode}
                 required
               />
-              <Select
+              <MultiSelectDropdown
                 label="MNC"
-                value={formData.MNC}
-                onChange={(v) => handleSelect("MNC", v)}
+                selected={formData.MNC ? formData.MNC.split(',') : []}
+                onChange={(selectedValues, clickedOption) => {
+                  let newSelected = [...selectedValues];
+                  const allValues = mncOptions.map(opt => String(opt.value));
+                  const allOptionValue = allValues.find(v => v.toUpperCase() === "ALL");
+                  const allNormalValues = allValues.filter(v => v !== allOptionValue);
+
+                  if (clickedOption && clickedOption.value.toUpperCase() === "ALL") {
+                    if (selectedValues.includes(clickedOption.value)) {
+                      newSelected = allValues;
+                    } else {
+                      newSelected = [];
+                    }
+                  } else if (clickedOption && allOptionValue) {
+                    if (selectedValues.includes(clickedOption.value)) {
+                      const hasAllNormal = allNormalValues.every(v => selectedValues.includes(v));
+                      if (hasAllNormal && !selectedValues.includes(allOptionValue)) {
+                        newSelected.push(allOptionValue);
+                      }
+                    } else {
+                      newSelected = selectedValues.filter(v => v !== allOptionValue);
+                    }
+                  }
+                  handleSelect("MNC", newSelected.join(','));
+                }}
                 options={mncOptions}
                 placeholder={formData.country ? "Select MNC" : "Select Country First"}
                 disabled={!formData.country || isViewMode}
-                required
-              />
-              <Input
-                label="Network"
-                name="network"
-                value={formData.network}
-                onChange={handleChange}
-                placeholder="NTC"
-                disabled={isViewMode}
-                isClearable={false}
               />
             </>
           )}

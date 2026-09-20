@@ -105,7 +105,7 @@ const Modal: React.FC<ModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="page-modal-wrapper absolute inset-0 z-30 flex items-center justify-center p-3 sm:p-5 pointer-events-none overflow-hidden select-none-when-closed"
+      className="page-modal-wrapper fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 pointer-events-none overflow-hidden select-none-when-closed"
     >
       {/* Scoped Backdrop - strictly locked to 100% of the area, CANNOT scroll or move */}
       <div

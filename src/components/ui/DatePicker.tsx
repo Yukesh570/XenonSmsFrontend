@@ -219,7 +219,19 @@ const customDatePickerStyles = `
     color: #ffffff !important;
   }
   
-  .react-datepicker__time-list-item--selected {
+  /* Disable default highlight to prevent users from thinking 12:00 AM is forcefully selected */
+  .hide-time-highlight .react-datepicker__time-list-item--selected {
+    background-color: transparent !important;
+    color: #374151 !important;
+    font-weight: 500 !important;
+  }
+  .dark .hide-time-highlight .react-datepicker__time-list-item--selected,
+  body.dark .hide-time-highlight .react-datepicker__time-list-item--selected {
+    color: #d1d5db !important;
+  }
+
+  /* Restore highlight when user explicitly selects a time */
+  .show-time-highlight .react-datepicker__time-list-item--selected {
     background-color: var(--color-primary) !important;
     color: #ffffff !important;
     font-weight: 600 !important;
@@ -807,6 +819,8 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   const [appTimezone, setAppTimezone] = useState<string>(
     () => localStorage.getItem("app_timezone") || "UTC"
   );
+  
+  const [timeInteracted, setTimeInteracted] = useState(false);
 
   useEffect(() => {
     const handleTimezoneChange = () => {
@@ -823,12 +837,33 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
 
   const handleDateChange = (date: Date | null) => {
     if (disabled) return;
+    if (date && selected) {
+      if (date.getHours() !== selected.getHours() || date.getMinutes() !== selected.getMinutes()) {
+        setTimeInteracted(true);
+      }
+    }
     onChange(date);
   };
 
   const handleClear = () => {
-    if (!disabled) onChange(null);
+    if (!disabled) {
+      setTimeInteracted(false);
+      onChange(null);
+    }
   };
+
+  const isDefaultTime = selected
+    ? (selected.getHours() === 0 && selected.getMinutes() === 0 && selected.getSeconds() === 0) ||
+      (selected.getHours() === 23 && selected.getMinutes() === 59 && selected.getSeconds() === 59)
+    : true;
+    
+  useEffect(() => {
+    if (isDefaultTime) {
+      setTimeInteracted(false);
+    }
+  }, [isDefaultTime]);
+    
+  const shouldHighlightTime = !isDefaultTime || timeInteracted;
 
   const effectiveShowTime = enableModeToggle ? true : showTimeSelect;
   const isTimeActive = enableModeToggle ? dateMode === "specific_time" : showTimeSelect;
@@ -888,7 +923,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
                     : "mode-specific-time"
                 }`
               : ""
-          }`}
+          } ${shouldHighlightTime ? "show-time-highlight" : "hide-time-highlight"}`}
           popperProps={{
             strategy: "fixed",
           }}

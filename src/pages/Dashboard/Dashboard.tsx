@@ -250,8 +250,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchClientSessionSummary = async () => {
-    setIsLiveSessionsLoading(true);
+  const fetchClientSessionSummary = async (isRefetch = false) => {
+    if (!isRefetch) setIsLiveSessionsLoading(true);
     try {
       const data = await getClientSessionSummaryApi();
       setLiveSessions(data);
@@ -259,12 +259,15 @@ const Dashboard: React.FC = () => {
       // Calculate total active sessions directly from the summary data!
       const totalCount = data.reduce((sum, item) => sum + (item.active_sessions || 0), 0);
       setActiveSessionsCount(totalCount);
+      setOnlineClients(data.length);
     } catch (e) {
       console.error("fetchClientSessionSummary failed", e);
-      setLiveSessions([]);
-      setActiveSessionsCount("-");
+      if (!isRefetch) {
+        setLiveSessions([]);
+        setActiveSessionsCount("-");
+      }
     } finally {
-      setIsLiveSessionsLoading(false);
+      if (!isRefetch) setIsLiveSessionsLoading(false);
     }
   };
 
@@ -409,7 +412,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClientSessionSummary();
     fetchOnlineVendors();
-    fetchOnlineClients();
     fetchNotifications();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
     if (!wsBase) {
@@ -421,6 +423,14 @@ const Dashboard: React.FC = () => {
     const wsUrl = `${wsBase}/ws/status/`;
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+
+    let fetchTimeout: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(() => {
+        fetchClientSessionSummary(true);
+      }, 500);
+    };
 
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
@@ -446,25 +456,14 @@ const Dashboard: React.FC = () => {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
 
-          if (payload.status === "DISCONNECTED" || payload.status === "OFFLINE") {
-            setActiveSessionsCount((prev) => {
-              if (typeof prev === "number" && prev > 0) {
-                return prev - 1;
-              }
-              return prev;
-            });
+          if ((payload.username && payload.status) || payload.type === "session_count_change") {
+            debouncedFetch();
           }
 
           if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
 
             const currentPath = window.location.pathname;
-            // Only fetch if the user is actually looking at the dashboard!
-            if (currentPath === "/dashboard" || currentPath === "/") {
-              if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
-                fetchClientSessionSummary();
-              }
-            }
 
             if (isMetricsLiveRef.current && activeRangeRef.current === "today") {
               if (data.smsStats) {

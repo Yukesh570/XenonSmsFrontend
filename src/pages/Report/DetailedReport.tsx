@@ -102,6 +102,7 @@ const DetailedReport: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [currencySymbol, setCurrencySymbol] = useState("$");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewLog, setViewLog] = useState<DetailedReportData | null>(null);
@@ -181,6 +182,17 @@ const DetailedReport: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     {
+      key: "destination",
+      label: "Destination",
+      type: "text",
+      filterKey: "destination__icontains",
+      render: (log) => (
+        <span className="text-sm font-medium text-text-primary dark:text-white">
+          {log.destination}
+        </span>
+      ),
+    },
+    {
       key: "text_message_id",
       label: "Message ID",
       type: "text",
@@ -198,17 +210,7 @@ const DetailedReport: React.FC = () => {
       filterKey: "message__message_id__icontains",
       isSearchOnly: true,
     },
-    {
-      key: "destination",
-      label: "Destination",
-      type: "text",
-      filterKey: "destination__icontains",
-      render: (log) => (
-        <span className="text-sm font-medium text-text-primary dark:text-white">
-          {log.destination}
-        </span>
-      ),
-    },
+
     {
       key: "countryName",
       label: "Country",
@@ -316,10 +318,14 @@ const DetailedReport: React.FC = () => {
       filterKey: "clientRate__icontains",
     },
     {
-      key: "client_charge",
-      label: "Client Charge",
+      key: "base_client_charge",
+      label: "Base Client Charge",
+      tableLabel: `Base Client Charge (${currencySymbol})`,
       type: "number",
-      filterKey: "client_charge__icontains",
+      filterKey: "base_client_charge__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_client_charge || 0).toFixed(6)}</span>
+      ),
     },
     {
       key: "vendorRate",
@@ -328,10 +334,14 @@ const DetailedReport: React.FC = () => {
       filterKey: "vendorRate__icontains",
     },
     {
-      key: "vendor_charge",
-      label: "Vendor Charge",
+      key: "base_vendor_charge",
+      label: "Base Vendor Charge",
+      tableLabel: `Base Vendor Charge (${currencySymbol})`,
       type: "number",
-      filterKey: "vendor_charge__icontains",
+      filterKey: "base_vendor_charge__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_vendor_charge || 0).toFixed(6)}</span>
+      ),
     },
     {
       key: "part_total",
@@ -353,7 +363,7 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "request_time__gt_lt",
-      label: "Request Time (After / Before)",
+      label: "Request Time (From / To)",
       type: "date_gt_lt",
       filterKey: "request_time",
       isSearchOnly: true,
@@ -372,7 +382,7 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "delivery_time__gt_lt",
-      label: "Delivery Time (After / Before)",
+      label: "Delivery Time (From / To)",
       type: "date_gt_lt",
       filterKey: "delivery_time",
       isSearchOnly: true,
@@ -521,7 +531,11 @@ const DetailedReport: React.FC = () => {
               currentSearchParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
             }
             if (lt && lt.trim() !== "") {
-              currentSearchParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+              let finalLt = lt;
+              if (finalLt.endsWith("T00:00:00")) {
+                finalLt = finalLt.replace("T00:00:00", "T23:59:59");
+              }
+              currentSearchParams[`${baseKey}__lte`] = finalLt.includes("T") ? finalLt : `${finalLt}T23:59:59`;
             }
           } else if (
             columnDef?.type === "text" ||
@@ -550,6 +564,9 @@ const DetailedReport: React.FC = () => {
         setTotalItems(response.count);
         setHasMore(Boolean(response.next));
         setLoadedPage(page);
+        if (response.currency?.symbol) {
+          setCurrencySymbol(response.currency.symbol);
+        }
       } else {
         if (!append) setReports([]);
         setTotalItems(0);
@@ -607,15 +624,15 @@ const DetailedReport: React.FC = () => {
 
   const menuItems: ContextMenuItem[] = selectedRowLog
     ? [
-        {
-          label: "View Details",
-          icon: <Eye size={16} />,
-          onClick: () => {
-            setViewLog(selectedRowLog);
-            setIsModalOpen(true);
-          },
+      {
+        label: "View Details",
+        icon: <Eye size={16} />,
+        onClick: () => {
+          setViewLog(selectedRowLog);
+          setIsModalOpen(true);
         },
-      ]
+      },
+    ]
     : [];
 
   const tableHeaders = [
@@ -709,7 +726,7 @@ const DetailedReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -723,7 +740,7 @@ const DetailedReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
@@ -765,7 +782,7 @@ const DetailedReport: React.FC = () => {
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => allColumns.some(c => c.key === key));
-            const next = [...validKeys];
+              const next = [...validKeys];
               const [moved] = next.splice(fromIdx, 1);
               next.splice(toIdx, 0, moved);
               return next;

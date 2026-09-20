@@ -171,7 +171,7 @@ const ClientInvoice: React.FC = () => {
     },
     {
       key: "billingPeriodStart__gt_lt",
-      label: "Period Start (After / Before)",
+      label: "Period Start (From / To)",
       type: "date_gt_lt",
       filterKey: "billingPeriodStart",
       isSearchOnly: true,
@@ -185,7 +185,7 @@ const ClientInvoice: React.FC = () => {
     },
     {
       key: "billingPeriodEnd__gt_lt",
-      label: "Period End (After / Before)",
+      label: "Period End (From / To)",
       type: "date_gt_lt",
       filterKey: "billingPeriodEnd",
       isSearchOnly: true,
@@ -199,7 +199,7 @@ const ClientInvoice: React.FC = () => {
     },
     {
       key: "invoiceDate__gt_lt",
-      label: "Invoice Date (After / Before)",
+      label: "Invoice Date (From / To)",
       type: "date_gt_lt",
       filterKey: "invoiceDate",
       isSearchOnly: true,
@@ -255,7 +255,7 @@ const ClientInvoice: React.FC = () => {
     },
     {
       key: "createdAt__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
@@ -653,7 +653,7 @@ const ClientInvoice: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
                     const newGt = val ? formatLocalDate(val) : "";
@@ -664,7 +664,7 @@ const ClientInvoice: React.FC = () => {
                   }}
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
                     const newLt = val ? formatLocalDate(val) : "";

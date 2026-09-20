@@ -38,7 +38,7 @@ export const ImportCustomerRateModal: React.FC<ImportCustomerRateModalProps> = (
   const isMounted = useRef(false);
   const timeoutRef = useRef<number | null>(null);
 
-  const MAX_ATTEMPTS = 5;
+  const MAX_ATTEMPTS = 300;
   const POLL_INTERVAL_MS = 2000;
 
   useEffect(() => {

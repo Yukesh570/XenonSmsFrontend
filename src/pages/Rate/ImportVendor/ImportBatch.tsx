@@ -59,12 +59,15 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["vendor", "batchStatus"];
+const DEFAULT_SEARCH_COLUMNS = ["vendor", "batchStatus", "senderEmail",
+  "vendorName",];
 const DEFAULT_TABLE_COLUMNS = [
   "vendor",
   "batchStatus",
   "totalRows",
-  "validRows",
+  "senderEmail",
+  "failureReason",
+  "vendorName",
   "currency",
   "createdAt",
 ];
@@ -202,13 +205,24 @@ const ImportBatch: React.FC = () => {
         return <StatusBadge status={colorKey} customText={label} />;
       },
     },
+
     {
-      key: "approvalStatus",
-      label: "Approval Status",
+      key: "vendorName",
+      label: "Vendor Name",
       type: "text",
-      options: approvalStatusOptions,
-      filterKey: "approvalStatus__icontains",
-      render: (c: any) => c.approvalStatus || "-",
+      filterKey: "vendorName__icontains",
+    },
+    {
+      key: "senderEmail",
+      label: "Sender Email",
+      type: "text",
+      filterKey: "senderEmail__icontains",
+    },
+    {
+      key: "subject",
+      label: "Subject",
+      type: "text",
+      filterKey: "subject__icontains",
     },
     {
       key: "sourceType",
@@ -249,58 +263,15 @@ const ImportBatch: React.FC = () => {
       type: "number",
       filterKey: "totalRows",
     },
-    {
-      key: "validRows",
-      label: "Valid Rows",
-      type: "number",
-      filterKey: "validRows",
-    },
-    {
-      key: "invalidRows",
-      label: "Invalid Rows",
-      type: "number",
-      filterKey: "invalidRows",
-    },
-    {
-      key: "newRows",
-      label: "New Rows",
-      type: "number",
-      filterKey: "newRows",
-    },
-    {
-      key: "unmappedRows",
-      label: "Unmapped Rows",
-      type: "number",
-      filterKey: "unmappedRows",
-    },
-    {
-      key: "updatedRows",
-      label: "Updated Rows",
-      type: "number",
-      filterKey: "updatedRows",
-    },
+
     {
       key: "failureReason",
       label: "Failure Reason",
       type: "text",
       isSearchable: false,
     },
-    {
-      key: "effectiveDate",
-      label: "Effective Date (Exact)",
-      tableLabel: "Effective Date",
-      type: "date",
-      filterKey: "effectiveDate",
-      render: (c) =>
-        c.effectiveDate ? formatDateTime(c.effectiveDate) : "-",
-    },
-    {
-      key: "effectiveDate__gt_lt",
-      label: "Effective Date (After / Before)",
-      type: "date_gt_lt",
-      filterKey: "effectiveDate",
-      isSearchOnly: true,
-    },
+
+
     {
       key: "publishedAt",
       label: "Published At (Exact)",
@@ -312,25 +283,12 @@ const ImportBatch: React.FC = () => {
     },
     {
       key: "publishedAt__gt_lt",
-      label: "Published At (After / Before)",
+      label: "Published At (From / To)",
       type: "date_gt_lt",
       filterKey: "publishedAt",
       isSearchOnly: true,
     },
-    {
-      key: "createdBy",
-      label: "Created By",
-      type: "text",
-      filterKey: "createdBy__username__icontains",
-      render: (c: any) => c.createdByName || c.createdBy || "-",
-    },
-    {
-      key: "updatedBy",
-      label: "Updated By",
-      type: "text",
-      filterKey: "updatedBy__username__icontains",
-      render: (c: any) => c.updatedByName || c.updatedBy || "-",
-    },
+
     {
       key: "createdAt",
       label: "Created At (Exact)",
@@ -341,7 +299,7 @@ const ImportBatch: React.FC = () => {
     },
     {
       key: "createdAt__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
@@ -674,7 +632,7 @@ const ImportBatch: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
                     const newGt = val ? formatLocalDate(val) : "";
@@ -684,10 +642,10 @@ const ImportBatch: React.FC = () => {
                       newGt || currentLt ? `${newGt},${currentLt}` : ""
                     );
                   }}
-                  placeholder={`> After`}
+                  placeholder={`From`}
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
                     const newLt = val ? formatLocalDate(val) : "";
@@ -697,7 +655,7 @@ const ImportBatch: React.FC = () => {
                       currentGt || newLt ? `${currentGt},${newLt}` : ""
                     );
                   }}
-                  placeholder={`< Before`}
+                  placeholder={`To`}
                 />
               </React.Fragment>
             );

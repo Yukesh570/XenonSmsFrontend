@@ -35,7 +35,7 @@ import { MessageReportModal } from "../../components/modals/Report/MessageReport
 import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { usePagePermissions } from "../../hooks/usePagePermissions";
-import { DownloadReportModal } from "../../components/modals/Report/DownloadModalCSV";
+import { handleCsvExport } from "../../helper/csvExport";
 
 interface Option {
   label: string;
@@ -123,7 +123,7 @@ const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
 
 const MessageReport: React.FC = () => {
-  const { canUpdate, canDelete } = usePagePermissions();
+  const { canUpdate, canDelete, canCreate } = usePagePermissions();
   const [logs, setLogs] = useState<MessageLogData[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -144,6 +144,8 @@ const MessageReport: React.FC = () => {
       return DEFAULT_SEARCH_COLUMNS;
     }
   });
+
+  const [currentSearchParams, setCurrentSearchParams] = useState<Record<string, any>>({});
 
   useEffect(() => {
     localStorage.setItem(
@@ -168,7 +170,6 @@ const MessageReport: React.FC = () => {
   const [activeRouteGroupId, setActiveRouteGroupId] = useState<number | null>(null);
   const [activeCountryName, setActiveCountryName] = useState<string | null>(null);
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedRowLog, setSelectedRowLog] = useState<MessageLogData | null>(null);
@@ -272,22 +273,20 @@ const MessageReport: React.FC = () => {
       { key: "characterCount", label: "Character Count", type: "text", isSearchable: false },
 
       { key: "createdAt", label: "Created At (Exact)", tableLabel: "Created At", type: "date", filterKey: "createdAt" },
-      { key: "createdAt__gt_lt", label: "Created At (After / Before)", type: "date_gt_lt", filterKey: "createdAt", isSearchOnly: true },
+      { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", filterKey: "createdAt", isSearchOnly: true },
 
       { key: "queued_at", label: "Queued At (Exact)", tableLabel: "Queued At", type: "date", filterKey: "queued_at" },
-      { key: "queued_at__gt_lt", label: "Queued At (After / Before)", type: "date_gt_lt", filterKey: "queued_at", isSearchOnly: true },
+      { key: "queued_at__gt_lt", label: "Queued At (From / To)", type: "date_gt_lt", filterKey: "queued_at", isSearchOnly: true },
 
       { key: "submitted_at", label: "Submitted At (Exact)", tableLabel: "Submitted At", type: "date", filterKey: "submitted_at" },
-      { key: "submitted_at__gt_lt", label: "Submitted At (After / Before)", type: "date_gt_lt", filterKey: "submitted_at", isSearchOnly: true },
+      { key: "submitted_at__gt_lt", label: "Submitted At (From / To)", type: "date_gt_lt", filterKey: "submitted_at", isSearchOnly: true },
 
-      { key: "sent_at", label: "Sent At (Exact)", tableLabel: "Sent At", type: "date", filterKey: "sent_at" },
-      { key: "sent_at__gt_lt", label: "Sent At (After / Before)", type: "date_gt_lt", filterKey: "sent_at", isSearchOnly: true },
 
       { key: "delivered_at", label: "Delivered At (Exact)", tableLabel: "Delivered At", type: "date", filterKey: "delivered_at" },
-      { key: "delivered_at__gt_lt", label: "Delivered At (After / Before)", type: "date_gt_lt", filterKey: "delivered_at", isSearchOnly: true },
+      { key: "delivered_at__gt_lt", label: "Delivered At (From / To)", type: "date_gt_lt", filterKey: "delivered_at", isSearchOnly: true },
 
       { key: "failed_at", label: "Failed At (Exact)", tableLabel: "Failed At", type: "date", filterKey: "failed_at" },
-      { key: "failed_at__gt_lt", label: "Failed At (After / Before)", type: "date_gt_lt", filterKey: "failed_at", isSearchOnly: true },
+      { key: "failed_at__gt_lt", label: "Failed At (From / To)", type: "date_gt_lt", filterKey: "failed_at", isSearchOnly: true },
     ],
     [clientOptions, vendorOptions, smppOptions, countryOptions],
   );
@@ -432,16 +431,7 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
-      {
-        key: "sent_at",
-        label: "Sent At",
-        type: "date",
-        render: (log: any) => (
-          <span>
-            {(log as any).sent_at ? formatDateTime((log as any).sent_at) : "-"}
-          </span>
-        ),
-      },
+
       {
         key: "delivered_at",
         label: "Delivered At",
@@ -531,7 +521,11 @@ const MessageReport: React.FC = () => {
               currentSearchParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
             }
             if (lt && lt.trim() !== "") {
-              currentSearchParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+              let finalLt = lt;
+              if (finalLt.endsWith("T00:00:00")) {
+                finalLt = finalLt.replace("T00:00:00", "T23:59:59");
+              }
+              currentSearchParams[`${baseKey}__lte`] = finalLt.includes("T") ? finalLt : `${finalLt}T23:59:59`;
             }
           } else if (colDef?.type === "text") {
             const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -541,6 +535,8 @@ const MessageReport: React.FC = () => {
           }
         }
       });
+
+      setCurrentSearchParams(currentSearchParams);
 
       const response = await getMessageLogsApi(
         moduleName,
@@ -722,7 +718,7 @@ const MessageReport: React.FC = () => {
       label: "Download CSV Report",
       icon: <Download size={16} />,
       onClick: () => {
-        setIsDownloadModalOpen(true);
+        handleCsvExport(moduleName, currentSearchParams);
       },
     },
   ] : [];
@@ -835,7 +831,7 @@ const MessageReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -849,7 +845,7 @@ const MessageReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
@@ -957,14 +953,9 @@ const MessageReport: React.FC = () => {
         routeGroupId={activeRouteGroupId}
         initialCountryName={activeCountryName}
         moduleName="customRoute"
+        canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}
-      />
-
-      <DownloadReportModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        moduleName={moduleName}
       />
     </div>
   );

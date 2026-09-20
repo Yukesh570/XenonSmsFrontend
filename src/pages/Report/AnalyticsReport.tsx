@@ -66,7 +66,7 @@ const LOAD_MORE_THRESHOLD_PX = 200;
 const allColumns: ColumnConfig[] = [
   { key: "account_manager", label: "Account Manager", type: "text", filterKey: "account_manager__icontains" },
   { key: "date", label: "Date (Exact)", type: "date" },
-  { key: "date__gt_lt", label: "Date (After / Before)", type: "date_gt_lt", isSearchOnly: true },
+  { key: "date__gt_lt", label: "Date (From / To)", type: "date_gt_lt", isSearchOnly: true },
   // { key: "date__gt", label: "Date After (>)", type: "date" },
   // { key: "date__gte", label: "Date From (>=)", type: "date" },
   // { key: "date__lt", label: "Date Before (<)", type: "date" },
@@ -673,7 +673,7 @@ const AnalyticsReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -687,7 +687,7 @@ const AnalyticsReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {

@@ -144,7 +144,7 @@ const MessageAttempt: React.FC = () => {
     },
     {
       key: "started_at__gt_lt",
-      label: "Started At (After / Before)",
+      label: "Started At (From / To)",
       type: "date_gt_lt",
       filterKey: "started_at",
       isSearchOnly: true
@@ -159,7 +159,7 @@ const MessageAttempt: React.FC = () => {
     },
     {
       key: "completed_at__gt_lt",
-      label: "Completed At (After / Before)",
+      label: "Completed At (From / To)",
       type: "date_gt_lt",
       filterKey: "completed_at",
       isSearchOnly: true
@@ -221,7 +221,11 @@ const MessageAttempt: React.FC = () => {
             cleanParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
           }
           if (lt && lt.trim() !== "") {
-            cleanParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+            let finalLt = lt;
+            if (finalLt.endsWith("T00:00:00")) {
+              finalLt = finalLt.replace("T00:00:00", "T23:59:59");
+            }
+            cleanParams[`${baseKey}__lte`] = finalLt.includes("T") ? finalLt : `${finalLt}T23:59:59`;
           }
         } else if (colDef?.type === "text" || colDef?.type === "number") {
           const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -374,7 +378,7 @@ const MessageAttempt: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -388,7 +392,7 @@ const MessageAttempt: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {

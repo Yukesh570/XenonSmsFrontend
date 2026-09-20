@@ -240,7 +240,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "clientDlrSuppressedAt__gt_lt",
-      label: "Client DLR Suppressed At (After / Before)",
+      label: "Client DLR Suppressed At (From / To)",
       type: "date_gt_lt",
       filterKey: "clientDlrSuppressedAt",
       isSearchOnly: true
@@ -255,7 +255,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "submitted_at__gt_lt",
-      label: "Submitted At (After / Before)",
+      label: "Submitted At (From / To)",
       type: "date_gt_lt",
       filterKey: "submitted_at",
       isSearchOnly: true
@@ -270,7 +270,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "sent_at__gt_lt",
-      label: "Sent At (After / Before)",
+      label: "Sent At (From / To)",
       type: "date_gt_lt",
       filterKey: "sent_at",
       isSearchOnly: true
@@ -285,7 +285,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "delivered_at__gt_lt",
-      label: "Delivered At (After / Before)",
+      label: "Delivered At (From / To)",
       type: "date_gt_lt",
       filterKey: "delivered_at",
       isSearchOnly: true
@@ -300,7 +300,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "failed_at__gt_lt",
-      label: "Failed At (After / Before)",
+      label: "Failed At (From / To)",
       type: "date_gt_lt",
       filterKey: "failed_at",
       isSearchOnly: true
@@ -315,7 +315,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "created_at__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "created_at",
       isSearchOnly: true
@@ -330,7 +330,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "updated_at__gt_lt",
-      label: "Updated At (After / Before)",
+      label: "Updated At (From / To)",
       type: "date_gt_lt",
       filterKey: "updated_at",
       isSearchOnly: true
@@ -345,7 +345,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "last_submit_at__gt_lt",
-      label: "Last Submit At (After / Before)",
+      label: "Last Submit At (From / To)",
       type: "date_gt_lt",
       filterKey: "last_submit_at",
       isSearchOnly: true
@@ -405,7 +405,11 @@ const SmsMessagePart: React.FC = () => {
               cleanParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
             }
             if (lt && lt.trim() !== "") {
-              cleanParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+              let finalLt = lt;
+              if (finalLt.endsWith("T00:00:00")) {
+                finalLt = finalLt.replace("T00:00:00", "T23:59:59");
+              }
+              cleanParams[`${baseKey}__lte`] = finalLt.includes("T") ? finalLt : `${finalLt}T23:59:59`;
             }
           } else if (colDef?.type === "text" || colDef?.type === "number" || colDef?.type === "boolean") {
             const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -559,7 +563,7 @@ const SmsMessagePart: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -573,7 +577,7 @@ const SmsMessagePart: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {

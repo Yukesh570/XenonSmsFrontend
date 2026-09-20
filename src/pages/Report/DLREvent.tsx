@@ -141,7 +141,7 @@ const DLREvent: React.FC = () => {
     },
     {
       key: "received_at__gt_lt",
-      label: "Received At (After / Before)",
+      label: "Received At (From / To)",
       type: "date_gt_lt",
       filterKey: "received_at",
       isSearchOnly: true
@@ -202,7 +202,11 @@ const DLREvent: React.FC = () => {
             cleanParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
           }
           if (lt && lt.trim() !== "") {
-            cleanParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+            let finalLt = lt;
+            if (finalLt.endsWith("T00:00:00")) {
+              finalLt = finalLt.replace("T00:00:00", "T23:59:59");
+            }
+            cleanParams[`${baseKey}__lte`] = finalLt.includes("T") ? finalLt : `${finalLt}T23:59:59`;
           }
         } else if (colDef?.type === "text" || colDef?.type === "number") {
           const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -358,7 +362,7 @@ const DLREvent: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
@@ -372,7 +376,7 @@ const DLREvent: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
