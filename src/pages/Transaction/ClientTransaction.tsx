@@ -4,6 +4,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import { getClientTransactionsApi, type ClientTransactionData } from "../../api/transactionApi/transactionApi";
+import { getClientsApi } from "../../api/clientApi/clientApi";
+import { getCurrenciesApi } from "../../api/settingApi/currencyApi/currencyApi";
 import { ClientTransactionModal } from "../../components/modals/Transaction/ClientTransactionModal";
 
 import Input from "../../components/ui/Input";
@@ -16,7 +18,11 @@ import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMe
 import { actionHelper } from "../../helper/action";
 import { formatDateTime } from "../../helper/dateFormatter";
 
-interface Option { label: string; value: string; }
+interface Option {
+  label: string;
+  value: string;
+  displayLabel?: string;
+}
 
 interface ColumnConfig extends FilterColumn {
   render?: (data: ClientTransactionData) => React.ReactNode;
@@ -96,6 +102,43 @@ const ClientTransaction: React.FC = () => {
     localStorage.setItem("clienttx_table_columns", JSON.stringify(tableColumns));
   }, [tableColumns]);
 
+  const [clientOptions, setClientOptions] = useState<Option[]>([]);
+  const [currencyOptions, setCurrencyOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    getClientsApi("client", 1, 1000)
+      .then((res: any) => {
+        const list = res?.results || (Array.isArray(res) ? res : []);
+        const uniqueClients = new Map<string, Option>();
+        list.forEach((c: any) => {
+          const name = c.name?.trim();
+          if (name && !uniqueClients.has(name)) {
+            uniqueClients.set(name, { label: name, value: name });
+          }
+        });
+        setClientOptions(Array.from(uniqueClients.values()));
+      })
+      .catch((err) => console.error("Failed to load clients", err));
+
+    getCurrenciesApi("currency", 1, 1000)
+      .then((res: any) => {
+        const list = res?.results || (Array.isArray(res) ? res : []);
+        const uniqueCurrencies = new Map<string, Option>();
+        list.forEach((c: any) => {
+          const code = (c.currencyCode || c.code)?.trim();
+          if (code && !uniqueCurrencies.has(code)) {
+            uniqueCurrencies.set(code, {
+              label: c.name ? `${code} (${c.name})` : code,
+              value: code,
+              displayLabel: code,
+            });
+          }
+        });
+        setCurrencyOptions(Array.from(uniqueCurrencies.values()));
+      })
+      .catch((err) => console.error("Failed to load currencies", err));
+  }, []);
+
   const location = useLocation();
   const pathSegments = location.pathname.split("/").filter(Boolean);
   const routeName = pathSegments[pathSegments.length - 1] || "clientTransaction";
@@ -107,11 +150,11 @@ const ClientTransaction: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     { key: "message_id", label: "Message ID", type: "text", filterKey: "message__message_id__icontains" },
-    { key: "clientName", label: "Client Name", type: "text", filterKey: "client__name__icontains" },
+    { key: "clientName", label: "Client Name", type: "text", options: clientOptions, filterKey: "client__name__icontains", render: (log) => <span>{log.clientName || "-"}</span> },
     { key: "transactionType", label: "Type", type: "text", options: transactionTypeOptions, filterKey: "transactionType" },
     { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status" },
     { key: "chargePolicy", label: "Charge Policy", type: "text", options: chargePolicyOptions, filterKey: "chargePolicy" },
-    { key: "currency", label: "Currency", type: "text", filterKey: "currency__icontains" },
+    { key: "currency", label: "Currency", type: "text", options: currencyOptions, filterKey: "currency__icontains", render: (log) => <span>{log.currencyCode || log.currency || "-"}</span> },
     { key: "segments", label: "Segments", type: "number", filterKey: "segments" },
     { key: "ratePerSegment", label: "Rate Per Segment", type: "number", filterKey: "ratePerSegment", render: (log) => <span>{log.ratePerSegment} {log.currencyCode || log.currency}</span> },
     { key: "amount", label: "Amount", type: "number", filterKey: "amount", render: (log) => <span>{log.amount} {log.currencyCode || log.currency}</span> },
