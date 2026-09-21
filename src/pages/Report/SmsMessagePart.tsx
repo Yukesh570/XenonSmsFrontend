@@ -15,7 +15,12 @@ import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedF
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { SmsMessagePartModal } from "../../components/modals/Report/SmsMessagePartModal";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime, getNowInAppTimezone } from "../../helper/dateFormatter";
+import {
+  formatDateTime,
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 
 interface Option {
@@ -106,22 +111,7 @@ const renderBooleanBadge = (value?: boolean) => {
   return <StatusBadge status={statusKey} customText={labelText} />;
 };
 
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
 
 type DatePresetKey =
   | "today"
@@ -146,63 +136,7 @@ const DATE_PRESETS: DatePresetOption[] = [
   { key: "30days", label: "30 Days" },
 ];
 
-const getPresetDateRange = (
-  preset: DatePresetKey,
-): { start: string; end: string } | null => {
-  const now = getNowInAppTimezone();
-  const todayStr = formatLocalDate(now);
 
-  switch (preset) {
-    case "today":
-      return { start: `${todayStr}T00:00:00`, end: `${todayStr}T23:59:59` };
-
-    case "yesterday": {
-      const y = new Date(now);
-      y.setDate(now.getDate() - 1);
-      const yStr = formatLocalDate(y);
-      return { start: `${yStr}T00:00:00`, end: `${yStr}T23:59:59` };
-    }
-
-    case "2days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 1);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "7days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "15days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 14);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "30days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 29);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    default:
-      return null;
-  }
-};
 
 const DEFAULT_SEARCH_COLUMNS = ["parent_message_destination", "submit_status", "vendor_msg_id"];
 const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at"];
@@ -573,6 +507,16 @@ const SmsMessagePart: React.FC = () => {
   };
 
   useEffect(() => { fetchSegments(undefined, 1, false); }, [searchColumns]);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchSegments(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(

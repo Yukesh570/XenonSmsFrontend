@@ -63,6 +63,7 @@ import {
   getFailureReasonCountsApi,
   type FailureReasonCountsData,
 } from "../../api/reportApi/smsCountsApi";
+import { getDaysAgoInAppTimezone } from "../../helper/dateFormatter";
 
 
 
@@ -178,8 +179,11 @@ const Dashboard: React.FC = () => {
   const [rangeOpen, setRangeOpen] = useState(false);
 
   const buildParams = (range: RangeKey): Record<string, any> => {
-    if (range === "today") return { today: true };
     if (range === "all") return {};
+    if (range === "today") {
+      const today = getDaysAgoInAppTimezone(0);
+      return { today: true, startDate: today, endDate: today };
+    }
     const end = new Date();
     const start = new Date();
 
@@ -190,9 +194,10 @@ const Dashboard: React.FC = () => {
     else if (range === "4h") start.setHours(start.getHours() - 4);
     else {
       const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
-      start.setDate(start.getDate() - days + 1);
-      const fmtDate = (d: Date) => d.toISOString().split("T")[0];
-      return { startDate: fmtDate(start), endDate: fmtDate(end) };
+      return {
+        startDate: getDaysAgoInAppTimezone(days - 1),
+        endDate: getDaysAgoInAppTimezone(0),
+      };
     }
 
     return { startDate: start.toISOString(), endDate: end.toISOString() };
@@ -379,16 +384,24 @@ const Dashboard: React.FC = () => {
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchFailureBreakdown(activeRange);
-    fetchVendorPerformance(activeRange);
-    fetchClientPerformance(activeRange);
-    fetchGeoBreakdown(activeRange);
-    fetchLatencyStats(activeRange);
-    fetchSmsStats(activeRange);
-    fetchTrafficTraffic(activeRange);
-    fetchDlrStats(activeRange);
-    fetchRevenue(activeRange);
-    setSelectedFailureCategory(null);
+    const refreshData = () => {
+      fetchFailureBreakdown(activeRange);
+      fetchVendorPerformance(activeRange);
+      fetchClientPerformance(activeRange);
+      fetchGeoBreakdown(activeRange);
+      fetchLatencyStats(activeRange);
+      fetchSmsStats(activeRange);
+      fetchTrafficTraffic(activeRange);
+      fetchDlrStats(activeRange);
+      fetchRevenue(activeRange);
+      setSelectedFailureCategory(null);
+    };
+
+    refreshData();
+    window.addEventListener("timezoneChanged", refreshData);
+    return () => {
+      window.removeEventListener("timezoneChanged", refreshData);
+    };
   }, [activeRange]);
 
   useEffect(() => {

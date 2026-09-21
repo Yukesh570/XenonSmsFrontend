@@ -27,24 +27,13 @@ import ContextMenu, {
   type ContextMenuItem,
 } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
-import { getNowInAppTimezone } from "../../helper/dateFormatter";
+import {
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
 
 type DatePresetKey =
   | "today"
@@ -69,63 +58,7 @@ const DATE_PRESETS: DatePresetOption[] = [
   { key: "30days", label: "30 Days" },
 ];
 
-const getPresetDateRange = (
-  preset: DatePresetKey,
-): { start: string; end: string } | null => {
-  const now = getNowInAppTimezone();
-  const todayStr = formatLocalDate(now);
 
-  switch (preset) {
-    case "today":
-      return { start: `${todayStr}T00:00:00`, end: `${todayStr}T23:59:59` };
-
-    case "yesterday": {
-      const y = new Date(now);
-      y.setDate(now.getDate() - 1);
-      const yStr = formatLocalDate(y);
-      return { start: `${yStr}T00:00:00`, end: `${yStr}T23:59:59` };
-    }
-
-    case "2days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 1);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "7days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "15days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 14);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    case "30days": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 29);
-      return {
-        start: `${formatLocalDate(start)}T00:00:00`,
-        end: `${todayStr}T23:59:59`,
-      };
-    }
-
-    default:
-      return null;
-  }
-};
 
 const statusOptions = [
   { label: "Queued", value: "QUEUED" },
@@ -321,6 +254,16 @@ const SummariseReport: React.FC = () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchReports();
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
   }, []);
 

@@ -8,7 +8,7 @@ import DatePicker, { type DatePickerMode } from "../../components/ui/DatePicker"
 import Input from "../../components/ui/Input";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import { actionHelper } from "../../helper/action";
-import { getNowInAppTimezone } from "../../helper/dateFormatter";
+import { getPresetDateRangeOnly as getPresetDateRange, formatLocalDate } from "../../helper/dateFormatter";
 
 import { getAnalyticsDataApi } from "../../api/reportApi/analyticsReportApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -33,12 +33,7 @@ interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
   tableLabel?: string;
 }
 
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+
 
 const parseDateValue = (val?: string) => {
   if (!val) return null;
@@ -187,54 +182,7 @@ const DATE_PRESETS: DatePresetOption[] = [
   { key: "lastMonth", label: "Last Month" },
 ];
 
-const getPresetDateRange = (preset: DatePresetKey): { start: string; end: string } => {
-  const now = getNowInAppTimezone();
-  const todayStr = formatLocalDate(now);
 
-  switch (preset) {
-    case "today":
-      return { start: todayStr, end: todayStr };
-
-    case "yesterday": {
-      const y = new Date(now);
-      y.setDate(now.getDate() - 1);
-      return { start: formatLocalDate(y), end: todayStr };
-    }
-
-    case "last7": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last30": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 29);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last60": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 59);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last90": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 89);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "lastMonth": {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { start: formatLocalDate(start), end: formatLocalDate(end) };
-    }
-
-    default:
-      return { start: todayStr, end: todayStr };
-  }
-};
 
 const AnalyticsReport: React.FC = () => {
   const [companyRows, setCompanyRows] = useState<any[]>([]);
@@ -436,6 +384,16 @@ const AnalyticsReport: React.FC = () => {
     fetchCompanyData(1, false);
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchCompanyData(1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
   }, []);
 

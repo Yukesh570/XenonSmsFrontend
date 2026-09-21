@@ -265,42 +265,223 @@ export const formatTime = (
   return formatWithTokens(parsed, format, tz);
 };
 
+export const getDatePartsInAppTimezone = (
+  date: Date = new Date(),
+  customTimezone?: string
+): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} => {
+  const timeZone = customTimezone || getAppTimezone();
+  try {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timeZone || "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = formatter.formatToParts(date);
+    const map: Record<string, string> = {};
+    for (const p of parts) {
+      map[p.type] = p.value;
+    }
+    const year = parseInt(map.year, 10);
+    const month = parseInt(map.month, 10);
+    const day = parseInt(map.day, 10);
+    let hour = parseInt(map.hour, 10);
+    if (hour === 24) hour = 0;
+    const minute = parseInt(map.minute, 10);
+    const second = parseInt(map.second, 10);
+    return { year, month, day, hour, minute, second };
+  } catch {
+    const year = date.getUTCFullYear();
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    const hour = date.getUTCHours();
+    const minute = date.getUTCMinutes();
+    const second = date.getUTCSeconds();
+    return { year, month, day, hour, minute, second };
+  }
+};
+
+export const getDaysAgoInAppTimezone = (
+  days: number,
+  customTimezone?: string,
+  referenceDate: Date = new Date()
+): string => {
+  const parts = getDatePartsInAppTimezone(referenceDate, customTimezone);
+  const utcDate = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+  utcDate.setUTCDate(utcDate.getUTCDate() - days);
+  const y = utcDate.getUTCFullYear();
+  const m = String(utcDate.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(utcDate.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 export const getNowInAppTimezone = (): Date => {
   const tz = getAppTimezone();
-  try {
-    const now = new Date();
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: tz,
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-      hour12: false,
-    });
-    const parts = formatter.formatToParts(now);
-    let year = now.getFullYear();
-    let month = now.getMonth();
-    let day = now.getDate();
-    let hour = now.getHours();
-    let minute = now.getMinutes();
-    let second = now.getSeconds();
+  const parts = getDatePartsInAppTimezone(new Date(), tz);
+  return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+};
 
-    for (const part of parts) {
-      if (part.type === "year") year = parseInt(part.value, 10);
-      if (part.type === "month") month = parseInt(part.value, 10) - 1;
-      if (part.type === "day") day = parseInt(part.value, 10);
-      if (part.type === "hour") {
-        const h = parseInt(part.value, 10);
-        hour = h === 24 ? 0 : h;
-      }
-      if (part.type === "minute") minute = parseInt(part.value, 10);
-      if (part.type === "second") second = parseInt(part.value, 10);
+export const getPresetDateRange = (
+  preset: string,
+  customTimezone?: string
+): { start: string; end: string } | null => {
+  const tz = customTimezone || getAppTimezone();
+  const todayStr = getDaysAgoInAppTimezone(0, tz);
+
+  switch (preset) {
+    case "today":
+      return { start: `${todayStr}T00:00:00`, end: `${todayStr}T23:59:59` };
+
+    case "yesterday": {
+      const yStr = getDaysAgoInAppTimezone(1, tz);
+      return { start: `${yStr}T00:00:00`, end: `${yStr}T23:59:59` };
     }
-    return new Date(year, month, day, hour, minute, second);
-  } catch {
-    return new Date();
+
+    case "2days": {
+      const startStr = getDaysAgoInAppTimezone(1, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "7days":
+    case "7d":
+    case "last7": {
+      const startStr = getDaysAgoInAppTimezone(6, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "15days":
+    case "15d": {
+      const startStr = getDaysAgoInAppTimezone(14, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "30days":
+    case "30d":
+    case "last30": {
+      const startStr = getDaysAgoInAppTimezone(29, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "60d":
+    case "last60": {
+      const startStr = getDaysAgoInAppTimezone(59, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "90d":
+    case "last90": {
+      const startStr = getDaysAgoInAppTimezone(89, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "365d":
+    case "last365": {
+      const startStr = getDaysAgoInAppTimezone(364, tz);
+      return {
+        start: `${startStr}T00:00:00`,
+        end: `${todayStr}T23:59:59`,
+      };
+    }
+
+    case "lastMonth": {
+      const parts = getDatePartsInAppTimezone(new Date(), tz);
+      const firstDay = new Date(Date.UTC(parts.year, parts.month - 2, 1));
+      const lastDay = new Date(Date.UTC(parts.year, parts.month - 1, 0));
+      const fmt = (d: Date) =>
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      return {
+        start: `${fmt(firstDay)}T00:00:00`,
+        end: `${fmt(lastDay)}T23:59:59`,
+      };
+    }
+
+    default:
+      return null;
+  }
+};
+
+export const getPresetDateRangeOnly = (
+  preset: string,
+  customTimezone?: string
+): { start: string; end: string } => {
+  const tz = customTimezone || getAppTimezone();
+  const todayStr = getDaysAgoInAppTimezone(0, tz);
+
+  switch (preset) {
+    case "today":
+      return { start: todayStr, end: todayStr };
+
+    case "yesterday": {
+      const yStr = getDaysAgoInAppTimezone(1, tz);
+      return { start: yStr, end: todayStr };
+    }
+
+    case "last7":
+    case "7days":
+    case "7d": {
+      const startStr = getDaysAgoInAppTimezone(6, tz);
+      return { start: startStr, end: todayStr };
+    }
+
+    case "last30":
+    case "30days":
+    case "30d": {
+      const startStr = getDaysAgoInAppTimezone(29, tz);
+      return { start: startStr, end: todayStr };
+    }
+
+    case "last60":
+    case "60d": {
+      const startStr = getDaysAgoInAppTimezone(59, tz);
+      return { start: startStr, end: todayStr };
+    }
+
+    case "last90":
+    case "90d": {
+      const startStr = getDaysAgoInAppTimezone(89, tz);
+      return { start: startStr, end: todayStr };
+    }
+
+    case "lastMonth": {
+      const parts = getDatePartsInAppTimezone(new Date(), tz);
+      const firstDay = new Date(Date.UTC(parts.year, parts.month - 2, 1));
+      const lastDay = new Date(Date.UTC(parts.year, parts.month - 1, 0));
+      const fmt = (d: Date) =>
+        `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+      return { start: fmt(firstDay), end: fmt(lastDay) };
+    }
+
+    default:
+      return { start: todayStr, end: todayStr };
   }
 };
 
