@@ -416,16 +416,7 @@ const DetailedReport: React.FC = () => {
       filterKey: "submitStatus__icontains",
       render: (log) => <StatusBadge status={log.submitStatus} />,
     },
-    {
-      key: "base_clientRate",
-      label: "Base Client Rate",
-      tableLabel: `Base Client Rate (${currencySymbol})`,
-      type: "number",
-      filterKey: "base_clientRate__icontains",
-      render: (log: any) => (
-        <span className="font-mono">{Number(log.base_clientRate || 0).toFixed(6)}</span>
-      ),
-    },
+
     {
       key: "base_client_charge",
       label: "Base Client Charge",
@@ -436,16 +427,7 @@ const DetailedReport: React.FC = () => {
         <span className="font-mono">{Number(log.base_client_charge || 0).toFixed(6)}</span>
       ),
     },
-    {
-      key: "base_vendorRate",
-      label: "Base Vendor Rate",
-      tableLabel: `Base Vendor Rate (${currencySymbol})`,
-      type: "number",
-      filterKey: "base_vendorRate__icontains",
-      render: (log: any) => (
-        <span className="font-mono">{Number(log.base_vendorRate || 0).toFixed(6)}</span>
-      ),
-    },
+
     {
       key: "base_vendor_charge",
       label: "Base Vendor Charge",
@@ -991,11 +973,10 @@ const DetailedReport: React.FC = () => {
                     key={preset.key}
                     type="button"
                     onClick={() => handlePresetClick(preset.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
-                      isActive
-                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
-                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
                   >
                     {preset.label}
                   </button>

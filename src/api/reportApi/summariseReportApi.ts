@@ -33,9 +33,24 @@ export interface CurrencyInfo {
   code: string;
 }
 
+export interface SummariseTotals {
+  attempts: number;
+  successful: number;
+  submitted: number;
+  delivered: number;
+  failed: number;
+  revenue: number;
+  vendor_cost: number;
+  profit_margin: number;
+  dlr_percent: number;
+  asr_percent: number;
+  margin_percent: number;
+}
+
 export interface SummariseSummaryResponse {
   currency?: CurrencyInfo;
   summary: SummariseSummaryData[];
+  totals?: SummariseTotals;
 }
 
 export interface SummariseDetailedResponse {

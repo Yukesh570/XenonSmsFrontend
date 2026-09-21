@@ -69,13 +69,14 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["name", "vendorName", "objective", "content"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "vendorName", "objective", "content", "senderId"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
   "vendorName",
   "objective",
   "content",
   "schedule",
+  "senderId",
   "createdAt",
 ];
 
@@ -170,6 +171,13 @@ const VendorCampaign: React.FC = () => {
       type: "text",
       filterKey: "vendor__profileName__icontains",
       render: (c) => c.vendorName || "-",
+    },
+    {
+      key: "senderId",
+      label: "Sender ID",
+      type: "text",
+      filterKey: "senderId__icontains",
+      render: (c) => c.senderId || "-",
     },
     {
       key: "objective",
