@@ -45,6 +45,9 @@ interface DataTableProps<T> {
   // Column Resizing & Persistence
   storageKey?: string;
   resizableColumns?: boolean;
+
+  // Optional footer rendered inside <tfoot> of the same <table> for pixel-perfect column alignment
+  footerContent?: React.ReactNode;
 }
 
 const rowsOptions = [
@@ -80,6 +83,7 @@ export function DataTable<T extends { id?: number | string }>({
   errorMessage,
   storageKey,
   resizableColumns = true,
+  footerContent,
 }: DataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
   const [clientRows, setClientRows] = useState(50);
@@ -950,6 +954,9 @@ export function DataTable<T extends { id?: number | string }>({
               displayData.map((item, index) => renderRow(item, index))
             )}
           </tbody>
+          {footerContent && (
+            <tfoot>{footerContent}</tfoot>
+          )}
         </table>
       </div>
 

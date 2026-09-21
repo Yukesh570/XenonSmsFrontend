@@ -18,9 +18,9 @@ export interface CampaignVendorFormData {
   createdAt?: string;
   createdBy?: string;
   createdByName?: string;
-  updatedBy?: string;
   updatedByName?: string;
   module?: string;
+  senderId?: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -7,6 +7,7 @@ import {
   getSummariseSummaryApi,
   downloadSummariseReportCsvApi,
   type SummariseSummaryData,
+  type SummariseTotals,
   type SummariseReportFilters,
 } from "../../api/reportApi/summariseReportApi";
 
@@ -149,6 +150,7 @@ const groupByOptions: MultiSelectOption[] = [
 
 const SummariseReport: React.FC = () => {
   const [summaryData, setSummaryData] = useState<SummariseSummaryData[]>([]);
+  const [totals, setTotals] = useState<SummariseTotals | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currencySymbol, setCurrencySymbol] = useState<string>("$");
 
@@ -293,11 +295,13 @@ const SummariseReport: React.FC = () => {
       if (summaryResponse) {
         setAppliedGroupBy(overrideGroupBy || groupBy);
         setSummaryData(summaryResponse.summary || []);
+        setTotals(summaryResponse.totals || null);
         if (summaryResponse.currency?.symbol) {
           setCurrencySymbol(summaryResponse.currency.symbol);
         }
       } else {
         setSummaryData([]);
+        setTotals(null);
       }
     } catch (error: any) {
       if (error.name !== "AbortError") {
@@ -610,6 +614,54 @@ const SummariseReport: React.FC = () => {
               </tr>
             );
           }}
+          footerContent={
+            totals && !isLoading && summaryData.length > 0 && appliedGroupBy.length > 0
+              ? (
+                <tr className="border-t-2 border-primary/30 dark:border-primary/40 bg-primary/5 dark:bg-primary/10">
+                  {/* Group-by label cells */}
+                  {appliedGroupBy.map((gb, i) => (
+                    <td key={gb} className="px-4 py-3 whitespace-nowrap">
+                      {i === 0 ? (
+                        <span className="font-bold text-primary dark:text-primary/90 text-sm">Grand Total</span>
+                      ) : ""}
+                    </td>
+                  ))}
+                  {/* Metric cells */}
+                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                    {Number(totals.attempts).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                    {Number(totals.successful).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums">
+                    {Number(totals.delivered).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums">
+                    {Number(totals.failed).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                    {currencySymbol}{Number(totals.revenue).toFixed(4)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                    {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
+                  </td>
+                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums ${
+                    totals.profit_margin >= 0
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-red-500 dark:text-red-400"
+                  }`}>
+                    {currencySymbol}{Number(totals.profit_margin).toFixed(4)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums">
+                    {Number(totals.asr_percent).toFixed(2)}%
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums">
+                    {Number(totals.dlr_percent).toFixed(2)}%
+                  </td>
+                </tr>
+              )
+              : undefined
+          }
         />
       </div>
 

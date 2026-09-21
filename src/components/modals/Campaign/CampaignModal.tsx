@@ -47,6 +47,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
     contactNumber: "",
     template: "",
     scheduleType: "now",
+    senderId: "",
   });
 
   const [quillContent, setQuillContent] = useState("");
@@ -106,6 +107,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
             ? String(activeCampaign.template)
             : "",
           scheduleType: "now",
+          senderId: activeCampaign.senderId || "",
         });
 
         setQuillContent(activeCampaign.content || "");
@@ -140,6 +142,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
           contactNumber: "",
           template: "",
           scheduleType: "now",
+          senderId: "",
         });
         setQuillContent("");
         setScheduleDate(null);
@@ -236,6 +239,10 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       dataToUpload.append("objective", formData.objective);
       dataToUpload.append("content", quillContent);
 
+      if (formData.senderId.trim()) {
+        dataToUpload.append("senderId", formData.senderId.trim());
+      }
+
       if (formData.template) dataToUpload.append("template", formData.template);
 
       let scheduleString = "";
@@ -276,6 +283,7 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
         contactNumber: "",
         template: "",
         scheduleType: "now",
+        senderId: "",
       });
       setQuillContent("");
       setScheduleDate(null);
@@ -308,15 +316,25 @@ const CampaignModal: React.FC<CampaignModalProps> = ({
       className="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-        <Input
-          label="Campaign Name"
-          name="campaignName"
-          placeholder="Enter campaign name"
-          value={formData.campaignName}
-          onChange={handleChange}
-          required
-          disabled={isViewMode}
-        />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Input
+            label="Campaign Name"
+            name="campaignName"
+            placeholder="Enter campaign name"
+            value={formData.campaignName}
+            onChange={handleChange}
+            required
+            disabled={isViewMode}
+          />
+          <Input
+            label="Sender ID (Optional)"
+            name="senderId"
+            placeholder="e.g., TEST_SYSTEM"
+            value={formData.senderId}
+            onChange={handleChange}
+            disabled={isViewMode}
+          />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Select
             label="Client"
