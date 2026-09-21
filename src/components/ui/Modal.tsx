@@ -139,23 +139,30 @@ const Modal: React.FC<ModalProps> = ({
     const el = modalDialogRef.current;
     if (!el) return;
 
+    let isStripping = false;
     const stripTitles = () => {
-      // 1. Elements with explicit non-empty title attribute
-      const titledElements = el.querySelectorAll("[title]:not([title=''])");
-      titledElements.forEach((node) => {
-        const titleVal = node.getAttribute("title");
-        if (titleVal) {
-          node.setAttribute("data-cell-title", titleVal);
-        }
-        // Setting title="" suppresses native browser tooltip fallback
-        node.setAttribute("title", "");
-      });
+      if (isStripping) return;
+      isStripping = true;
+      try {
+        // 1. Elements with explicit non-empty title attribute
+        const titledElements = el.querySelectorAll("[title]:not([title=''])");
+        titledElements.forEach((node) => {
+          const titleVal = node.getAttribute("title");
+          if (titleVal) {
+            node.setAttribute("data-cell-title", titleVal);
+          }
+          // Setting title="" suppresses native browser tooltip fallback
+          node.setAttribute("title", "");
+        });
 
-      // 2. Truncate elements without title attribute: add title="" so WebKit doesn't auto-generate native ellipsis tooltip
-      const truncateElements = el.querySelectorAll(".truncate:not([title])");
-      truncateElements.forEach((node) => {
-        node.setAttribute("title", "");
-      });
+        // 2. Truncate elements without title attribute: add title="" so WebKit doesn't auto-generate native ellipsis tooltip
+        const truncateElements = el.querySelectorAll(".truncate:not([title])");
+        truncateElements.forEach((node) => {
+          node.setAttribute("title", "");
+        });
+      } finally {
+        isStripping = false;
+      }
     };
 
     stripTitles();

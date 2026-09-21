@@ -289,15 +289,22 @@ export function DataTable<T extends { id?: number | string }>({
     const el = scrollContainerRef.current;
     if (!el) return;
 
+    let isStripping = false;
     const stripTitles = () => {
-      const titledElements = el.querySelectorAll("[title]");
-      titledElements.forEach((node) => {
-        const titleVal = node.getAttribute("title");
-        if (titleVal) {
-          node.setAttribute("data-cell-title", titleVal);
-        }
-        node.removeAttribute("title");
-      });
+      if (isStripping) return;
+      isStripping = true;
+      try {
+        const titledElements = el.querySelectorAll("[title]:not([title=''])");
+        titledElements.forEach((node) => {
+          const titleVal = node.getAttribute("title");
+          if (titleVal) {
+            node.setAttribute("data-cell-title", titleVal);
+          }
+          node.setAttribute("title", "");
+        });
+      } finally {
+        isStripping = false;
+      }
     };
 
     stripTitles();
@@ -315,12 +322,12 @@ export function DataTable<T extends { id?: number | string }>({
     const handleCaptureOver = (e: MouseEvent) => {
       let target = e.target as HTMLElement | null;
       while (target && target !== el) {
-        if (target.hasAttribute("title")) {
+        if (target.hasAttribute("title") && target.getAttribute("title") !== "") {
           const titleVal = target.getAttribute("title");
           if (titleVal) {
             target.setAttribute("data-cell-title", titleVal);
           }
-          target.removeAttribute("title");
+          target.setAttribute("title", "");
         }
         target = target.parentElement;
       }

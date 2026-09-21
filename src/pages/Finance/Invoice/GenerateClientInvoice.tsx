@@ -35,7 +35,11 @@ const GenerateClientInvoice: React.FC = () => {
   const findClientInvoiceUrl = (): string => {
     const walk = (items: any[]): string | null => {
       for (const item of items) {
-        if (item.url && item.url.endsWith("clientInvoice") && !item.url.includes("generateClientInvoice")) {
+        if (
+          item.url &&
+          (item.url.endsWith("clientCompanyInvoice") || item.url.endsWith("clientInvoice")) &&
+          !item.url.toLowerCase().includes("generate")
+        ) {
           return item.url;
         }
         if (item.children && item.children.length > 0) {
@@ -46,7 +50,7 @@ const GenerateClientInvoice: React.FC = () => {
       return null;
     };
     const found = navItems?.results ? walk(navItems.results) : null;
-    const url = found || "/finance/clientInvoice";
+    const url = found || "/finance/invoice/clientBilling/clientCompanyInvoice";
     return url.startsWith("/") ? url : `/${url}`;
   };
 
