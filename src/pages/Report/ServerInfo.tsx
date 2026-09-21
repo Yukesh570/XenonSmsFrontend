@@ -22,6 +22,7 @@ import {
 } from "../../api/reportApi/serverInfoApi";
 import Button from "../../components/ui/Button";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface HistorySample {
   time: string;
@@ -637,7 +638,7 @@ const ServerInfo: React.FC = () => {
               <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                 <div className="flex items-center gap-2 text-sm text-text-secondary dark:text-gray-400">
                   <Clock size={16} className="text-primary" />
-                  <span>Snapshot Generated: <strong className="text-text-primary dark:text-white ml-1">{new Date(reconData.data.generated_at).toLocaleString()}</strong></span>
+                  <span>Snapshot Generated: <strong className="text-text-primary dark:text-white ml-1">{formatDateTime(reconData.data.generated_at)}</strong></span>
                 </div>
                 <div className="text-xs font-mono px-2.5 py-1 bg-gray-50 dark:bg-gray-700/60 rounded-md text-text-secondary dark:text-gray-400">
                   Query Generation Latency: <strong className="text-green-600 dark:text-green-400">{reconData.data.generation_ms} ms</strong>

@@ -26,6 +26,7 @@ import ContextMenu, {
   type ContextMenuItem,
 } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
+import { getNowInAppTimezone } from "../../helper/dateFormatter";
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -70,7 +71,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 const getPresetDateRange = (
   preset: DatePresetKey,
 ): { start: string; end: string } | null => {
-  const now = new Date();
+  const now = getNowInAppTimezone();
   const todayStr = formatLocalDate(now);
 
   switch (preset) {

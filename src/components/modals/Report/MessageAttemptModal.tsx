@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import type { MessageAttemptData } from "../../../api/reportApi/messageAttemptApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface MessageAttemptModalProps {
   isOpen: boolean;
@@ -78,11 +79,11 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Started At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.started_at ? new Date(viewLog.started_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.started_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Completed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.completed_at ? new Date(viewLog.completed_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.completed_at)}</div>
             </div>
           </div>
         </fieldset>

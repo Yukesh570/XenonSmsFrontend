@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import { type DetailedReportData } from "../../../api/reportApi/detailedReportApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface DetailedReportModalProps {
   isOpen: boolean;
@@ -125,19 +126,19 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Request Time</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.request_time || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.request_time)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Queued At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_queued_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.message_queued_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Delivered At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_delivered_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.message_delivered_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Failed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.message_failed_at || "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.message_failed_at)}</div>
             </div>
           </div>
         </fieldset>

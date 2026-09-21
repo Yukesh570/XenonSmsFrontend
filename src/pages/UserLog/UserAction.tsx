@@ -17,6 +17,7 @@ import {
   type UserActionData,
 } from "../../api/userActionApi/LogApi";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 type FilterColumnType =
   | "number"
@@ -30,7 +31,7 @@ type FilterColumnType =
 interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
   key: string;
   label: string;
-  type?: FilterColumnType;
+  type: FilterColumnType;
   filterKey?: string;
   render?: (log: UserActionData) => React.ReactNode;
   isSearchOnly?: boolean;
@@ -46,8 +47,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const formatDate = (dateString?: string) => {
-  if (!dateString) return "-";
-  return new Date(dateString).toLocaleString();
+  return formatDateTime(dateString);
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["username", "title", "action"];

@@ -97,8 +97,16 @@ const Layout: React.FC = () => {
     const initializeTimezone = async () => {
       try {
         const response = await getGeneralSettingsApi("generalSettings");
-        if (response && response.defaultTimezone) {
-          localStorage.setItem("app_timezone", response.defaultTimezone);
+        if (response) {
+          if (response.defaultTimezone) {
+            localStorage.setItem("app_timezone", response.defaultTimezone);
+          }
+          if (response.dateFormat) {
+            localStorage.setItem("app_date_format", response.dateFormat);
+          }
+          if (response.datetimeFormat) {
+            localStorage.setItem("app_datetime_format", response.datetimeFormat);
+          }
           window.dispatchEvent(new Event("timezoneChanged"));
         }
       } catch (error) {

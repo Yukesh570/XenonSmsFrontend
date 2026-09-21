@@ -3,6 +3,7 @@ import { History } from "lucide-react";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
 import { type UserActionData } from "../../api/userActionApi/LogApi";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface UserActionModalProps {
   isOpen: boolean;
@@ -16,11 +17,6 @@ export const UserActionModal: React.FC<UserActionModalProps> = ({
   viewLog,
 }) => {
   if (!isOpen || !viewLog) return null;
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleString();
-  };
 
   return (
     <Modal
@@ -53,7 +49,7 @@ export const UserActionModal: React.FC<UserActionModalProps> = ({
             </label>
             <div className="mt-1 flex items-center gap-1.5 text-sm text-text-primary dark:text-white">
               <History size={14} className="text-orange-400" />
-              {formatDate(viewLog.createdAt)}
+              {formatDateTime(viewLog.createdAt)}
             </div>
           </div>
         </div>

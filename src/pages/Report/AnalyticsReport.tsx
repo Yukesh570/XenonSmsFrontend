@@ -8,6 +8,7 @@ import DatePicker, { type DatePickerMode } from "../../components/ui/DatePicker"
 import Input from "../../components/ui/Input";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import { actionHelper } from "../../helper/action";
+import { getNowInAppTimezone } from "../../helper/dateFormatter";
 
 import { getAnalyticsDataApi } from "../../api/reportApi/analyticsReportApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -187,7 +188,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 ];
 
 const getPresetDateRange = (preset: DatePresetKey): { start: string; end: string } => {
-  const now = new Date();
+  const now = getNowInAppTimezone();
   const todayStr = formatLocalDate(now);
 
   switch (preset) {

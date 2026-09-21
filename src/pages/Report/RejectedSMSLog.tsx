@@ -15,7 +15,7 @@ import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedF
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import { formatDateTime, getNowInAppTimezone } from "../../helper/dateFormatter";
 import { RejectedSMSLogModal } from "../../components/modals/Report/RejectedSMSLogModal";
 
 interface Option { label: string; value: string; }
@@ -56,7 +56,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 const getPresetDateRange = (
   preset: DatePresetKey,
 ): { start: string; end: string } | null => {
-  const now = new Date();
+  const now = getNowInAppTimezone();
   const todayStr = formatLocalDate(now);
 
   switch (preset) {

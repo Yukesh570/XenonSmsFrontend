@@ -850,10 +850,18 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   const [appTimezone, setAppTimezone] = useState<string>(
     () => localStorage.getItem("app_timezone") || "UTC"
   );
+  const [appDateFormat, setAppDateFormat] = useState<string>(
+    () => localStorage.getItem("app_date_format") || "YYYY-MM-DD"
+  );
+  const [appDateTimeFormat, setAppDateTimeFormat] = useState<string>(
+    () => localStorage.getItem("app_datetime_format") || "YYYY-MM-DD HH:mm:ss"
+  );
 
   useEffect(() => {
     const handleTimezoneChange = () => {
       setAppTimezone(localStorage.getItem("app_timezone") || "UTC");
+      setAppDateFormat(localStorage.getItem("app_date_format") || "YYYY-MM-DD");
+      setAppDateTimeFormat(localStorage.getItem("app_datetime_format") || "YYYY-MM-DD HH:mm:ss");
     };
 
     window.addEventListener("timezoneChanged", handleTimezoneChange);
@@ -953,6 +961,20 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     }
   };
 
+  const effectiveDateFormat = useMemo(() => {
+    const raw = isTimeActive ? appDateTimeFormat : appDateFormat;
+    if (!raw) return isTimeActive ? "yyyy-MM-dd HH:mm:ss" : "yyyy-MM-dd";
+    return raw
+      .replace(/YYYY/g, "yyyy")
+      .replace(/YY/g, "yy")
+      .replace(/DD/g, "dd")
+      .replace(/D/g, "d")
+      .replace(/(?:HH|hh|H|h):MM/g, (m) => m.slice(0, -2) + "mm")
+      .replace(/:MM(?=:|$|\s|[A-Za-z])/g, ":mm")
+      .replace(/\bA\b/g, "aa")
+      .replace(/\ba\b/g, "aa");
+  }, [isTimeActive, appDateTimeFormat, appDateFormat]);
+
   return (
     <div className="flex flex-col w-full">
       <style>{customDatePickerStyles}</style>
@@ -969,7 +991,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
           openToDate={openToDateValue}
           onChange={handleDateChange}
           showTimeSelect={effectiveShowTime}
-          dateFormat={isTimeActive ? "MMM d, yyyy h:mm aa" : "MMM d, yyyy"}
+          dateFormat={effectiveDateFormat}
           timeCaption={
             effectiveShowTime
               ? ((

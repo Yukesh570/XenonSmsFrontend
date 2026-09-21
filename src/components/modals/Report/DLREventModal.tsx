@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import type { DLREventData } from "../../../api/reportApi/dlrEventApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface DLREventModalProps {
   isOpen: boolean;
@@ -65,7 +66,7 @@ export const DLREventModal: React.FC<DLREventModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Received At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.received_at ? new Date(viewLog.received_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.received_at)}</div>
             </div>
           </div>
         </fieldset>

@@ -31,6 +31,7 @@ import { CountryFlag } from "../../components/ui/CountryFlag";
 import TraceModal from "../../components/modals/Report/TraceModal";
 import CustomDatePicker from "../../components/ui/DatePicker";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 // --- Interfaces ---
 interface Option {
@@ -237,7 +238,7 @@ const hasLoggedOpening = useRef(false);
         type: "text",
         render: (log) => (
           <span className="text-xs text-text-secondary">
-            {new Date(log.time).toLocaleString()}
+            {formatDateTime(log.time)}
           </span>
         ),
       },

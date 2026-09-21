@@ -23,6 +23,7 @@ import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import Input from "../../components/ui/Input";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface LogItemWithId extends LoginHistoryItem {
   id: number;
@@ -38,8 +39,7 @@ interface ColumnConfig {
 const DEFAULT_TABLE_COLUMNS = ["ipAddress", "browser", "device", "loggedAt"];
 
 const formatDate = (dateString?: string) => {
-  if (!dateString) return "-";
-  return new Date(dateString).toLocaleString();
+  return formatDateTime(dateString);
 };
 
 const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
