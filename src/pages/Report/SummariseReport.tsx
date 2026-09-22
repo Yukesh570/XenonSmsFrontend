@@ -178,8 +178,8 @@ const SummariseReport: React.FC = () => {
     if (!hasLoggedOpening.current) {
       setTimeout(() => {
         actionHelper(
-          "Summarise Report",
-          `Opened Summarise Report Module`,
+          "Margin Report",
+          `Opened Margin Report Module`,
           false,
         );
       }, 100);
@@ -267,7 +267,7 @@ const SummariseReport: React.FC = () => {
       }
     } catch (error: any) {
       if (error.name !== "AbortError") {
-        toast.error("Failed to fetch summarise report.");
+        toast.error("Failed to fetch margin report.");
         setSummaryData([]);
       }
     } finally {
@@ -395,7 +395,7 @@ const SummariseReport: React.FC = () => {
       <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
-            Summarise Report
+            Margin Report
           </h1>
         </div>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
