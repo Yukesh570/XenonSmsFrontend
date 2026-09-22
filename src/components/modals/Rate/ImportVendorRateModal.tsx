@@ -141,12 +141,43 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
     try {
       statusRes = await getImportStatusApi(taskId);
     } catch (err: any) {
-      if (err.response && err.response.data) {
-        statusRes = err.response.data;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      if (err.response) {
+        const errorData = err.response.data;
+        setIsSubmitting(false);
+        setProgress(null);
+
+        const resultErrors = errorData?.result?.errors || errorData?.errors;
+        if (resultErrors && Array.isArray(resultErrors) && resultErrors.length > 0) {
+          setImportErrors(resultErrors);
+          setImportMessage(
+            errorData?.result?.message ||
+            errorData?.message ||
+            errorData?.error ||
+            "Import failed."
+          );
+          return;
+        }
+
+        const errorMsg =
+          errorData?.message ||
+          errorData?.error ||
+          errorData?.detail ||
+          errorData?.result?.message ||
+          errorData?.result?.error ||
+          (typeof errorData === "string" ? errorData : "Failed to import vendor rates.");
+
+        toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+        return;
       } else {
         console.error("Polling error", err);
         if (attempt >= MAX_ATTEMPTS) {
           setIsSubmitting(false);
+          setProgress(null);
           toast.error("Network error checking status.");
           return;
         }
@@ -159,8 +190,11 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
     }
 
     if (statusRes) {
-      const state =
-        statusRes?.state?.toUpperCase() || statusRes?.status?.toUpperCase();
+      const state = (
+        statusRes?.state ||
+        statusRes?.status ||
+        ""
+      ).toUpperCase();
 
       if (
         state === "SUCCESS" ||
@@ -194,9 +228,43 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
         return;
       }
 
-      if (state === "FAILURE" || state === "FAILED") {
+      if (
+        state === "FAILURE" ||
+        state === "FAILED" ||
+        state === "ERROR"
+      ) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         setIsSubmitting(false);
-        toast.error(statusRes?.error || "Import failed.");
+        setProgress(null);
+
+        const resultErrors = statusRes.result?.errors || statusRes.errors;
+        if (
+          resultErrors &&
+          Array.isArray(resultErrors) &&
+          resultErrors.length > 0
+        ) {
+          setImportErrors(resultErrors);
+          setImportMessage(
+            statusRes.result?.message ||
+            statusRes.message ||
+            statusRes.error ||
+            "Import failed."
+          );
+          return;
+        }
+
+        const errorMsg =
+          statusRes?.message ||
+          statusRes?.error ||
+          statusRes?.detail ||
+          statusRes?.result?.message ||
+          statusRes?.result?.error ||
+          "Import failed.";
+
+        toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
         return;
       }
 

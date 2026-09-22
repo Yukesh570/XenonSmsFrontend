@@ -156,7 +156,16 @@ const MessageReport: React.FC = () => {
     try {
       const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
       return Array.isArray(parsed)
-        ? parsed.filter((col: string) => col !== "createdAt__gt_lt")
+        ? parsed.filter(
+            (col: string) =>
+              ![
+                "createdAt__gt_lt",
+                "queued_at__gt_lt",
+                "submitted_at__gt_lt",
+                "delivered_at__gt_lt",
+                "failed_at__gt_lt",
+              ].includes(col),
+          )
         : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
@@ -289,11 +298,6 @@ const MessageReport: React.FC = () => {
       },
       { key: "segmentNumber", label: "Segment Number", type: "text", isSearchable: false },
       { key: "characterCount", label: "Character Count", type: "text", isSearchable: false },
-
-      { key: "queued_at__gt_lt", label: "Queued At (From / To)", type: "date_gt_lt", filterKey: "queued_at", isSearchOnly: true },
-      { key: "submitted_at__gt_lt", label: "Submitted At (From / To)", type: "date_gt_lt", filterKey: "submitted_at", isSearchOnly: true },
-      { key: "delivered_at__gt_lt", label: "Delivered At (From / To)", type: "date_gt_lt", filterKey: "delivered_at", isSearchOnly: true },
-      { key: "failed_at__gt_lt", label: "Failed At (From / To)", type: "date_gt_lt", filterKey: "failed_at", isSearchOnly: true },
     ],
     [clientOptions, vendorOptions, smppOptions, countryOptions],
   );
