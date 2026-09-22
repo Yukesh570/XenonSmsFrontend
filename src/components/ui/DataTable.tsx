@@ -48,6 +48,9 @@ interface DataTableProps<T> {
 
   // Optional footer rendered inside <tfoot> of the same <table> for pixel-perfect column alignment
   footerContent?: React.ReactNode;
+
+  // Custom table max-height (number in px, or CSS string like "calc(100vh - 380px)")
+  tableMaxHeight?: string | number;
 }
 
 const rowsOptions = [
@@ -84,6 +87,7 @@ export function DataTable<T extends { id?: number | string }>({
   storageKey,
   resizableColumns = true,
   footerContent,
+  tableMaxHeight,
 }: DataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
   const [clientRows, setClientRows] = useState(50);
@@ -649,6 +653,16 @@ export function DataTable<T extends { id?: number | string }>({
 
   return (
     <div
+      style={
+        tableMaxHeight
+          ? {
+              maxHeight:
+                typeof tableMaxHeight === "number"
+                  ? `${tableMaxHeight}px`
+                  : tableMaxHeight,
+            }
+          : undefined
+      }
       className={`rounded-xl bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col relative z-0 app-data-table ${
         density === "compact" ? "table-density-compact" : ""
       }`}
@@ -746,7 +760,9 @@ export function DataTable<T extends { id?: number | string }>({
       {/* SCROLLABLE DATA TABLE */}
       <div
         ref={scrollContainerRef}
-        className="overflow-auto max-h-[72vh] min-h-[300px] relative z-0 custom-scrollbar"
+        className={`overflow-auto ${
+          tableMaxHeight ? "flex-1 min-h-0" : "max-h-[72vh] min-h-[300px]"
+        } relative z-0 custom-scrollbar`}
       >
         <table
           className={`min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 ${
@@ -955,7 +971,9 @@ export function DataTable<T extends { id?: number | string }>({
             )}
           </tbody>
           {footerContent && (
-            <tfoot>{footerContent}</tfoot>
+            <tfoot className="sticky bottom-0 z-20">
+              {footerContent}
+            </tfoot>
           )}
         </table>
       </div>
@@ -977,6 +995,16 @@ export function DataTable<T extends { id?: number | string }>({
 
         .app-data-table tbody tr:hover { background-color: #f3f4f6; }
         .dark .app-data-table tbody tr:hover { background-color: #374151; }
+
+        .app-data-table tfoot,
+        .app-data-table tfoot tr,
+        .app-data-table tfoot td {
+          position: sticky;
+          bottom: 0;
+          z-index: 20;
+          border-top: none !important;
+          box-shadow: none !important;
+        }
 
         /* Dynamic adjustable column widths & text truncation with ellipsis */
         .app-data-table table.table-resizable-active {

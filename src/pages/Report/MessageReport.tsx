@@ -99,7 +99,6 @@ const DEFAULT_SEARCH_COLUMNS = [
   "clientName",
   "vendorName",
   "segmentNumber",
-  "createdAt__gt_lt",
   "effectiveSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
@@ -116,15 +115,9 @@ const DEFAULT_TABLE_COLUMNS = [
   "effectiveSenderId",
 ];
 
-
-
 type DatePresetKey =
   | "today"
   | "yesterday"
-  | "2days"
-  | "7days"
-  | "15days"
-  | "30days"
   | "custom";
 
 interface DatePresetOption {
@@ -135,10 +128,6 @@ interface DatePresetOption {
 const DATE_PRESETS: DatePresetOption[] = [
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
-  { key: "2days", label: "2 Days" },
-  { key: "7days", label: "7 Days" },
-  { key: "15days", label: "15 Days" },
-  { key: "30days", label: "30 Days" },
 ];
 
 
@@ -165,7 +154,10 @@ const MessageReport: React.FC = () => {
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("msg_search_columns");
     try {
-      return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+      const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+      return Array.isArray(parsed)
+        ? parsed.filter((col: string) => col !== "createdAt__gt_lt")
+        : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
     }
@@ -298,7 +290,6 @@ const MessageReport: React.FC = () => {
       { key: "segmentNumber", label: "Segment Number", type: "text", isSearchable: false },
       { key: "characterCount", label: "Character Count", type: "text", isSearchable: false },
 
-      { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", filterKey: "createdAt", isSearchOnly: true },
       { key: "queued_at__gt_lt", label: "Queued At (From / To)", type: "date_gt_lt", filterKey: "queued_at", isSearchOnly: true },
       { key: "submitted_at__gt_lt", label: "Submitted At (From / To)", type: "date_gt_lt", filterKey: "submitted_at", isSearchOnly: true },
       { key: "delivered_at__gt_lt", label: "Delivered At (From / To)", type: "date_gt_lt", filterKey: "delivered_at", isSearchOnly: true },

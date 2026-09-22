@@ -77,7 +77,6 @@ const groupByOptions: MultiSelectOption[] = [
   { label: "Operator", value: "operatorMNC" },
   { label: "Status", value: "submitStatus" },
   { label: "Sender ID", value: "senderId" },
-  { label: "Routing Basis", value: "routingBasis" },
   { label: "Destination", value: "destination" },
 ];
 
@@ -108,6 +107,34 @@ const SummariseReport: React.FC = () => {
   >([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [tableMaxHeight, setTableMaxHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    const calculateHeight = () => {
+      if (tableContainerRef.current) {
+        const rect = tableContainerRef.current.getBoundingClientRect();
+        const availableHeight = window.innerHeight - rect.top - 16;
+        setTableMaxHeight(Math.max(260, Math.floor(availableHeight)));
+      }
+    };
+
+    calculateHeight();
+    window.addEventListener("resize", calculateHeight);
+
+    const resizeObserver = new ResizeObserver(() => {
+      calculateHeight();
+    });
+
+    if (tableContainerRef.current?.parentElement) {
+      resizeObserver.observe(tableContainerRef.current.parentElement);
+    }
+
+    return () => {
+      window.removeEventListener("resize", calculateHeight);
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -354,21 +381,15 @@ const SummariseReport: React.FC = () => {
           (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
         )
       : ["Total"]),
-    "Attempts",
-    "Successful",
-    "Delivered",
-    "Failed",
     `Revenue (${currencySymbol})`,
     `Vendor Cost (${currencySymbol})`,
     `Margin (${currencySymbol})`,
-    "ASR %",
-    "DLR %",
   ];
 
   return (
     <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
       {/* Top Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
             Summarise Report
@@ -467,7 +488,7 @@ const SummariseReport: React.FC = () => {
       </FilterCard>
 
       {/* Reusable DataTable for Aggregated Summary */}
-      <div className="mt-6">
+      <div ref={tableContainerRef} className="mt-3">
         <DataTable
           headers={summaryHeaders}
           data={summaryData.map((row, idx) => ({ ...row, id: idx }))}
@@ -476,6 +497,7 @@ const SummariseReport: React.FC = () => {
           isLoading={isLoading}
           emptyMessage="No summary data found."
           density="compact"
+          tableMaxHeight={tableMaxHeight}
           headerActions={
             <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
               {DATE_PRESETS.map((preset) => {
@@ -518,18 +540,6 @@ const SummariseReport: React.FC = () => {
                     Grand Total
                   </td>
                 )}
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.attempts || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.successful || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.delivered || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.failed || 0).toLocaleString()}
-                </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {currencySymbol}
                   {Number(row.revenue || 0).toFixed(4)}
@@ -548,58 +558,37 @@ const SummariseReport: React.FC = () => {
                   {currencySymbol}
                   {margin.toFixed(4)}
                 </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.asr_percent || 0).toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.dlr_percent || 0).toFixed(2)}%
-                </td>
               </tr>
             );
           }}
           footerContent={
             totals && !isLoading && summaryData.length > 0 && appliedGroupBy.length > 0
               ? (
-                <tr className="border-t-2 border-primary/30 dark:border-primary/40 bg-primary/5 dark:bg-primary/10">
+                <tr className="bg-gray-50 dark:bg-gray-800 border-none">
                   {/* Group-by label cells */}
                   {appliedGroupBy.map((gb, i) => (
-                    <td key={gb} className="px-4 py-3 whitespace-nowrap">
+                    <td
+                      key={gb}
+                      className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"
+                    >
                       {i === 0 ? (
                         <span className="font-bold text-primary dark:text-primary/90 text-sm">Grand Total</span>
                       ) : ""}
                     </td>
                   ))}
                   {/* Metric cells */}
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums">
-                    {Number(totals.attempts).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums">
-                    {Number(totals.successful).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums">
-                    {Number(totals.delivered).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums">
-                    {Number(totals.failed).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.revenue).toFixed(4)}
                   </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums">
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
                   </td>
-                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums ${
+                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${
                     totals.profit_margin >= 0
                       ? "text-emerald-600 dark:text-emerald-400"
                       : "text-red-500 dark:text-red-400"
                   }`}>
                     {currencySymbol}{Number(totals.profit_margin).toFixed(4)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums">
-                    {Number(totals.asr_percent).toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums">
-                    {Number(totals.dlr_percent).toFixed(2)}%
                   </td>
                 </tr>
               )
