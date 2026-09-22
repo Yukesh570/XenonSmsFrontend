@@ -73,8 +73,10 @@ const statusOptions = [
 const groupByOptions: MultiSelectOption[] = [
   { label: "Client", value: "client" },
   { label: "Vendor", value: "vendor" },
-  { label: "Country", value: "countryMCC" },
-  { label: "Operator", value: "operatorMNC" },
+  { label: "Country", value: "country" },
+  { label: "MCC", value: "countryMCC" },
+  { label: "MNC", value: "operatorMNC" },
+
   { label: "Status", value: "submitStatus" },
   { label: "Sender ID", value: "senderId" },
   { label: "Destination", value: "destination" },
@@ -378,12 +380,13 @@ const SummariseReport: React.FC = () => {
   const summaryHeaders = [
     ...(appliedGroupBy.length > 0
       ? appliedGroupBy.map(
-          (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
-        )
+        (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
+      )
       : ["Total"]),
     `Revenue (${currencySymbol})`,
     `Vendor Cost (${currencySymbol})`,
     `Margin (${currencySymbol})`,
+    "Margin %",
   ];
 
   return (
@@ -507,11 +510,10 @@ const SummariseReport: React.FC = () => {
                     key={preset.key}
                     type="button"
                     onClick={() => handlePresetClick(preset.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
-                      isActive
-                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
-                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
                   >
                     {preset.label}
                   </button>
@@ -540,6 +542,7 @@ const SummariseReport: React.FC = () => {
                     Grand Total
                   </td>
                 )}
+
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {currencySymbol}
                   {Number(row.revenue || 0).toFixed(4)}
@@ -549,14 +552,16 @@ const SummariseReport: React.FC = () => {
                   {Number(row.vendor_cost || 0).toFixed(4)}
                 </td>
                 <td
-                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${
-                    margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
+                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${margin >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
+                    }`}
                 >
                   {currencySymbol}
                   {margin.toFixed(4)}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {Number(row.margin_percent || 0).toFixed(2)}%
                 </td>
               </tr>
             );
@@ -577,18 +582,21 @@ const SummariseReport: React.FC = () => {
                     </td>
                   ))}
                   {/* Metric cells */}
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums">
                     {currencySymbol}{Number(totals.revenue).toFixed(4)}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
                   </td>
-                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${
-                    totals.profit_margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}>
+                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums ${totals.profit_margin >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-500 dark:text-red-400"
+                    }`}>
                     {currencySymbol}{Number(totals.profit_margin).toFixed(4)}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums">
+                    {Number(totals.margin_percent).toFixed(2)}%
                   </td>
                 </tr>
               )
