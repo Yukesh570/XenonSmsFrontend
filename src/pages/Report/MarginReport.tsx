@@ -4,12 +4,12 @@ import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
-  getSummariseSummaryApi,
-  downloadSummariseReportCsvApi,
-  type SummariseSummaryData,
-  type SummariseTotals,
-  type SummariseReportFilters,
-} from "../../api/reportApi/summariseReportApi";
+  getMarginSummaryApi,
+  downloadMarginReportCsvApi,
+  type MarginSummaryData,
+  type MarginTotals,
+  type MarginReportFilters,
+} from "../../api/reportApi/marginReportApi";
 
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
@@ -32,8 +32,6 @@ import {
   formatLocalDate,
   formatLocalDateTime,
 } from "../../helper/dateFormatter";
-
-
 
 type DatePresetKey =
   | "today"
@@ -58,8 +56,6 @@ const DATE_PRESETS: DatePresetOption[] = [
   { key: "30days", label: "30 Days" },
 ];
 
-
-
 const statusOptions = [
   { label: "Queued", value: "QUEUED" },
   { label: "Delivered", value: "DELIVERED" },
@@ -81,15 +77,15 @@ const groupByOptions: MultiSelectOption[] = [
   { label: "Destination", value: "destination" },
 ];
 
-const SummariseReport: React.FC = () => {
-  const [summaryData, setSummaryData] = useState<SummariseSummaryData[]>([]);
-  const [totals, setTotals] = useState<SummariseTotals | null>(null);
+const MarginReport: React.FC = () => {
+  const [summaryData, setSummaryData] = useState<MarginSummaryData[]>([]);
+  const [totals, setTotals] = useState<MarginTotals | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [currencySymbol, setCurrencySymbol] = useState<string>("$");
 
   const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
-  const [filterValues, setFilterValues] = useState<SummariseReportFilters>({});
+  const [filterValues, setFilterValues] = useState<MarginReportFilters>({});
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
   const [contextMenuPos, setContextMenuPos] = useState<{
@@ -177,8 +173,8 @@ const SummariseReport: React.FC = () => {
     if (!hasLoggedOpening.current) {
       setTimeout(() => {
         actionHelper(
-          "Summarise Report",
-          `Opened Summarise Report Module`,
+          "Margin Report",
+          `Opened Margin Report Module`,
           false,
         );
       }, 100);
@@ -207,7 +203,7 @@ const SummariseReport: React.FC = () => {
   };
 
   const fetchReports = async (
-    overrideFilters?: SummariseReportFilters,
+    overrideFilters?: MarginReportFilters,
     overrideGroupBy?: string[],
     presetOverride?: DatePresetKey,
   ) => {
@@ -218,7 +214,7 @@ const SummariseReport: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const activeFilters: SummariseReportFilters = {
+      const activeFilters: MarginReportFilters = {
         ...(overrideFilters || filterValues),
       };
       const currentPreset =
@@ -249,7 +245,7 @@ const SummariseReport: React.FC = () => {
         group_by: overrideGroupBy || groupBy,
       };
 
-      const summaryResponse = await getSummariseSummaryApi(payload);
+      const summaryResponse = await getMarginSummaryApi(payload);
 
       if (newController.signal.aborted) return;
 
@@ -266,7 +262,7 @@ const SummariseReport: React.FC = () => {
       }
     } catch (error: any) {
       if (error.name !== "AbortError") {
-        toast.error("Failed to fetch summarise report.");
+        toast.error("Failed to fetch margin report.");
         setSummaryData([]);
       }
     } finally {
@@ -298,7 +294,7 @@ const SummariseReport: React.FC = () => {
   const handleDownloadCSV = async () => {
     try {
       const toastId = toast.loading("Downloading CSV...");
-      const activeFilters: SummariseReportFilters = { ...filterValues };
+      const activeFilters: MarginReportFilters = { ...filterValues };
       if (
         (!activeFilters.start_date || !activeFilters.end_date) &&
         activePreset &&
@@ -323,14 +319,14 @@ const SummariseReport: React.FC = () => {
         group_by: groupBy,
       };
 
-      const blob = await downloadSummariseReportCsvApi(payload);
+      const blob = await downloadMarginReportCsvApi(payload);
 
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
         "download",
-        `summarise_report_${formatLocalDateTime(new Date())}.xlsx`,
+        `margin_report_${formatLocalDateTime(new Date())}.xlsx`,
       );
       document.body.appendChild(link);
       link.click();
@@ -379,29 +375,22 @@ const SummariseReport: React.FC = () => {
   const summaryHeaders = [
     ...(appliedGroupBy.length > 0
       ? appliedGroupBy.map(
-          (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
-        )
+        (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
+      )
       : ["Total"]),
-    "Attempts",
-    "Successful",
-    "Delivered",
-    "Failed",
     `Revenue (${currencySymbol})`,
     `Vendor Cost (${currencySymbol})`,
     `Margin (${currencySymbol})`,
-    "ASR %",
-    "DLR %",
     "Margin %",
-
   ];
 
   return (
     <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
       {/* Top Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">
-            Summarise Report
+            Margin Report
           </h1>
         </div>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
@@ -523,11 +512,10 @@ const SummariseReport: React.FC = () => {
                     key={preset.key}
                     type="button"
                     onClick={() => handlePresetClick(preset.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
-                      isActive
-                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
-                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
                   >
                     {preset.label}
                   </button>
@@ -556,18 +544,7 @@ const SummariseReport: React.FC = () => {
                     Grand Total
                   </td>
                 )}
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.attempts || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.successful || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.delivered || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.failed || 0).toLocaleString()}
-                </td>
+
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {currencySymbol}
                   {Number(row.revenue || 0).toFixed(4)}
@@ -577,23 +554,16 @@ const SummariseReport: React.FC = () => {
                   {Number(row.vendor_cost || 0).toFixed(4)}
                 </td>
                 <td
-                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${
-                    margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
+                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${margin >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-600 dark:text-red-400"
+                    }`}
                 >
                   {currencySymbol}
                   {margin.toFixed(4)}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {Number(row.margin_percent || 0).toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.asr_percent || 0).toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.dlr_percent || 0).toFixed(2)}%
                 </td>
               </tr>
             );
@@ -614,39 +584,21 @@ const SummariseReport: React.FC = () => {
                     </td>
                   ))}
                   {/* Metric cells */}
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.attempts).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.successful).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.delivered).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.failed).toLocaleString()}
-                  </td>
+
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.revenue).toFixed(4)}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
                   </td>
-                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${
-                    totals.profit_margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}>
+                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${totals.profit_margin >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-red-500 dark:text-red-400"
+                    }`}>
                     {currencySymbol}{Number(totals.profit_margin).toFixed(4)}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.margin_percent).toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.asr_percent).toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.dlr_percent).toFixed(2)}%
                   </td>
                 </tr>
               )
@@ -665,4 +617,4 @@ const SummariseReport: React.FC = () => {
   );
 };
 
-export default SummariseReport;
+export default MarginReport;

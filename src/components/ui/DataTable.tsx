@@ -54,10 +54,12 @@ interface DataTableProps<T> {
 }
 
 const rowsOptions = [
-  { value: "10", label: "10" },
   { value: "25", label: "25" },
   { value: "50", label: "50" },
   { value: "100", label: "100" },
+  { value: "250", label: "250" },
+  { value: "500", label: "500" },
+  { value: "1000", label: "1000" },
 ];
 
 export function DataTable<T extends { id?: number | string }>({
@@ -90,7 +92,19 @@ export function DataTable<T extends { id?: number | string }>({
   tableMaxHeight,
 }: DataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
-  const [clientRows, setClientRows] = useState(50);
+  const [clientRows, setClientRows] = useState(rowsPerPage || 50);
+
+  useEffect(() => {
+    if (!serverSide) {
+      setClientPage(1);
+    }
+  }, [data, serverSide]);
+
+  useEffect(() => {
+    if (!serverSide && rowsPerPage) {
+      setClientRows(rowsPerPage);
+    }
+  }, [rowsPerPage, serverSide]);
 
   // Jump-to-page input state
   const [jumpInput, setJumpInput] = useState("");
