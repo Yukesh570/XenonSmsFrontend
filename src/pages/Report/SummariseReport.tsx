@@ -385,6 +385,7 @@ const SummariseReport: React.FC = () => {
       : ["Total"]),
     "Attempts",
     "Successful",
+    "Submitted",
     "Delivered",
     "Failed",
     `Revenue (${currencySymbol})`,
@@ -567,6 +568,9 @@ const SummariseReport: React.FC = () => {
                   {Number(row.successful || 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number(row.submitted || 0).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
                   {Number(row.delivered || 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
@@ -625,6 +629,9 @@ const SummariseReport: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.successful).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+                    {Number(totals.submitted || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.delivered).toLocaleString()}
