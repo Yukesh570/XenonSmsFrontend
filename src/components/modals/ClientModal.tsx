@@ -356,10 +356,6 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       toast.error("SMPP Password is required.");
       return;
     }
-    if (formData.smppPassword.trim().length > 8) {
-      toast.error("SMPP Password must not exceed 8 characters.");
-      return;
-    }
 
     const ipList = editingClient
       ? formData.ipWhitelist
@@ -404,6 +400,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       const payload: any = {
         ...clientPayload,
       };
+
+      if (editingClient && !payload.smppPassword?.trim()) {
+        delete payload.smppPassword;
+      }
 
       if (formData.company) {
         payload.company = Number(formData.company);
@@ -650,8 +650,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
               value={formData.smppPassword}
               onChange={handleChange}
               disabled={isViewMode}
-              placeholder="Max. 8 characters"
-              maxLength={8}
+              placeholder="SMPP Password"
               required
               rightIcon={
                 <button
