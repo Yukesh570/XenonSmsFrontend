@@ -373,6 +373,7 @@ const MarginReport: React.FC = () => {
   };
 
   const summaryHeaders = [
+    "S.N.",
     ...(appliedGroupBy.length > 0
       ? appliedGroupBy.map(
         (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
@@ -489,7 +490,7 @@ const MarginReport: React.FC = () => {
       <div ref={tableContainerRef} className="mt-3">
         <DataTable
           headers={summaryHeaders}
-          data={summaryData.map((row, idx) => ({ ...row, id: idx }))}
+          data={summaryData.map((row, idx) => ({ ...row, id: idx, sn: idx + 1 }))}
           totalItems={summaryData.length}
           isLoading={isLoading}
           emptyMessage="No summary data found."
@@ -525,12 +526,16 @@ const MarginReport: React.FC = () => {
           }
           renderRow={(row, idx) => {
             const margin = Number(row.profit_margin || 0);
+            const sn = (row as any).sn ?? idx + 1;
             return (
               <tr
                 key={idx}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
                 onContextMenu={handleContextMenu}
               >
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-400 font-medium whitespace-nowrap">
+                  {sn}
+                </td>
                 {appliedGroupBy.map((gb) => (
                   <td
                     key={gb}
@@ -572,6 +577,8 @@ const MarginReport: React.FC = () => {
             totals && !isLoading && summaryData.length > 0 && appliedGroupBy.length > 0
               ? (
                 <tr className="bg-gray-50 dark:bg-gray-800 border-none">
+                  {/* S.N. column empty cell in footer */}
+                  <td className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"></td>
                   {/* Group-by label cells */}
                   {appliedGroupBy.map((gb, i) => (
                     <td
