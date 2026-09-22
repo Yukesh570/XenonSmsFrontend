@@ -816,8 +816,8 @@ const AnalyticsReport: React.FC = () => {
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.delivered} max={maxAttempts} type="success" /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.failed} max={maxAttempts} type="danger" /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendor_cost} max={maxRevenue} type="currency" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.margin_usd} max={maxRevenue} type="currency" /></td>
                                   <td className="px-2 py-1.5"><MarginPctCell pct={companyRow.margin_percent} /></td>
                                 </tr>
 
@@ -867,8 +867,8 @@ const AnalyticsReport: React.FC = () => {
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.delivered} max={maxAttempts} type="success" /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.failed} max={maxAttempts} type="danger" /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendor_cost} max={maxRevenue} type="currency" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.margin_usd} max={maxRevenue} type="currency" /></td>
                                             <td className="px-2 py-1"><MarginPctCell pct={countryRow.margin_percent} /></td>
                                           </tr>
 
@@ -909,7 +909,7 @@ const AnalyticsReport: React.FC = () => {
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.failed} max={maxAttempts} type="danger" /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.margin_usd} max={maxRevenue} type="currency" /></td>
                                                     <td className="px-2 py-1"><MarginPctCell pct={vendorRow.margin_percent} /></td>
                                                   </tr>
                                                 );
