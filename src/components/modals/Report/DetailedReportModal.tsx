@@ -62,6 +62,11 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
             </div>
 
             <div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Company</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.company || "-"}</div>
+            </div>
+
+            <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Client Charge</label>
               <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_client_charge ?? viewLog.client_charge ?? "0"}</div>
             </div>
@@ -73,7 +78,7 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Vendor & Routing
           </legend>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor</label>
               <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor || "-"}</div>
@@ -86,6 +91,10 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Vendor Charge</label>
               <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.base_vendor_charge ?? viewLog.vendor_charge ?? "0"}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Country</label>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.countryName || (viewLog as any).country || "-"}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Country MCC</label>
