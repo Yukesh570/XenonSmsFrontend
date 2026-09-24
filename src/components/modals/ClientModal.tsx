@@ -113,9 +113,9 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     { label: "MKT", value: "MKT" },
     { label: "Local By Pass", value: "LOCAL_BY_PASS" },
     { label: "WhatsApp", value: "WHATSAPP" },
-    { label: "Bulk", value: "BULK" }
+    { label: "Bulk", value: "BULK" },
+    { label: "Casino", value: "CASINO" },
   ];
-
 
   const paymentTermOptions = [
     { label: "Prepaid", value: "PREPAID" },
