@@ -45,6 +45,9 @@ const Login = () => {
           localStorage.setItem("app_login_name", res.companyName);
           document.title = `${res.companyName} Login`;
         }
+        if (res?.defaultTimezone) localStorage.setItem("app_timezone", res.defaultTimezone);
+        if (res?.dateFormat) localStorage.setItem("app_date_format", res.dateFormat);
+        if (res?.datetimeFormat) localStorage.setItem("app_datetime_format", res.datetimeFormat);
       })
       .catch(() => {
         console.warn("Backend unreachable. Using cached branding.");

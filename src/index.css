@@ -187,3 +187,18 @@ div[class*="justify-between"][class*="flex-col"][class*="sm:flex-row"] {
 .modal-content-body {
   overscroll-behavior: contain;
 }
+
+/* Suppress browser native tooltip on truncated text elements */
+.truncate::after {
+  content: '';
+  display: block;
+  height: 0;
+  width: 0;
+  line-height: 0;
+}
+
+/* Ensure toast notifications always float above modals, popovers, and backdrops */
+.Toastify__toast-container {
+  z-index: 999999 !important;
+}
+

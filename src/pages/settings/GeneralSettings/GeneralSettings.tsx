@@ -112,6 +112,8 @@ const GeneralSettings: React.FC = () => {
       if (newController.signal.aborted) return;
       if (response) {
         if (response.defaultTimezone) localStorage.setItem("app_timezone", response.defaultTimezone);
+        if (response.dateFormat) localStorage.setItem("app_date_format", response.dateFormat);
+        if (response.datetimeFormat) localStorage.setItem("app_datetime_format", response.datetimeFormat);
         setFormData({
           companyName: response.companyName || "",
           defaultLanguage: response.defaultLanguage || "en",
@@ -207,6 +209,8 @@ const GeneralSettings: React.FC = () => {
     try {
       await updateGeneralSettingsApi(payload as any, routeName);
       localStorage.setItem("app_timezone", formData.defaultTimezone);
+      localStorage.setItem("app_date_format", formData.dateFormat);
+      localStorage.setItem("app_datetime_format", formData.datetimeFormat);
       window.dispatchEvent(new Event("timezoneChanged"));
       localStorage.setItem("app_login_name", formData.companyName);
       window.dispatchEvent(new Event("BrandingUpdated")); 
@@ -217,6 +221,8 @@ const GeneralSettings: React.FC = () => {
          try {
             await createGeneralSettingsApi(payload as any, routeName);
             localStorage.setItem("app_timezone", formData.defaultTimezone);
+            localStorage.setItem("app_date_format", formData.dateFormat);
+            localStorage.setItem("app_datetime_format", formData.datetimeFormat);
             window.dispatchEvent(new Event("timezoneChanged"));
             localStorage.setItem("app_login_name", formData.companyName);
             window.dispatchEvent(new Event("BrandingUpdated")); 

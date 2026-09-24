@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../ui/Modal";
+import ModalDataTable from "../../ui/ModalDataTable";
 import { DeleteModal } from "../DeleteModal";
 import {
   deleteCustomerRateApi,
   getCustomerRatesApi,
   getCustomerRatesPerMNCMCCApi,
   exportCustomerRatesEmailApi,
+  downloadCustomerRatesCsvApi,
 } from "../../../api/rateApi/customerRateApi";
+import { handleCsvExportWithApi } from "../../../helper/csvExport";
 import { getEmailTemplatesApi } from "../../../api/emailTemplateApi/emailTemplateApi";
 import { CustomerRateModal } from "./CustomerRateModal";
 import { RateVersionTableModal } from "./RateVersionTableModal";
 import { ImportCustomerRateModal } from "./ImportCustomerratemodal";
 import { toast } from "react-toastify";
 import Button from "../../ui/Button";
-import { Plus, Edit, Trash, Layers, Upload, Download, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash, Layers, Upload, Download, Loader2 } from "lucide-react";
 import Select from "../../ui/Select";
 import Input from "../../ui/Input";
 import DatePicker from "../../ui/DatePicker";
@@ -49,11 +52,6 @@ const FilterInput = ({
     />
   </div>
 );
-
-const rowsOptions = [
-  { value: "10", label: "10" }, { value: "25", label: "25" },
-  { value: "50", label: "50" }, { value: "100", label: "100" },
-];
 
 const statusOptions = [
   { label: "Draft", value: "DRAFT" },
@@ -128,6 +126,12 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
     }
   }, [isOpen]);
 
+  const DEFAULT_COLUMNS = [
+    "countryName", "MCC", "MNC", "network", "countryCode", "rate", "version", "status", "remark", "effectiveFrom", "effectiveTo"
+  ];
+  const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [apiFilters, setApiFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,7 +139,23 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
 
   const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);
-  useEffect(() => { setCurrentPage(1); }, [rateGroup, moduleName]);
+
+  // FIX: Reset filters and sort whenever modal is closed or rateGroup changes
+  useEffect(() => {
+    if (!isOpen) {
+      setColumnFilters({});
+      setApiFilters({});
+      setCurrentPage(1);
+      setSortConfig(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setColumnFilters({});
+    setApiFilters({});
+    setCurrentPage(1);
+    setSortConfig(null);
+  }, [rateGroup, moduleName]);
 
   useEffect(() => {
     if (isOpen && rateGroup) {
@@ -144,7 +164,7 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
       setLatestRates([]);
       setTotalItems(0);
     }
-  }, [isOpen, rateGroup, currentPage, rowsPerPage, apiFilters]);
+  }, [isOpen, rateGroup, currentPage, rowsPerPage, apiFilters, sortConfig]);
 
 
   useEffect(() => {
@@ -179,6 +199,10 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
         else if (key === "effectiveFrom") searchParams["effectiveFrom"] = val;
       });
 
+      if (sortConfig) {
+        searchParams["ordering"] = sortConfig.direction === "desc" ? `-${sortConfig.key}` : sortConfig.key;
+      }
+
       const res = await getCustomerRatesApi(moduleName, currentPage, rowsPerPage, searchParams);
       const list = res.results || (Array.isArray(res) ? res : []);
       setLatestRates(list);
@@ -202,9 +226,6 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
   const handleResetFilters = () => { setColumnFilters({}); setApiFilters({}); setCurrentPage(1); };
   const hasActiveFilters = Object.values(columnFilters).some((v) => v !== "" && v !== undefined);
 
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginationLabel = `${totalItems === 0 ? 0 : startIndex + 1}-${Math.min(startIndex + latestRates.length, totalItems)} of ${totalItems}`;
 
   const handleDelete = async () => {
     if (deleteId && canDelete) {
@@ -218,6 +239,16 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
       setDeleteId(null);
       setSelectedRate(null);
     }
+  };
+
+  const handleDownloadCSV = () => {
+    if (!rateGroupId) return toast.error("Rate Group ID is not available.");
+    handleCsvExportWithApi(
+      () => downloadCustomerRatesCsvApi(rateGroupId),
+      {},
+      [],
+      false
+    );
   };
 
   const handleExportEmail = async (exportOnlyNew: boolean) => {
@@ -291,10 +322,111 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
 
   const currencyCode = latestRates.length > 0 ? latestRates[0].currencyCode : "";
 
-  const headers = [
-    "Country", "MCC", "MNC", "Network", "Country Code", `Rate ${currencyCode ? `(${currencyCode})` : ""}`, "Version", "Status", "Remark",
-    "Effective From", "Effective To",
-  ];
+  const COLUMN_LABELS: Record<string, string> = {
+    countryName: "Country",
+    MCC: "MCC",
+    MNC: "MNC",
+    network: "Network",
+    countryCode: "Country Code",
+    rate: `Rate ${currencyCode ? `(${currencyCode})` : ""}`,
+    version: "Version",
+    status: "Status",
+    remark: "Remark",
+    effectiveFrom: "Effective From",
+    effectiveTo: "Effective To",
+  };
+
+  const handleSort = (idx: number) => {
+    const colKey = columns[idx];
+    if (!colKey) return;
+    setSortConfig((prev) => {
+      if (prev?.key === colKey) {
+        if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+        return null;
+      }
+      return { key: colKey, direction: "asc" };
+    });
+    setCurrentPage(1);
+  };
+
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const renderFilterCell = (_header: string, index: number) => {
+    const colKey = columns[index];
+    switch (colKey) {
+      case "countryName":
+        return <FilterInput fieldKey="countryName" placeholder="Search..." value={columnFilters["countryName"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" />;
+      case "MCC":
+        return <FilterInput fieldKey="MCC" placeholder="Search..." value={columnFilters["MCC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" />;
+      case "MNC":
+        return <FilterInput fieldKey="MNC" placeholder="Search..." value={columnFilters["MNC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" />;
+      case "countryCode":
+        return <FilterInput fieldKey="countryCode" placeholder="Search..." value={columnFilters["countryCode"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="80px" />;
+      case "rate":
+        return <FilterInput type="number" fieldKey="rate" placeholder="Search..." value={columnFilters["rate"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" />;
+      case "status":
+        return (
+          <div className="filter-crt-wrapper" style={{ minWidth: "90px" }}>
+            <Select label="" value={columnFilters["status"] || ""} onChange={(val: string) => { handleFilterChange("status", val); setApiFilters((prev) => ({ ...prev, status: val })); setCurrentPage(1); }} options={[{ label: "All", value: "" }, ...statusOptions]} placeholder="All" placement="bottom" />
+          </div>
+        );
+      case "remark":
+        return <FilterInput fieldKey="remark" placeholder="Search..." value={columnFilters["remark"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" />;
+      case "effectiveFrom":
+        return (
+          <div className="filter-crt-wrapper" style={{ minWidth: "120px" }}>
+            <DatePicker
+              label=""
+              selected={columnFilters["effectiveFrom"] ? new Date(columnFilters["effectiveFrom"]) : null}
+              onChange={(date: Date | null) => {
+                const dateStr = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` : "";
+                handleFilterChange("effectiveFrom", dateStr);
+                setApiFilters((prev) => dateStr ? { ...prev, effectiveFrom: dateStr } : (() => { const next = { ...prev }; delete next["effectiveFrom"]; return next; })());
+                setCurrentPage(1);
+              }}
+            />
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderCell = (colKey: string, v: any) => {
+    switch (colKey) {
+      case "countryName":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{renderCountry(v)}</td>;
+      case "MCC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>;
+      case "MNC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>;
+      case "network":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.network || "-"}</td>;
+      case "countryCode":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.countryCode || "-"}</td>;
+      case "rate":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>;
+      case "version":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">v{v.version || 0}</td>;
+      case "status":
+        return <td key={colKey} className="py-2.5 px-3"><StatusBadge status={v.status} /></td>;
+      case "remark":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.remark || "-"}</td>;
+      case "effectiveFrom":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleString() : "-"}</td>;
+      case "effectiveTo":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveTo ? new Date(v.effectiveTo).toLocaleString() : "-"}</td>;
+      default:
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v[colKey] || "-"}</td>;
+    }
+  };
 
   const renderCountry = (rate: any) => {
     const countryNameStr = rate.countryName || countryMap[String(rate.country)] || String(rate.country || "-");
@@ -337,6 +469,14 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
               <div className="flex shrink-0 w-full sm:w-auto gap-2">
                 <Button
                   variant="secondary"
+                  onClick={handleDownloadCSV}
+                  leftIcon={<Download size={16} />}
+                  className="w-full sm:w-auto text-sm py-1.5 px-4"
+                >
+                  Download CSV
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => {
                     setSelectedEmailTemplate("");
                     setIsExportModalOpen(true);
@@ -366,92 +506,36 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
             )}
           </div>
 
-          {/* Pagination bar */}
-          <div className="flex items-center mb-3 gap-4 flex-wrap">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">Rows per page:</span>
-              <div className="w-24 shrink-0">
-                <Select value={String(rowsPerPage)} onChange={(val: string) => { setRowsPerPage(Number(val)); setCurrentPage(1); }} options={rowsOptions} clearable={false} placement="bottom" />
-              </div>
-            </div>
-            <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">{paginationLabel}</span>
-            <div className="flex items-center space-x-2 shrink-0">
-              <button className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={20} /></button>
-              <button className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage >= totalPages || totalItems === 0 || isLoading}><ChevronRight size={20} /></button>
-            </div>
-            {hasActiveFilters && (
-              <button onClick={handleResetFilters} className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-2 py-1 transition-colors whitespace-nowrap">Reset Filters</button>
+          <ModalDataTable
+            data={latestRates}
+            headers={columns.map((c) => COLUMN_LABELS[c] || c)}
+            renderFilterCell={renderFilterCell}
+            renderRow={(v) => (
+              <tr
+                key={v.id}
+                onContextMenu={(e) => handleContextMenu(e, v)}
+                className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-context-menu transition-colors"
+              >
+                {columns.map((colKey) => renderCell(colKey, v))}
+              </tr>
             )}
-          </div>
-
-          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar w-full min-w-0">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
-                  {headers.map((h, i) => (
-                    <th key={i} className="py-3 px-4 font-medium whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-                <tr className="bg-gray-50 dark:bg-gray-800/80">
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="countryName" placeholder="Search..." value={columnFilters["countryName"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="MCC" placeholder="Search..." value={columnFilters["MCC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="MNC" placeholder="Search..." value={columnFilters["MNC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="countryCode" placeholder="Search..." value={columnFilters["countryCode"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="80px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput type="number" fieldKey="rate" placeholder="Search..." value={columnFilters["rate"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="70px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal relative z-[60]">
-                    <div className="filter-crt-wrapper" style={{ minWidth: "100px" }}>
-                      <Select label="" value={columnFilters["status"] || ""} onChange={(val: string) => { handleFilterChange("status", val); setApiFilters((prev) => ({ ...prev, status: val })); setCurrentPage(1); }} options={[{ label: "All", value: "" }, ...statusOptions]} placeholder="All" placement="bottom" />
-                    </div>
-                  </th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="remark" placeholder="Search..." value={columnFilters["remark"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-                  <th className="p-1 border-b border-r dark:border-gray-600 font-normal relative z-[60]">
-                    <div className="filter-crt-wrapper" style={{ minWidth: "130px" }}>
-                      <DatePicker
-                        label=""
-                        selected={columnFilters["effectiveFrom"] ? new Date(columnFilters["effectiveFrom"]) : null}
-                        onChange={(date: Date | null) => {
-                          const dateStr = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` : "";
-                          handleFilterChange("effectiveFrom", dateStr);
-                          setApiFilters((prev) => dateStr ? { ...prev, effectiveFrom: dateStr } : (() => { const next = { ...prev }; delete next["effectiveFrom"]; return next; })());
-                          setCurrentPage(1);
-                        }}
-                      />
-                    </div>
-                  </th>
-                  <th className="p-1 border-b dark:border-gray-600 font-normal"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={headers.length} className="text-center py-8 text-gray-500">Loading rates...</td></tr>
-                ) : latestRates.length === 0 ? (
-                  <tr><td colSpan={headers.length} className="text-center py-8 text-gray-500">{Object.keys(apiFilters).length > 0 ? "No rates match your search filters." : "No rates found in this group."}</td></tr>
-                ) : (
-                  latestRates.map((v) => (
-                    <tr
-                      key={v.id}
-                      onContextMenu={(e) => handleContextMenu(e, v)}
-                      className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-context-menu transition-colors"
-                    >
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{renderCountry(v)}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.network || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.countryCode || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">v{v.version || 0}</td>
-                      <td className="py-3 px-4"><StatusBadge status={v.status} /></td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.remark || "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleString() : "-"}</td>
-                      <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveTo ? new Date(v.effectiveTo).toLocaleString() : "-"}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+            isLoading={isLoading}
+            serverSide={true}
+            totalItems={totalItems}
+            currentPage={currentPage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}
+            onReorderColumns={handleReorderColumns}
+            onSort={handleSort}
+            sortColumnIndex={sortConfig ? columns.findIndex((c) => c === sortConfig.key) : null}
+            sortDirection={sortConfig?.direction || null}
+            columnKeys={columns}
+            hasActiveFilters={hasActiveFilters}
+            onResetFilters={handleResetFilters}
+            storageKey="customer_rate_modal_table"
+            emptyMessage={Object.keys(apiFilters).length > 0 ? "No rates match your search filters." : "No rates found in this group."}
+          />
         </div>
 
         <ContextMenu

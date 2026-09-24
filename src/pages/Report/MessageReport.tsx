@@ -22,20 +22,25 @@ import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 // --- Components & Modals ---
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import AdvancedFilter, {
   type FilterColumn,
 } from "../../components/ui/AdvancedFilter";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import {
+  formatDateTime,
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { MessageReportModal } from "../../components/modals/Report/MessageReportModal";
 import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { usePagePermissions } from "../../hooks/usePagePermissions";
-import { DownloadReportModal } from "../../components/modals/Report/DownloadModalCSV";
+import { handleCsvExport } from "../../helper/csvExport";
 
 interface Option {
   label: string;
@@ -88,48 +93,58 @@ const encodingOptions: Option[] = [
 const DEFAULT_SEARCH_COLUMNS = [
   "message_id",
   "destination",
-  "clientName",
+  "source_addr",
   "countryName",
   "status",
-  "source_addr",
+  "clientName",
+  "vendorName",
+  "segmentNumber",
+  "effectiveSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
   "message_id",
   "destination",
   "source_addr",
-  "effectiveSenderId",
-  "senderTranslationAction",
-  "senderTranslationRuleId",
   "countryName",
   "status",
-  "segmentNumber",
   "clientName",
   "vendorName",
-  "systemId",
+  "segmentNumber",
+  "failure_reason",
   "createdAt",
+  "effectiveSenderId",
 ];
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+];
+
+
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
 
 const MessageReport: React.FC = () => {
-  const { canUpdate, canDelete } = usePagePermissions();
+  const { canUpdate, canDelete, canCreate } = usePagePermissions();
   const [logs, setLogs] = useState<MessageLogData[]>([]);
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
   const [clientOptions, setClientOptions] = useState<Option[]>([]);
   const [vendorOptions, setVendorOptions] = useState<Option[]>([]);
@@ -139,11 +154,25 @@ const MessageReport: React.FC = () => {
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("msg_search_columns");
     try {
-      return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+      const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+      return Array.isArray(parsed)
+        ? parsed.filter(
+            (col: string) =>
+              ![
+                "createdAt__gt_lt",
+                "queued_at__gt_lt",
+                "submitted_at__gt_lt",
+                "delivered_at__gt_lt",
+                "failed_at__gt_lt",
+              ].includes(col),
+          )
+        : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
     }
   });
+
+  const [currentSearchParams, setCurrentSearchParams] = useState<Record<string, any>>({});
 
   useEffect(() => {
     localStorage.setItem(
@@ -168,7 +197,6 @@ const MessageReport: React.FC = () => {
   const [activeRouteGroupId, setActiveRouteGroupId] = useState<number | null>(null);
   const [activeCountryName, setActiveCountryName] = useState<string | null>(null);
   const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
-  const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedRowLog, setSelectedRowLog] = useState<MessageLogData | null>(null);
@@ -270,24 +298,6 @@ const MessageReport: React.FC = () => {
       },
       { key: "segmentNumber", label: "Segment Number", type: "text", isSearchable: false },
       { key: "characterCount", label: "Character Count", type: "text", isSearchable: false },
-
-      { key: "createdAt", label: "Created At (Exact)", tableLabel: "Created At", type: "date", filterKey: "createdAt" },
-      { key: "createdAt__gt_lt", label: "Created At (After / Before)", type: "date_gt_lt", filterKey: "createdAt", isSearchOnly: true },
-
-      { key: "queued_at", label: "Queued At (Exact)", tableLabel: "Queued At", type: "date", filterKey: "queued_at" },
-      { key: "queued_at__gt_lt", label: "Queued At (After / Before)", type: "date_gt_lt", filterKey: "queued_at", isSearchOnly: true },
-
-      { key: "submitted_at", label: "Submitted At (Exact)", tableLabel: "Submitted At", type: "date", filterKey: "submitted_at" },
-      { key: "submitted_at__gt_lt", label: "Submitted At (After / Before)", type: "date_gt_lt", filterKey: "submitted_at", isSearchOnly: true },
-
-      { key: "sent_at", label: "Sent At (Exact)", tableLabel: "Sent At", type: "date", filterKey: "sent_at" },
-      { key: "sent_at__gt_lt", label: "Sent At (After / Before)", type: "date_gt_lt", filterKey: "sent_at", isSearchOnly: true },
-
-      { key: "delivered_at", label: "Delivered At (Exact)", tableLabel: "Delivered At", type: "date", filterKey: "delivered_at" },
-      { key: "delivered_at__gt_lt", label: "Delivered At (After / Before)", type: "date_gt_lt", filterKey: "delivered_at", isSearchOnly: true },
-
-      { key: "failed_at", label: "Failed At (Exact)", tableLabel: "Failed At", type: "date", filterKey: "failed_at" },
-      { key: "failed_at__gt_lt", label: "Failed At (After / Before)", type: "date_gt_lt", filterKey: "failed_at", isSearchOnly: true },
     ],
     [clientOptions, vendorOptions, smppOptions, countryOptions],
   );
@@ -432,16 +442,7 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
-      {
-        key: "sent_at",
-        label: "Sent At",
-        type: "date",
-        render: (log: any) => (
-          <span>
-            {(log as any).sent_at ? formatDateTime((log as any).sent_at) : "-"}
-          </span>
-        ),
-      },
+
       {
         key: "delivered_at",
         label: "Delivered At",
@@ -483,6 +484,7 @@ const MessageReport: React.FC = () => {
     page: number = 1,
     append: boolean = false,
     silent: boolean = false,
+    presetOverride?: DatePresetKey,
   ) => {
     if (silent && (isLoading || isFetchingMore)) return;
 
@@ -542,6 +544,24 @@ const MessageReport: React.FC = () => {
         }
       });
 
+      // Apply preset date range for createdAt if no explicit date filter is active
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+      const hasExplicitDate =
+        currentSearchParams["createdAt__range"] ||
+        currentSearchParams["createdAt__gte"] ||
+        currentSearchParams["createdAt__lte"] ||
+        currentSearchParams["createdAt"];
+
+      if (!hasExplicitDate && currentPreset && currentPreset !== "custom") {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          currentSearchParams["createdAt__range"] = `${range.start},${range.end}`;
+        }
+      }
+
+      setCurrentSearchParams(currentSearchParams);
+
       const response = await getMessageLogsApi(
         moduleName,
         page,
@@ -584,6 +604,16 @@ const MessageReport: React.FC = () => {
   }, [moduleName, searchColumns]);
 
   useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchLogs(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const liveUpdateTimer = setInterval(() => {
       const isFiltering = Object.values(filterValues).some((val) => val !== "");
 
@@ -619,7 +649,24 @@ const MessageReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, logs.length]);
 
   const handleFilterChange = (key: string, value: string) => {
+    if (key === "createdAt" || key === "createdAt__gt_lt") {
+      setActivePreset("custom");
+    }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
+    let updatedFilters: Record<string, string> = {};
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next.createdAt;
+      delete next.createdAt__gt_lt;
+      updatedFilters = next;
+      return next;
+    });
+    fetchLogs(updatedFilters, 1, false, false, presetKey);
   };
 
   const handleSearch = () => {
@@ -627,8 +674,9 @@ const MessageReport: React.FC = () => {
   };
 
   const handleClearFilters = () => {
+    setActivePreset("today");
     setFilterValues({});
-    fetchLogs({}, 1, false);
+    fetchLogs({}, 1, false, false, "today");
   };
 
   const handleContextMenu = (e: React.MouseEvent, log: MessageLogData) => {
@@ -722,7 +770,7 @@ const MessageReport: React.FC = () => {
       label: "Download CSV Report",
       icon: <Download size={16} />,
       onClick: () => {
-        setIsDownloadModalOpen(true);
+        handleCsvExport(moduleName, currentSearchParams);
       },
     },
   ] : [];
@@ -821,10 +869,13 @@ const MessageReport: React.FC = () => {
                 label={`Search ${baseLabel}`}
                 showTimeSelect={true}
                 selected={
-                  filterValues[col.key] ? new Date(filterValues[col.key]) : null
+                  filterValues[col.key] ? parseDateValue(filterValues[col.key]) : null
                 }
-                onChange={(val: Date | null) =>
-                  handleFilterChange(col.key, val ? formatLocalDateTime(val) : "")
+                dateMode={
+                  filterValues[col.key] ? (filterValues[col.key].includes("T") ? "specific_time" : "whole_day") : undefined
+                }
+                onChange={(val: Date | null, mode?: DatePickerMode) =>
+                  handleFilterChange(col.key, val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "")
                 }
                 placeholder="Select Date & Time"
               />
@@ -835,11 +886,12 @@ const MessageReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     handleFilterChange(
                       col.key,
@@ -849,11 +901,12 @@ const MessageReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     handleFilterChange(
                       col.key,
@@ -888,6 +941,27 @@ const MessageReport: React.FC = () => {
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
+                      isActive
+                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => tableColumnsConfig.some(c => c.key === key));
@@ -957,14 +1031,9 @@ const MessageReport: React.FC = () => {
         routeGroupId={activeRouteGroupId}
         initialCountryName={activeCountryName}
         moduleName="customRoute"
+        canCreate={canCreate}
         canUpdate={canUpdate}
         canDelete={canDelete}
-      />
-
-      <DownloadReportModal
-        isOpen={isDownloadModalOpen}
-        onClose={() => setIsDownloadModalOpen(false)}
-        moduleName={moduleName}
       />
     </div>
   );

@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Upload, FileSpreadsheet, Loader2, Info } from "lucide-react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { Upload, FileSpreadsheet, Loader2, Info, AlertCircle } from "lucide-react";
 import { toast } from "react-toastify";
 import Modal from "../ui/Modal";
 import Button from "../ui/Button";
@@ -31,9 +31,11 @@ export const ImportModal: React.FC<ImportModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  const [importErrors, setImportErrors] = useState<any[] | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const MAX_ATTEMPTS = 20;
+  const MAX_ATTEMPTS = 5;
   const POLL_INTERVAL = 2000;
 
   useEffect(() => {
@@ -42,6 +44,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
       setIsSubmitting(false);
       setIsPolling(false);
       setProgress(null);
+      setImportErrors(null);
+      setImportMessage(null);
     }
   }, [isOpen]);
 
@@ -108,7 +112,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           clearInterval(intervalId);
           let errorMsg = res.error || res.result || res.message || "Unknown error";
           errorMsg = formatErrorMessage(String(errorMsg));
-          
+
           toast.error(`Import failed: ${errorMsg}`);
           setIsPolling(false);
           setIsSubmitting(false);
@@ -135,14 +139,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
           ) {
             setIsPolling(false);
             setIsSubmitting(false);
-
-            const firstError = resultErrors[0];
-            let errorText =
-              typeof firstError === "string"
-                ? firstError
-                : `Row ${firstError.row}:${firstError.error}`;
-
-            toast.error(formatErrorMessage(errorText));
+            setImportErrors(resultErrors);
+            setImportMessage(res.result?.message || res.message || "Import completed with errors.");
           } else {
             const resultMessage = res.result?.message;
             toast.success(resultMessage || "Import completed successfully!");
@@ -216,20 +214,112 @@ export const ImportModal: React.FC<ImportModalProps> = ({
     }
   };
 
+  const groupedErrors = useMemo(() => {
+    if (!importErrors) return [];
+    const groups: Record<string, { rows: number[], details: Set<string> }> = {};
+    importErrors.forEach((err) => {
+      let errorText = err.error || err;
+      if (typeof errorText === 'object' && errorText !== null) {
+        errorText = JSON.stringify(errorText);
+      } else if (typeof errorText !== 'string') {
+        errorText = String(errorText);
+      }
+      
+      let baseErrorText = errorText;
+      let detailMatch = "";
+      
+      const mccMncMatch = errorText.match(/(Invalid MCC\/MNC: )'([^']+)' \/ '([^']+)' (.*)/);
+      if (mccMncMatch) {
+         baseErrorText = mccMncMatch[1] + "the following combinations " + mccMncMatch[4];
+         detailMatch = `MCC: ${mccMncMatch[2]}, MNC: ${mccMncMatch[3]}`;
+      }
+      
+      if (!groups[baseErrorText]) {
+        groups[baseErrorText] = { rows: [], details: new Set() };
+      }
+      if (err.row !== undefined && err.row !== null) {
+        groups[baseErrorText].rows.push(err.row);
+      }
+      if (detailMatch) {
+        groups[baseErrorText].details.add(detailMatch);
+      }
+    });
+    return Object.entries(groups).map(([error, data]) => ({ 
+      error, 
+      rows: data.rows,
+      details: Array.from(data.details)
+    }));
+  }, [importErrors]);
+
   if (!isOpen) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-lg overflow-visible">
-      <form onSubmit={handleSubmit} className="space-y-6">
+    <Modal isOpen={isOpen} onClose={onClose} title={title} className={importErrors ? "max-w-3xl overflow-visible" : "max-w-lg overflow-visible"}>
+      {importErrors ? (
+        <div className="space-y-4">
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3 items-start">
+            <AlertCircle className="text-red-500 shrink-0 mt-0.5" size={20} />
+            <div>
+              <h3 className="text-red-800 dark:text-red-400 font-semibold mb-1">
+                {importMessage || "Import Failed"}
+              </h3>
+              <p className="text-red-600 dark:text-red-300 text-sm">
+                Please fix the following errors in your file and try again.
+              </p>
+            </div>
+          </div>
+          <div className="max-h-80 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 border-b dark:border-gray-700">Error Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {groupedErrors.map((group, idx) => {
+                  return (
+                    <tr key={idx} className="bg-white dark:bg-gray-900 hover:bg-red-50/50 dark:hover:bg-red-900/10">
+                      <td className="px-4 py-2 text-red-600 dark:text-red-400 font-medium whitespace-pre-wrap">
+                        {group.error}
+                        {group.details && group.details.length > 0 && (
+                          <div className="mt-1.5 text-xs text-red-500 font-mono bg-red-50/50 dark:bg-red-900/20 p-2 rounded border border-red-100 dark:border-red-900/30 max-h-48 overflow-y-auto custom-scrollbar">
+                            {group.details.join(" | ")}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setImportErrors(null);
+                setFile(null);
+              }}
+            >
+              Try Again
+            </Button>
+            <Button type="button" variant="primary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
         <div className="flex justify-between items-center mb-1">
-          
+
           <div className="text-sm text-text-secondary dark:text-gray-400 flex items-center gap-1.5">
             <span>Upload a CSV file to bulk import records.</span>
-            
+
             {/* Prominent Hover Tooltip */}
             <div className="group relative flex items-center mt-0.5">
               <Info size={16} className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 cursor-help transition-colors drop-shadow-sm" />
-              
+
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-gray-800 dark:bg-gray-700 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-[60] text-center pointer-events-none border border-gray-700 dark:border-gray-600">
                 If using Microsoft Excel, please use <strong>"Save As"</strong> and select <strong>"CSV UTF-8 (Comma delimited)"</strong> to prevent formatting errors.
                 {/* Arrow Pointer */}
@@ -320,7 +410,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             )}
           </Button>
         </div>
-      </form>
+        </form>
+      )}
     </Modal>
   );
 };

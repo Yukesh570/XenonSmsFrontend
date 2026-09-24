@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
   Upload,
@@ -24,7 +24,7 @@ interface ImportVendorRateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  rateGroupId: number | null; 
+  rateGroupId: number | null;
 }
 
 export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
@@ -53,12 +53,14 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
+  const [importErrors, setImportErrors] = useState<any[] | null>(null);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isMounted = useRef(false);
   const timeoutRef = useRef<number | null>(null);
 
-  const MAX_ATTEMPTS = 5;
+  const MAX_ATTEMPTS = 20;
   const POLL_INTERVAL_MS = 2000;
 
   useEffect(() => {
@@ -90,6 +92,8 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
       setSelectedMappingId("");
       setProgress(null);
       setIsSubmitting(false);
+      setImportErrors(null);
+      setImportMessage(null);
       if (timeoutRef.current) window.clearTimeout(timeoutRef.current);
     }
   }, [isOpen]);
@@ -137,12 +141,43 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
     try {
       statusRes = await getImportStatusApi(taskId);
     } catch (err: any) {
-      if (err.response && err.response.data) {
-        statusRes = err.response.data;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
+      if (err.response) {
+        const errorData = err.response.data;
+        setIsSubmitting(false);
+        setProgress(null);
+
+        const resultErrors = errorData?.result?.errors || errorData?.errors;
+        if (resultErrors && Array.isArray(resultErrors) && resultErrors.length > 0) {
+          setImportErrors(resultErrors);
+          setImportMessage(
+            errorData?.result?.message ||
+            errorData?.message ||
+            errorData?.error ||
+            "Import failed."
+          );
+          return;
+        }
+
+        const errorMsg =
+          errorData?.message ||
+          errorData?.error ||
+          errorData?.detail ||
+          errorData?.result?.message ||
+          errorData?.result?.error ||
+          (typeof errorData === "string" ? errorData : "Failed to import vendor rates.");
+
+        toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+        return;
       } else {
         console.error("Polling error", err);
         if (attempt >= MAX_ATTEMPTS) {
           setIsSubmitting(false);
+          setProgress(null);
           toast.error("Network error checking status.");
           return;
         }
@@ -155,8 +190,11 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
     }
 
     if (statusRes) {
-      const state =
-        statusRes?.state?.toUpperCase() || statusRes?.status?.toUpperCase();
+      const state = (
+        statusRes?.state ||
+        statusRes?.status ||
+        ""
+      ).toUpperCase();
 
       if (
         state === "SUCCESS" ||
@@ -182,22 +220,51 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
           Array.isArray(resultErrors) &&
           resultErrors.length > 0
         ) {
-          const firstError = resultErrors[0];
-          const errorMsg =
-            typeof firstError === "string"
-              ? firstError
-              : `Row ${firstError.row}: ${firstError.error.effectiveFrom ? firstError.error.effectiveFrom[0] : firstError.error}`;
-
-          toast.error(errorMsg);
+          setImportErrors(resultErrors);
+          setImportMessage(statusRes.result?.message || statusRes.message || "Import completed with errors.");
         } else {
           toast.error("Import finished with errors.");
         }
         return;
       }
 
-      if (state === "FAILURE" || state === "FAILED") {
+      if (
+        state === "FAILURE" ||
+        state === "FAILED" ||
+        state === "ERROR"
+      ) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
         setIsSubmitting(false);
-        toast.error(statusRes?.error || "Import failed.");
+        setProgress(null);
+
+        const resultErrors = statusRes.result?.errors || statusRes.errors;
+        if (
+          resultErrors &&
+          Array.isArray(resultErrors) &&
+          resultErrors.length > 0
+        ) {
+          setImportErrors(resultErrors);
+          setImportMessage(
+            statusRes.result?.message ||
+            statusRes.message ||
+            statusRes.error ||
+            "Import failed."
+          );
+          return;
+        }
+
+        const errorMsg =
+          statusRes?.message ||
+          statusRes?.error ||
+          statusRes?.detail ||
+          statusRes?.result?.message ||
+          statusRes?.result?.error ||
+          "Import failed.";
+
+        toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
         return;
       }
 
@@ -245,8 +312,8 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
           response.status === "completed_with_errors" &&
           response.result?.errors
         ) {
-          const err = response.result.errors[0];
-          toast.error(`Row ${err.row}: ${err.error.effectiveFrom ? err.error.effectiveFrom[0] : err.error}`);
+          setImportErrors(response.result.errors);
+          setImportMessage(response.result?.message || "Import completed with errors.");
           setIsSubmitting(false);
           return;
         }
@@ -276,6 +343,47 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
     }
   };
 
+  const groupedErrors = useMemo(() => {
+    if (!importErrors) return [];
+    const groups: Record<string, { rows: number[], details: Set<string> }> = {};
+    importErrors.forEach((err) => {
+      let errorText = err.error || err;
+      if (typeof errorText === 'object' && errorText !== null) {
+        if (errorText.effectiveFrom) {
+           errorText = errorText.effectiveFrom[0] || JSON.stringify(errorText);
+        } else {
+           errorText = JSON.stringify(errorText);
+        }
+      } else if (typeof errorText !== 'string') {
+        errorText = String(errorText);
+      }
+      
+      let baseErrorText = errorText;
+      let detailMatch = "";
+      
+      const mccMncMatch = errorText.match(/(Invalid MCC\/MNC: )'([^']+)' \/ '([^']+)' (.*)/);
+      if (mccMncMatch) {
+         baseErrorText = mccMncMatch[1] + "the following combinations " + mccMncMatch[4];
+         detailMatch = `MCC: ${mccMncMatch[2]}, MNC: ${mccMncMatch[3]}`;
+      }
+      
+      if (!groups[baseErrorText]) {
+        groups[baseErrorText] = { rows: [], details: new Set() };
+      }
+      if (err.row !== undefined && err.row !== null) {
+        groups[baseErrorText].rows.push(err.row);
+      }
+      if (detailMatch) {
+        groups[baseErrorText].details.add(detailMatch);
+      }
+    });
+    return Object.entries(groups).map(([error, data]) => ({ 
+      error, 
+      rows: data.rows,
+      details: Array.from(data.details)
+    }));
+  }, [importErrors]);
+
   if (!isOpen) return null;
 
   return (
@@ -283,8 +391,63 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title="Import Vendor Rates"
-      className="max-w-4xl"
+      className={importErrors ? "max-w-4xl overflow-visible" : "max-w-4xl"}
     >
+      {importErrors ? (
+        <div className="space-y-4">
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex gap-3 items-start">
+            <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={20} />
+            <div>
+              <h3 className="text-red-800 dark:text-red-400 font-semibold mb-1">
+                {importMessage || "Import Failed"}
+              </h3>
+              <p className="text-red-600 dark:text-red-300 text-sm">
+                Please fix the following errors in your file and try again.
+              </p>
+            </div>
+          </div>
+          <div className="max-h-80 overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-md">
+            <table className="min-w-full text-sm text-left">
+              <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="px-4 py-2 font-medium text-gray-700 dark:text-gray-300 border-b dark:border-gray-700">Error Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                {groupedErrors.map((group, idx) => {
+                  return (
+                    <tr key={idx} className="bg-white dark:bg-gray-900 hover:bg-red-50/50 dark:hover:bg-red-900/10">
+                      <td className="px-4 py-2 text-red-600 dark:text-red-400 font-medium whitespace-pre-wrap">
+                        {group.error}
+                        {group.details && group.details.length > 0 && (
+                          <div className="mt-1.5 text-xs text-red-500 font-mono bg-red-50/50 dark:bg-red-900/20 p-2 rounded border border-red-100 dark:border-red-900/30 max-h-48 overflow-y-auto custom-scrollbar">
+                            {group.details.join(" | ")}
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setImportErrors(null);
+                setCsvFile(null);
+              }}
+            >
+              Try Again
+            </Button>
+            <Button type="button" variant="primary" onClick={onClose}>
+              Close
+            </Button>
+          </div>
+        </div>
+      ) : (
       <form onSubmit={handleImport} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
           <Select
@@ -441,6 +604,7 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
           </Button>
         </div>
       </form>
+      )}
     </Modal>
   );
 };

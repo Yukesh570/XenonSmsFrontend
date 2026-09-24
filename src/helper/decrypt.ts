@@ -1,7 +1,6 @@
 
-export function decodeJwtPayload() {
-
-  const token = localStorage.getItem("accessToken");
+export function decodeJwtPayload(tokenStr?: string | null) {
+  const token = tokenStr !== undefined ? tokenStr : localStorage.getItem("accessToken");
   if (!token) return { token: null, payload: null };
 
   const parts = token.split('.');
@@ -22,4 +21,12 @@ export function decodeJwtPayload() {
     console.error('Failed to decode JWT payload:', err);
     return { token, payload: null };
   }
+}
+
+export function isTokenExpired(tokenStr?: string | null): boolean {
+  if (!tokenStr) return true;
+  const { payload } = decodeJwtPayload(tokenStr);
+  if (!payload || typeof payload.exp !== 'number') return false;
+  // Token is expired if current time exceeds expiration time (with 5s buffer)
+  return payload.exp * 1000 <= Date.now() + 5000;
 }

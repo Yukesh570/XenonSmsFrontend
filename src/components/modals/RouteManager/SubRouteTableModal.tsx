@@ -88,6 +88,7 @@ interface SubRouteTableModalProps {
   routeGroupId?: number | null;
   initialCountryName?: string | null;
   moduleName: string;
+  canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
 }
@@ -301,6 +302,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   routeGroupId,
   initialCountryName,
   moduleName,
+  canCreate,
   canUpdate,
   canDelete,
 }) => {
@@ -1214,8 +1216,11 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
     const status = "isNew" in item ? item.row.status : String(item.status || "");
 
+    const network = "isNew" in item ? (item.row.network || "") : ((item as any).network || "");
+    const mncWithNetwork = `${mnc} ${network}`;
+
     if (filters.mcc && !mcc.toLowerCase().includes(filters.mcc.toLowerCase())) return false;
-    if (filters.mnc && !mnc.toLowerCase().includes(filters.mnc.toLowerCase())) return false;
+    if (filters.mnc && !mncWithNetwork.toLowerCase().includes(filters.mnc.toLowerCase())) return false;
     if (filters.vendor && !vendorName.toLowerCase().includes(filters.vendor.toLowerCase())) return false;
     if (filters.status && filters.status.trim() !== "" && status.toUpperCase() !== filters.status.toUpperCase()) return false;
 
@@ -1274,7 +1279,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
               <div className="p-3.5 space-y-3 bg-white dark:bg-gray-900 border-t border-primary/10 dark:border-primary/20 rounded-b-xl">
 
                 {/* ADD NEW CONFIG AREA */}
-                {canUpdate && availableCountries.length > 0 && (
+                {canCreate && availableCountries.length > 0 && (
                   <div className="flex flex-col gap-1.5">
                     <h4 className="text-xs font-semibold text-primary uppercase tracking-wide">Add Country Config</h4>
                     <div className="flex flex-wrap items-end gap-2.5">
@@ -1434,603 +1439,598 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
               </div>
             ) : (
               filteredSections.map((section) => {
-              const countryId = String(section.config.country);
-              const isPercentage = section.config.routingType === "PERCENTAGE";
+                const countryId = String(section.config.country);
+                const isPercentage = section.config.routingType === "PERCENTAGE";
 
-              const mccOptions = networkCodesByCountry[countryId]?.mccOptions || [];
-              const mncOptions = networkCodesByCountry[countryId]?.mncOptions || [];
-              const brandMap = networkCodesByCountry[countryId]?.brandMap || {};
+                const mccOptions = networkCodesByCountry[countryId]?.mccOptions || [];
+                const mncOptions = networkCodesByCountry[countryId]?.mncOptions || [];
+                const brandMap = networkCodesByCountry[countryId]?.brandMap || {};
 
-              const filters = sectionFilters[countryId] || {};
-              const hasActiveFilters = Object.values(filters).some((v) => v.trim() !== "");
-              const sectionError = sectionErrors[countryId];
+                const filters = sectionFilters[countryId] || {};
+                const hasActiveFilters = Object.values(filters).some((v) => v.trim() !== "");
+                const sectionError = sectionErrors[countryId];
 
-              // Group items by MCC & MNC
-              const mccMncGroupsMap = new Map<string, { total: number; items: (CustomRouteData | { isNew: true; row: NewRow })[] }>();
+                // Group items by MCC & MNC
+                const mccMncGroupsMap = new Map<string, { total: number; items: (CustomRouteData | { isNew: true; row: NewRow })[] }>();
 
-              section.newRows.forEach((row) => {
-                const key = normalizeKey(row.MCC, row.MNC);
-                if (!mccMncGroupsMap.has(key)) {
-                  mccMncGroupsMap.set(key, { total: 0, items: [] });
-                }
-                const group = mccMncGroupsMap.get(key)!;
-                group.items.unshift({ isNew: true, row });
-                group.total += Number(row.trafficPercentage || 0);
-              });
+                section.newRows.forEach((row) => {
+                  const key = normalizeKey(row.MCC, row.MNC);
+                  if (!mccMncGroupsMap.has(key)) {
+                    mccMncGroupsMap.set(key, { total: 0, items: [] });
+                  }
+                  const group = mccMncGroupsMap.get(key)!;
+                  group.items.unshift({ isNew: true, row });
+                  group.total += Number(row.trafficPercentage || 0);
+                });
 
-              section.routes.forEach((route) => {
-                const key = normalizeKey(route.MCC, route.MNC);
-                if (!mccMncGroupsMap.has(key)) {
-                  mccMncGroupsMap.set(key, { total: 0, items: [] });
-                }
-                const group = mccMncGroupsMap.get(key)!;
-                group.items.push(route);
-                if (route.status === "ACTIVE") {
-                  group.total += Number(route.trafficPercentage || 0);
-                }
-              });
+                section.routes.forEach((route) => {
+                  const key = normalizeKey(route.MCC, route.MNC);
+                  if (!mccMncGroupsMap.has(key)) {
+                    mccMncGroupsMap.set(key, { total: 0, items: [] });
+                  }
+                  const group = mccMncGroupsMap.get(key)!;
+                  group.items.push(route);
+                  if (route.status === "ACTIVE") {
+                    group.total += Number(route.trafficPercentage || 0);
+                  }
+                });
 
-              const mccMncGroups = Array.from(mccMncGroupsMap.entries())
-                .map(([groupKey, groupData]) => {
-                  const filteredItems = groupData.items.filter((item) =>
-                    isItemMatchingFilters(item, filters)
-                  );
-                  return [groupKey, { ...groupData, items: filteredItems }] as [string, typeof groupData];
-                })
-                .filter(([_, groupData]) => !hasActiveFilters || groupData.items.length > 0);
+                const mccMncGroups = Array.from(mccMncGroupsMap.entries())
+                  .map(([groupKey, groupData]) => {
+                    const filteredItems = groupData.items.filter((item) =>
+                      isItemMatchingFilters(item, filters)
+                    );
+                    return [groupKey, { ...groupData, items: filteredItems }] as [string, typeof groupData];
+                  })
+                  .filter(([_, groupData]) => !hasActiveFilters || groupData.items.length > 0);
 
-              const usedVendors = new Map<string, Set<string>>();
-              section.routes.filter(r => r.status === "ACTIVE").forEach(r => {
-                const key = normalizeKey(r.MCC, r.MNC);
-                if (!usedVendors.has(key)) usedVendors.set(key, new Set());
-                if (r.terminatingVendor != null) usedVendors.get(key)!.add(String(r.terminatingVendor));
-              });
-              section.newRows.forEach(r => {
-                const key = normalizeKey(r.MCC, r.MNC);
-                if (!usedVendors.has(key)) usedVendors.set(key, new Set());
-                if (r.terminatingVendor != null && String(r.terminatingVendor).trim() !== "") {
-                  usedVendors.get(key)!.add(String(r.terminatingVendor));
-                }
-              });
+                const usedVendors = new Map<string, Set<string>>();
+                section.routes.filter(r => r.status === "ACTIVE").forEach(r => {
+                  const key = normalizeKey(r.MCC, r.MNC);
+                  if (!usedVendors.has(key)) usedVendors.set(key, new Set());
+                  if (r.terminatingVendor != null) usedVendors.get(key)!.add(String(r.terminatingVendor));
+                });
+                section.newRows.forEach(r => {
+                  const key = normalizeKey(r.MCC, r.MNC);
+                  if (!usedVendors.has(key)) usedVendors.set(key, new Set());
+                  if (r.terminatingVendor != null && String(r.terminatingVendor).trim() !== "") {
+                    usedVendors.get(key)!.add(String(r.terminatingVendor));
+                  }
+                });
 
-              return (
-                <div
-                  key={countryId}
-                  className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full shrink-0"
-                >
-                  {/* Section header with Upper Bar Search Filters */}
+                return (
                   <div
-                    className={`flex items-center justify-between gap-2.5 px-3.5 py-2 cursor-pointer select-none transition-colors ${section.isOpen
-                      ? "bg-gray-100 dark:bg-gray-700/60 rounded-t-lg"
-                      : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                      }`}
-                    onClick={() => toggleSection(countryId)}
+                    key={countryId}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full shrink-0"
                   >
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
-                        {countryIsoMap[countryId] && (
-                          <CountryFlag iso2={countryIsoMap[countryId]} />
-                        )}
-                        {section.config.countryName}
-                      </span>
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${isPercentage
-                          ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
-                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                          }`}
-                      >
-                        {isPercentage ? "Percentage" : "Priority"}
-                      </span>
-                      {canUpdate && (
-                        <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center">
-                          <ToggleSwitch
-                            label="LCP"
-                            checked={section.config.lowCostPolicy || false}
-                            onChange={(val) => handleToggleLowCostPolicy(section.config, val)}
-                          />
-                        </div>
-                      )}
-
-                      {section.routes.length > 0 && (
-                        <span className="text-xs text-gray-400 dark:text-gray-500">
-                          {section.routes.length} route{section.routes.length > 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Upper Bar: Search Filters & Actions */}
-                    <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                      {section.isOpen && (
-                        <div className="flex items-center gap-1 mr-1 relative">
-                          {section.searchExpanded ? (
-                            <div className="flex items-center gap-1.5 transition-all w-full md:w-auto animate-fade-in pr-2">
-                              <div className="w-20 relative">
-                                <FilterInput
-                                  fieldKey="mcc"
-                                  placeholder="MCC..."
-                                  value={filters.mcc || ""}
-                                  onChange={(k, val) => handleFilterChange(countryId, k, val)}
-                                />
-                              </div>
-                              <div className="w-20 relative">
-                                <FilterInput
-                                  fieldKey="mnc"
-                                  placeholder="MNC..."
-                                  value={filters.mnc || ""}
-                                  onChange={(k, val) => handleFilterChange(countryId, k, val)}
-                                />
-                              </div>
-                              <div className="w-28 relative sm:w-32">
-                                <FilterInput
-                                  fieldKey="vendor"
-                                  placeholder="Vendor..."
-                                  value={filters.vendor || ""}
-                                  onChange={(k, val) => handleFilterChange(countryId, k, val)}
-                                />
-                              </div>
-                              <div className="w-28 relative inline-filter-wrapper">
-                                <Select
-                                  label=""
-                                  value={filters.status || ""}
-                                  onChange={(val) => handleFilterChange(countryId, "status", val)}
-                                  options={statusOptions}
-                                  placeholder="Status..."
-                                  placement="bottom"
-                                  clearable={true}
-                                />
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  handleFilterChange(countryId, "mcc", "");
-                                  handleFilterChange(countryId, "mnc", "");
-                                  handleFilterChange(countryId, "vendor", "");
-                                  handleFilterChange(countryId, "status", "");
-                                  toggleSearchExpand(countryId, e);
-                                }}
-                                className="p-1.5 ml-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-                              >
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={(e) => toggleSearchExpand(countryId, e)}
-                              className="p-1.5 mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
-                              title="Search routes"
-                            >
-                              <Search size={15} />
-                            </button>
+                    {/* Section header with Upper Bar Search Filters */}
+                    <div
+                      className={`flex items-center justify-between gap-2.5 px-3.5 py-2 cursor-pointer select-none transition-colors ${section.isOpen
+                        ? "bg-gray-100 dark:bg-gray-700/60 rounded-t-lg"
+                        : "bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
+                        }`}
+                      onClick={() => toggleSection(countryId)}
+                    >
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <span className="font-semibold text-sm text-gray-800 dark:text-gray-100 flex items-center gap-1.5">
+                          {countryIsoMap[countryId] && (
+                            <CountryFlag iso2={countryIsoMap[countryId]} />
                           )}
-                        </div>
-                      )}
-
-                      {canUpdate && section.isOpen && (
-                        <Button
-                          type="button"
-                          variant="primary"
-                          onClick={() => addRow(countryId)}
-                          leftIcon={<Plus size={13} />}
-                          className="text-xs py-1.5 px-3 h-auto min-h-0 bg-primary text-white hover:opacity-90 shadow-sm transition-all"
+                          {section.config.countryName}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${isPercentage
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                            }`}
                         >
-                          Add Route
-                        </Button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => toggleSection(countryId)}
-                        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                      >
-                        {section.isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Section body */}
-                  {section.isOpen && (
-                    <div className="rounded-b-lg min-w-0 w-full overflow-hidden">
-
-                      {/* IN-TABLE ERROR BANNER */}
-                      {sectionError && (
-                        <div className="mx-4 mt-3 mb-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/60 flex items-center justify-between text-xs text-red-700 dark:text-red-300 shadow-sm">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle size={16} className="text-red-500 shrink-0" />
-                            <span className="font-semibold">{sectionError}</span>
+                          {isPercentage ? "Percentage" : "Priority"}
+                        </span>
+                        {canUpdate && (
+                          <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center">
+                            <ToggleSwitch
+                              label="LCP"
+                              checked={section.config.lowCostPolicy || false}
+                              onChange={(val) => handleToggleLowCostPolicy(section.config, val)}
+                            />
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setSectionErrors((prev) => ({ ...prev, [countryId]: "" }))}
-                            className="text-red-400 hover:text-red-600 p-0.5 rounded transition-colors"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                      )}
+                        )}
 
-                      <div className="w-full overflow-x-auto custom-scrollbar">
-                        <table className="min-w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
-                          <thead className="bg-gray-100 dark:bg-gray-800 text-text-secondary dark:text-gray-300 shadow-sm">
-                            <tr>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-10">#</th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-32">MNC</th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px]">Network</th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
-                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
-                                {isPercentage ? "Traffic %" : "Priority"}
-                              </th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
-                                Customer Rate
-                              </th>
-                              <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
-                                Vendor Rate
-                              </th>
-                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
-                                Margin
-                              </th>
-                              <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-16">
-                                Margin %
-                              </th>
-                              <th className="px-2 py-1.5 font-bold text-left border-b dark:border-gray-600 w-24">Status</th>
-                              {(canUpdate || canDelete) && (
-                                <th className="px-2 py-1.5 font-bold text-center border-b border-l dark:border-gray-600 w-10">Action</th>
-                              )}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {section.loading && (
-                              <tr>
-                                <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
-                                  <LoadingSpinner size="xs" text="Loading routes..." className="py-0" />
-                                </td>
-                              </tr>
+                        {section.routes.length > 0 && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            {section.routes.length} route{section.routes.length > 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Upper Bar: Search Filters & Actions */}
+                      <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                        {section.isOpen && (
+                          <div className="flex items-center gap-1 mr-1 relative">
+                            {section.searchExpanded ? (
+                              <div className="flex items-center gap-1.5 transition-all w-full md:w-auto animate-fade-in pr-2">
+                                <div className="w-20 relative">
+                                  <FilterInput
+                                    fieldKey="mcc"
+                                    placeholder="MCC..."
+                                    value={filters.mcc || ""}
+                                    onChange={(k, val) => handleFilterChange(countryId, k, val)}
+                                  />
+                                </div>
+                                <div className="w-20 relative">
+                                  <FilterInput
+                                    fieldKey="mnc"
+                                    placeholder="MNC..."
+                                    value={filters.mnc || ""}
+                                    onChange={(k, val) => handleFilterChange(countryId, k, val)}
+                                  />
+                                </div>
+                                <div className="w-28 relative sm:w-32">
+                                  <FilterInput
+                                    fieldKey="vendor"
+                                    placeholder="Vendor..."
+                                    value={filters.vendor || ""}
+                                    onChange={(k, val) => handleFilterChange(countryId, k, val)}
+                                  />
+                                </div>
+                                <div className="w-28 relative inline-filter-wrapper">
+                                  <Select
+                                    label=""
+                                    value={filters.status || ""}
+                                    onChange={(val) => handleFilterChange(countryId, "status", val)}
+                                    options={statusOptions}
+                                    placeholder="Status..."
+                                    placement="bottom"
+                                    clearable={true}
+                                  />
+                                </div>
+                                <button
+                                  onClick={(e) => {
+                                    handleFilterChange(countryId, "mcc", "");
+                                    handleFilterChange(countryId, "mnc", "");
+                                    handleFilterChange(countryId, "vendor", "");
+                                    handleFilterChange(countryId, "status", "");
+                                    toggleSearchExpand(countryId, e);
+                                  }}
+                                  className="p-1.5 ml-1 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={(e) => toggleSearchExpand(countryId, e)}
+                                className="p-1.5 mr-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-md transition-colors"
+                                title="Search routes"
+                              >
+                                <Search size={15} />
+                              </button>
                             )}
+                          </div>
+                        )}
 
-                            {/* Grouped Rendering by MCC / MNC */}
-                            {!section.loading &&
-                              mccMncGroups.map(([groupKey, groupData], groupIdx) => {
-                                const [_mccVal, mncVal] = groupKey.split("-");
+                        {canUpdate && section.isOpen && (
+                          <Button
+                            type="button"
+                            variant="primary"
+                            onClick={() => addRow(countryId)}
+                            leftIcon={<Plus size={13} />}
+                            className="text-xs py-1.5 px-3 h-auto min-h-0 bg-primary text-white hover:opacity-90 shadow-sm transition-all"
+                          >
+                            Add Route
+                          </Button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => toggleSection(countryId)}
+                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        >
+                          {section.isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </button>
+                      </div>
+                    </div>
 
-                                const operatorName = brandMap[mncVal] || "";
+                    {/* Section body */}
+                    {section.isOpen && (
+                      <div className="rounded-b-lg min-w-0 w-full overflow-hidden">
 
-                                const rowBgClass = groupIdx % 2 === 0
-                                  ? "bg-white dark:bg-gray-900"
-                                  : "bg-gray-50/70 dark:bg-gray-800/40";
+                        {/* IN-TABLE ERROR BANNER */}
+                        {sectionError && (
+                          <div className="mx-4 mt-3 mb-2 p-3 rounded-md bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/60 flex items-center justify-between text-xs text-red-700 dark:text-red-300 shadow-sm">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle size={16} className="text-red-500 shrink-0" />
+                              <span className="font-semibold">{sectionError}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setSectionErrors((prev) => ({ ...prev, [countryId]: "" }))}
+                              className="text-red-400 hover:text-red-600 p-0.5 rounded transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        )}
 
-                                const formattedGroupHeaderLabel = formatGroupKeyLabel(groupKey);
+                        <div className="w-full overflow-x-auto custom-scrollbar">
+                          <table className="min-w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
+                            <thead className="bg-gray-50 dark:bg-gray-900 text-text-secondary dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-700">
+                              <tr>
+                                <th className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-left border-b border-r border-gray-200 dark:border-gray-700 w-10">#</th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px] w-56">MNC</th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
+                                <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
+                                  {isPercentage ? "Traffic %" : "Priority"}
+                                </th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                                  Customer Rate
+                                </th>
+                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                                  Vendor Rate
+                                </th>
+                                <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
+                                  Margin
+                                </th>
+                                <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-16">
+                                  Margin %
+                                </th>
+                                <th className="px-2 py-1.5 font-bold text-left border-b dark:border-gray-600 w-24">Status</th>
+                                {(canUpdate || canDelete) && (
+                                  <th className="px-2 py-1.5 font-bold text-center border-b border-l dark:border-gray-600 w-10">Action</th>
+                                )}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {section.loading && (
+                                <tr>
+                                  <td colSpan={(canUpdate || canDelete) ? 11 : 10} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
+                                    <LoadingSpinner size="xs" text="Loading routes..." className="py-0" />
+                                  </td>
+                                </tr>
+                              )}
 
-                                const groupNewRows = groupData.items.filter(item => "isNew" in item);
-                                const groupModifiedRoutes = groupData.items.filter(item => !("isNew" in item) && (item as any).isModified);
-                                const groupHasChanges = groupNewRows.length > 0 || groupModifiedRoutes.length > 0;
-                                const groupIsValid = !isPercentage || groupData.total === 100;
+                              {/* Grouped Rendering by MCC / MNC */}
+                              {!section.loading &&
+                                mccMncGroups.map(([groupKey, groupData], groupIdx) => {
+                                  const [_mccVal, mncVal] = groupKey.split("-");
 
-                                return (
-                                  <React.Fragment key={groupKey}>
-                                    <tr className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700">
-                                      <td colSpan={11} className="px-3 py-1.5 text-xs font-semibold">
-                                        <div className="flex items-center justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <Layers size={13} className="text-primary" />
-                                            <span className="text-gray-700 dark:text-gray-200">
-                                              <strong>{formattedGroupHeaderLabel}</strong>
-                                              {operatorName && (
-                                                <span className="ml-1.5 text-gray-500 font-normal">({operatorName})</span>
-                                              )}
-                                              <span className="ml-2 text-[11px] font-normal text-gray-400">
-                                                ({groupData.items.length})
-                                              </span>
-                                            </span>
-                                          </div>
+                                  const operatorName = brandMap[mncVal] || "";
 
-                                          <div className="flex items-center justify-end gap-3">
-                                            {isPercentage && (
-                                              <span
-                                                className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border font-bold ${groupData.total === 100
-                                                  ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400"
-                                                  : groupData.total > 100
-                                                    ? "bg-red-50 border-red-300 text-red-700 dark:bg-red-900/40 dark:border-red-700 dark:text-red-300"
-                                                    : "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300"
-                                                  }`}
-                                              >
-                                                {groupData.total === 100 ? (
-                                                  <CheckCircle2 size={12} />
-                                                ) : (
-                                                  <AlertCircle size={12} />
+                                  const rowBgClass = groupIdx % 2 === 0
+                                    ? "bg-white dark:bg-gray-900"
+                                    : "bg-gray-50/70 dark:bg-gray-800/40";
+
+                                  const formattedGroupHeaderLabel = formatGroupKeyLabel(groupKey);
+
+                                  const groupNewRows = groupData.items.filter(item => "isNew" in item);
+                                  const groupModifiedRoutes = groupData.items.filter(item => !("isNew" in item) && (item as any).isModified);
+                                  const groupHasChanges = groupNewRows.length > 0 || groupModifiedRoutes.length > 0;
+                                  const groupIsValid = !isPercentage || groupData.total === 100;
+
+                                  return (
+                                    <React.Fragment key={groupKey}>
+                                      <tr className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700">
+                                        <td colSpan={10} className="px-3 py-1.5 text-xs font-semibold">
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <Layers size={13} className="text-primary" />
+                                              <span className="text-gray-700 dark:text-gray-200">
+                                                <strong>{formattedGroupHeaderLabel}</strong>
+                                                {operatorName && (
+                                                  <span className="ml-1.5 text-gray-500 font-normal">({operatorName})</span>
                                                 )}
-                                                {groupData.total === 100
-                                                  ? "100% (Valid)"
-                                                  : groupData.total < 100
-                                                    ? `${groupData.total}% allocated (${100 - groupData.total}% remaining)`
-                                                    : `${groupData.total}% allocated (Exceeds by ${groupData.total - 100}%)`}
+                                                <span className="ml-2 text-[11px] font-normal text-gray-400">
+                                                  ({groupData.items.length})
+                                                </span>
                                               </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </td>
-                                      {(canUpdate || canDelete) && (
-                                        <td className="px-3 py-1.5 border-l dark:border-gray-700 text-center align-middle">
-                                          {groupHasChanges && canUpdate && (
-                                            <div className="flex items-center justify-center">
-                                              <Button
-                                                type="button"
-                                                variant="primary"
-                                                onClick={() => saveGroupRows(countryId, groupKey)}
-                                                disabled={section.saving || !groupIsValid}
-                                                className="h-6 px-2.5 text-[11px] shadow-sm min-w-0 font-medium"
-                                                leftIcon={section.saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                                                title={!groupIsValid ? "Cannot save: Total traffic percentage must equal 100%" : "Save Changes for this Group"}
-                                              >
-                                                {section.saving ? "Saving…" : "Save"}
-                                              </Button>
                                             </div>
-                                          )}
+
+                                            <div className="flex items-center justify-end gap-3">
+                                              {isPercentage && (
+                                                <span
+                                                  className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border font-bold ${groupData.total === 100
+                                                    ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400"
+                                                    : groupData.total > 100
+                                                      ? "bg-red-50 border-red-300 text-red-700 dark:bg-red-900/40 dark:border-red-700 dark:text-red-300"
+                                                      : "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300"
+                                                    }`}
+                                                >
+                                                  {groupData.total === 100 ? (
+                                                    <CheckCircle2 size={12} />
+                                                  ) : (
+                                                    <AlertCircle size={12} />
+                                                  )}
+                                                  {groupData.total === 100
+                                                    ? "100% (Valid)"
+                                                    : groupData.total < 100
+                                                      ? `${groupData.total}% allocated (${100 - groupData.total}% remaining)`
+                                                      : `${groupData.total}% allocated (Exceeds by ${groupData.total - 100}%)`}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
                                         </td>
-                                      )}
-                                    </tr>
+                                        {(canUpdate || canDelete) && (
+                                          <td className="px-3 py-1.5 border-l dark:border-gray-700 text-center align-middle">
+                                            {groupHasChanges && canUpdate && (
+                                              <div className="flex items-center justify-center">
+                                                <Button
+                                                  type="button"
+                                                  variant="primary"
+                                                  onClick={() => saveGroupRows(countryId, groupKey)}
+                                                  disabled={section.saving || !groupIsValid}
+                                                  className="h-6 px-2.5 text-[11px] shadow-sm min-w-0 font-medium"
+                                                  leftIcon={section.saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                                  title={!groupIsValid ? "Cannot save: Total traffic percentage must equal 100%" : "Save Changes for this Group"}
+                                                >
+                                                  {section.saving ? "Saving…" : "Save"}
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </td>
+                                        )}
+                                      </tr>
 
-                                    {groupData.items.map((item, i) => {
-                                      if ("isNew" in item) {
-                                        const row = item.row;
-                                        const rowMncOptions = mncOptions.map(opt => {
-                                          const cleanVal = opt.value.includes("(") ? opt.value.split("(")[0].trim() : opt.value;
-                                          const opName = brandMap[cleanVal];
-                                          const label = opName ? `${cleanVal} (${opName})` : (opt.label || cleanVal);
-                                          return {
-                                            ...opt,
-                                            label,
-                                            value: cleanVal,
-                                            displayLabel: cleanVal,
-                                          };
-                                        }).filter((opt) => {
-                                          if (opt.value === row.MNC) return true;
-                                          if (isPercentage && row.MCC) {
-                                            const key = normalizeKey(row.MCC, opt.value);
-                                            const gTotal = mccMncGroupsMap.get(key)?.total || 0;
-                                            if (gTotal >= 100) return false;
-                                          }
-                                          return true;
-                                        });
+                                      {groupData.items.map((item, i) => {
+                                        if ("isNew" in item) {
+                                          const row = item.row;
+                                          const rowMncOptions = mncOptions.map(opt => {
+                                            const cleanVal = opt.value.includes("(") ? opt.value.split("(")[0].trim() : opt.value;
+                                            const opName = brandMap[cleanVal];
+                                            const label = opName ? `${cleanVal} (${opName})` : (opt.label || cleanVal);
+                                            return {
+                                              ...opt,
+                                              label,
+                                              value: cleanVal,
+                                              displayLabel: label,
+                                            };
+                                          }).filter((opt) => {
+                                            if (opt.value === row.MNC) return true;
+                                            if (isPercentage && row.MCC) {
+                                              const key = normalizeKey(row.MCC, opt.value);
+                                              const gTotal = mccMncGroupsMap.get(key)?.total || 0;
+                                              if (gTotal >= 100) return false;
+                                            }
+                                            return true;
+                                          });
 
-                                        const rowVendorOptions = vendorOptions.filter((opt) => {
-                                          if (String(opt.value) === String(row.terminatingVendor)) return true;
-                                          if (row.MCC && row.MNC) {
-                                            const key = normalizeKey(row.MCC, row.MNC);
-                                            if (usedVendors.get(key)?.has(String(opt.value))) return false;
-                                          }
-                                          return true;
-                                        });
+                                          const rowVendorOptions = vendorOptions.filter((opt) => {
+                                            if (String(opt.value) === String(row.terminatingVendor)) return true;
+                                            if (row.MCC && row.MNC) {
+                                              const key = normalizeKey(row.MCC, row.MNC);
+                                              if (usedVendors.get(key)?.has(String(opt.value))) return false;
+                                            }
+                                            return true;
+                                          });
 
-                                        const isValidCustomerRateBase = row.customerRateBase && !["N/A", "Error"].includes(row.customerRateBase);
-                                        const isValidVendorRateBase = row.vendorRateBase && !["N/A", "Error"].includes(row.vendorRateBase);
-                                        const rowMargin = (isValidCustomerRateBase && isValidVendorRateBase)
-                                          ? parseFloat(row.customerRateBase!) - parseFloat(row.vendorRateBase!)
-                                          : null;
-                                        const rowMarginPct = (rowMargin !== null && parseFloat(row.customerRateBase!) !== 0)
-                                          ? (rowMargin / parseFloat(row.customerRateBase!)) * 100
-                                          : null;
+                                          const isValidCustomerRateBase = row.customerRateBase && !["N/A", "Error"].includes(row.customerRateBase);
+                                          const isValidVendorRateBase = row.vendorRateBase && !["N/A", "Error"].includes(row.vendorRateBase);
+                                          const rowMargin = (isValidCustomerRateBase && isValidVendorRateBase)
+                                            ? parseFloat(row.customerRateBase!) - parseFloat(row.vendorRateBase!)
+                                            : null;
+                                          const rowMarginPct = (rowMargin !== null && parseFloat(row.customerRateBase!) !== 0)
+                                            ? (rowMargin / parseFloat(row.customerRateBase!)) * 100
+                                            : null;
+
+                                          return (
+                                            <tr
+                                              key={row._id}
+                                              className="relative focus-within:z-20 bg-blue-50/70 dark:bg-blue-900/10 border-l-[3px] border-l-blue-400"
+                                            >
+                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-blue-500 text-xs font-bold w-10">
+                                                NEW
+                                              </td>
+                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[110px] overflow-visible">
+                                                <div className="inline-table-field">
+                                                  <Select
+                                                    label=""
+                                                    value={row.MCC}
+                                                    onChange={(val) => updateRow(countryId, row._id, "MCC", val)}
+                                                    options={mccOptions}
+                                                    placeholder="MCC"
+                                                    placement="bottom"
+                                                    clearable={false}
+                                                  />
+                                                </div>
+                                              </td>
+                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[200px] w-56 overflow-visible">
+                                                <div className="inline-table-field">
+                                                  <Select
+                                                    label=""
+                                                    value={row.MNC}
+                                                    onChange={(val) => updateRow(countryId, row._id, "MNC", val)}
+                                                    options={rowMncOptions}
+                                                    placeholder="MNC"
+                                                    placement="bottom"
+                                                    clearable={false}
+                                                    menuWidth={280}
+                                                  />
+                                                </div>
+                                              </td>
+                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[160px] overflow-visible">
+                                                <div className="inline-table-field">
+                                                  <Select
+                                                    label=""
+                                                    value={row.terminatingVendor}
+                                                    onChange={(val) => updateRow(countryId, row._id, "terminatingVendor", val)}
+                                                    options={rowVendorOptions}
+                                                    placeholder="Select vendor…"
+                                                    placement="bottom"
+                                                    clearable={false}
+                                                  />
+                                                </div>
+                                              </td>
+                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 w-20">
+                                                <div className="inline-table-field">
+                                                  <Input
+                                                    label=""
+                                                    type="number"
+                                                    value={isPercentage ? row.trafficPercentage : row.priority}
+                                                    onChange={(e) =>
+                                                      updateRow(countryId, row._id, isPercentage ? "trafficPercentage" : "priority", e.target.value)
+                                                    }
+                                                    placeholder={isPercentage ? "0–100" : "Priority"}
+                                                  />
+                                                </div>
+                                              </td>
+                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
+                                                {row.customerRate ? (row.customerRate === "N/A" || row.customerRate === "Error" ? <span className="text-red-400">{row.customerRate}</span> : <span>{row.customerRate} {row.customerCurrencyCode || ''}</span>) : "—"}
+                                              </td>
+                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
+                                                {row.vendorRate ? (row.vendorRate === "N/A" || row.vendorRate === "Error" ? <span className="text-red-400">{row.vendorRate}</span> : <span>{row.vendorRate} {row.vendorCurrencyCode || ''}</span>) : "—"}
+                                              </td>
+                                              <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
+                                                {rowMargin !== null ? `${rowMargin.toFixed(6)} ${row.baseCurrencyCode || ''}` : "—"}
+                                              </td>
+                                              <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
+                                                {rowMarginPct !== null ? rowMarginPct.toFixed(2) + "%" : "—"}
+                                              </td>
+                                              <td className="px-2 py-1.5 border-b dark:border-gray-700 overflow-visible w-24">
+                                                <div className="inline-table-field min-w-[80px]">
+                                                  <Select
+                                                    label=""
+                                                    value={row.status}
+                                                    onChange={(val) => updateRow(countryId, row._id, "status", val)}
+                                                    options={statusOptions}
+                                                    placement="bottom"
+                                                    clearable={false}
+                                                  />
+                                                </div>
+                                              </td>
+                                              {canUpdate && (
+                                                <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center w-10">
+                                                  <button
+                                                    onClick={() => removeRow(countryId, row._id)}
+                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                                    title="Remove Route"
+                                                  >
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                </td>
+                                              )}
+                                            </tr>
+                                          );
+                                        }
+
+                                        const route = item as CustomRouteData;
+                                        const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
+                                        const vendorName = vendorMatch?.label || (route as any).terminatingVendorProfileName || route.terminatingVendor || "-";
+                                        const isLocallyModified = (route as any).isModified;
+
+                                        const rawMnc = route.MNC ? String(route.MNC) : "";
+                                        const cleanMnc = rawMnc.includes("(") ? rawMnc.split("(")[0].trim() : rawMnc.trim();
+                                        const networkName = (route as any).network || brandMap[cleanMnc] || brandMap[rawMnc] || "";
+                                        const mncDisplay = cleanMnc
+                                          ? networkName
+                                            ? `${cleanMnc} (${networkName})`
+                                            : rawMnc
+                                          : "-";
 
                                         return (
                                           <tr
-                                            key={row._id}
-                                            className="relative focus-within:z-20 bg-blue-50/70 dark:bg-blue-900/10 border-l-[3px] border-l-blue-400"
+                                            key={route.id}
+                                            onContextMenu={(e) => handleRouteContextMenu(e, route, countryId, section.config.routingType as "PRIORITY" | "PERCENTAGE")}
+                                            className={`relative focus-within:z-20 transition-colors cursor-context-menu ${isLocallyModified
+                                              ? "bg-amber-50/60 dark:bg-amber-900/10 border-l-[3px] border-l-amber-500 hover:bg-amber-100/50"
+                                              : `${rowBgClass} hover:bg-blue-50/40 dark:hover:bg-primary/5`
+                                              }`}
                                           >
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-blue-500 text-xs font-bold w-10">
-                                              NEW
+                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10">{i + 1}</td>
+                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                              {route.MCC || "-"}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[110px] overflow-visible">
-                                              <div className="inline-table-field">
-                                                <Select
-                                                  label=""
-                                                  value={row.MCC}
-                                                  onChange={(val) => updateRow(countryId, row._id, "MCC", val)}
-                                                  options={mccOptions}
-                                                  placeholder="MCC"
-                                                  placement="bottom"
-                                                  clearable={false}
+                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px] w-56" title={mncDisplay}>
+                                              {mncDisplay}
+                                            </td>
+                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                              {vendorName}
+                                            </td>
+                                            <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
+                                              {isPercentage ? `${route.trafficPercentage ?? "-"}%` : (route.priority ?? "-")}
+                                              {isLocallyModified && (
+                                                <span className="ml-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
+                                                  Edited
+                                                </span>
+                                              )}
+                                            </td>
+                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                              {((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1) ? (
+                                                <RatesHoverDropdown
+                                                  title="All Customer Rates"
+                                                  rates={(route as any).allCustomerRates}
+                                                  currencyCode={(route as any).clientCurrencyCode}
                                                 />
-                                              </div>
+                                              ) : (
+                                                (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
+                                              )}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[130px] overflow-visible">
-                                              <div className="inline-table-field">
-                                                <Select
-                                                  label=""
-                                                  value={row.MNC}
-                                                  onChange={(val) => updateRow(countryId, row._id, "MNC", val)}
-                                                  options={rowMncOptions}
-                                                  placeholder="MNC"
-                                                  placement="bottom"
-                                                  clearable={false}
+                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                              {((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ? (
+                                                <RatesHoverDropdown
+                                                  title="All Network Rates"
+                                                  rates={(route as any).allVendorRates}
+                                                  currencyCode={(route as any).vendorCurrencyCode}
                                                 />
-                                              </div>
+                                              ) : (
+                                                (route as any).vendorRate ? `${(route as any).vendorRate} ${(route as any).vendorCurrencyCode || ''}` : "—"
+                                              )}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[200px]">
-                                              <div className="inline-table-field">
-                                                <Input
-                                                  label=""
-                                                  name="network"
-                                                  value={row.network || ""}
-                                                  onChange={(e) => updateRow(countryId, row._id, "network", e.target.value)}
-                                                  placeholder="Network"
-                                                  readOnly
-                                                />
-                                              </div>
+                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
+                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).margin !== undefined ? `${(route as any).margin} ${(route as any).baseCurrencyCode || ""}` : "—")}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[160px] overflow-visible">
-                                              <div className="inline-table-field">
-                                                <Select
-                                                  label=""
-                                                  value={row.terminatingVendor}
-                                                  onChange={(val) => updateRow(countryId, row._id, "terminatingVendor", val)}
-                                                  options={rowVendorOptions}
-                                                  placeholder="Select vendor…"
-                                                  placement="bottom"
-                                                  clearable={false}
-                                                />
-                                              </div>
+                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
+                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 w-20">
-                                              <div className="inline-table-field">
-                                                <Input
-                                                  label=""
-                                                  type="number"
-                                                  value={isPercentage ? row.trafficPercentage : row.priority}
-                                                  onChange={(e) =>
-                                                    updateRow(countryId, row._id, isPercentage ? "trafficPercentage" : "priority", e.target.value)
-                                                  }
-                                                  placeholder={isPercentage ? "0–100" : "Priority"}
-                                                />
-                                              </div>
+                                            <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-24">
+                                              <StatusBadge status={route.status} />
                                             </td>
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
-                                              {row.customerRate ? (row.customerRate === "N/A" || row.customerRate === "Error" ? <span className="text-red-400">{row.customerRate}</span> : <span>{row.customerRate} {row.customerCurrencyCode || ''}</span>) : "—"}
-                                            </td>
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
-                                              {row.vendorRate ? (row.vendorRate === "N/A" || row.vendorRate === "Error" ? <span className="text-red-400">{row.vendorRate}</span> : <span>{row.vendorRate} {row.vendorCurrencyCode || ''}</span>) : "—"}
-                                            </td>
-                                            <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                              {rowMargin !== null ? `${rowMargin.toFixed(6)} ${row.baseCurrencyCode || ''}` : "—"}
-                                            </td>
-                                            <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                              {rowMarginPct !== null ? rowMarginPct.toFixed(2) + "%" : "—"}
-                                            </td>
-                                            <td className="px-2 py-1.5 border-b dark:border-gray-700 overflow-visible w-24">
-                                              <div className="inline-table-field min-w-[80px]">
-                                                <Select
-                                                  label=""
-                                                  value={row.status}
-                                                  onChange={(val) => updateRow(countryId, row._id, "status", val)}
-                                                  options={statusOptions}
-                                                  placement="bottom"
-                                                  clearable={false}
-                                                />
-                                              </div>
-                                            </td>
-                                            {canUpdate && (
-                                              <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center w-10">
-                                                <button
-                                                  onClick={() => removeRow(countryId, row._id)}
-                                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                                  title="Remove Route"
-                                                >
-                                                  <Trash2 size={14} />
-                                                </button>
+                                            {(canUpdate || canDelete) && (
+                                              <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-10">
+                                                {canDelete && (
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const displayName = route.name || (route as any).terminatingVendorProfileName || vendorName || `Route #${route.id}`;
+                                                      setDeleteRouteData({
+                                                        id: route.id!,
+                                                        name: displayName,
+                                                        countryId: countryId,
+                                                      });
+                                                    }}
+                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                                    title="Delete Route"
+                                                  >
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                )}
                                               </td>
                                             )}
                                           </tr>
                                         );
-                                      }
+                                      })}
+                                    </React.Fragment>
+                                  );
+                                })}
 
-                                      const route = item as CustomRouteData;
-                                      const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
-                                      const vendorName = vendorMatch?.label || (route as any).terminatingVendorProfileName || route.terminatingVendor || "-";
-                                      const isLocallyModified = (route as any).isModified;
-
-                                      return (
-                                        <tr
-                                          key={route.id}
-                                          onContextMenu={(e) => handleRouteContextMenu(e, route, countryId, section.config.routingType as "PRIORITY" | "PERCENTAGE")}
-                                          className={`relative focus-within:z-20 transition-colors cursor-context-menu ${isLocallyModified
-                                            ? "bg-amber-50/60 dark:bg-amber-900/10 border-l-[3px] border-l-amber-500 hover:bg-amber-100/50"
-                                            : `${rowBgClass} hover:bg-blue-50/40 dark:hover:bg-primary/5`
-                                            }`}
-                                        >
-                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10">{i + 1}</td>
-                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                                            {route.MCC || "-"}
-                                          </td>
-                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-32">
-                                            {route.MNC || "-"}
-                                          </td>
-                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px]">
-                                            {(route as any).network || "-"}
-                                          </td>
-                                          <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
-                                            {vendorName}
-                                          </td>
-                                          <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
-                                            {isPercentage ? `${route.trafficPercentage ?? "-"}%` : (route.priority ?? "-")}
-                                            {isLocallyModified && (
-                                              <span className="ml-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
-                                                Edited
-                                              </span>
-                                            )}
-                                          </td>
-                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                                            {((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1) ? (
-                                              <RatesHoverDropdown
-                                                title="All Customer Rates"
-                                                rates={(route as any).allCustomerRates}
-                                                currencyCode={(route as any).clientCurrencyCode}
-                                              />
-                                            ) : (
-                                              (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
-                                            )}
-                                          </td>
-                                          <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                                            {((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ? (
-                                              <RatesHoverDropdown
-                                                title="All Network Rates"
-                                                rates={(route as any).allVendorRates}
-                                                currencyCode={(route as any).vendorCurrencyCode}
-                                              />
-                                            ) : (
-                                              (route as any).vendorRate ? `${(route as any).vendorRate} ${(route as any).vendorCurrencyCode || ''}` : "—"
-                                            )}
-                                          </td>
-                                          <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                            {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).margin !== undefined ? `${(route as any).margin} ${(route as any).baseCurrencyCode || ""}` : "—")}
-                                          </td>
-                                          <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                            {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
-                                          </td>
-                                          <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-24">
-                                            <StatusBadge status={route.status} />
-                                          </td>
-                                          {(canUpdate || canDelete) && (
-                                            <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-10">
-                                              {canDelete && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const displayName = route.name || (route as any).terminatingVendorProfileName || vendorName || `Route #${route.id}`;
-                                                    setDeleteRouteData({
-                                                      id: route.id!,
-                                                      name: displayName,
-                                                      countryId: countryId,
-                                                    });
-                                                  }}
-                                                  className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
-                                                  title="Delete Route"
-                                                >
-                                                  <Trash2 size={14} />
-                                                </button>
-                                              )}
-                                            </td>
-                                          )}
-                                        </tr>
-                                      );
-                                    })}
-                                  </React.Fragment>
-                                );
-                              })}
-
-                            {!section.loading && mccMncGroups.length === 0 && (
-                              <tr>
-                                <td colSpan={(canUpdate || canDelete) ? 12 : 11} className="px-4 py-5 text-center text-gray-400 dark:text-gray-500 text-xs">
-                                  No routes match your search filters.{canUpdate && " Click \"Add Route\" to create one."}
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                              {!section.loading && mccMncGroups.length === 0 && (
+                                <tr>
+                                  <td colSpan={(canUpdate || canDelete) ? 11 : 10} className="px-4 py-5 text-center text-gray-400 dark:text-gray-500 text-xs">
+                                    No routes match your search filters.{canUpdate && " Click \"Add Route\" to create one."}
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
+
 
         <ContextMenu
           position={contextMenuPos}

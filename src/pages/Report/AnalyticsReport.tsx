@@ -4,10 +4,11 @@ import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import FilterCard from "../../components/ui/FilterCard";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { type DatePickerMode } from "../../components/ui/DatePicker";
 import Input from "../../components/ui/Input";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import { actionHelper } from "../../helper/action";
+import { getPresetDateRangeOnly as getPresetDateRange, formatLocalDate } from "../../helper/dateFormatter";
 
 import { getAnalyticsDataApi } from "../../api/reportApi/analyticsReportApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -32,12 +33,7 @@ interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
   tableLabel?: string;
 }
 
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+
 
 const parseDateValue = (val?: string) => {
   if (!val) return null;
@@ -59,18 +55,13 @@ const formatLocalDateTime = (date: Date) => {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["account_manager", "date", "date__gt_lt"];
+const DEFAULT_SEARCH_COLUMNS = ["account_manager", "date__gt_lt"];
 const BATCH_SIZE = 50;
 const LOAD_MORE_THRESHOLD_PX = 200;
 
 const allColumns: ColumnConfig[] = [
   { key: "account_manager", label: "Account Manager", type: "text", filterKey: "account_manager__icontains" },
-  { key: "date", label: "Date (Exact)", type: "date" },
-  { key: "date__gt_lt", label: "Date (After / Before)", type: "date_gt_lt", isSearchOnly: true },
-  // { key: "date__gt", label: "Date After (>)", type: "date" },
-  // { key: "date__gte", label: "Date From (>=)", type: "date" },
-  // { key: "date__lt", label: "Date Before (<)", type: "date" },
-  // { key: "date__lte", label: "Date To (<=)", type: "date" },
+  { key: "date__gt_lt", label: "Date (From / To)", type: "date_gt_lt", isSearchOnly: true },
 ];
 
 const ExpandButton: React.FC<{ isExpanded: boolean }> = ({ isExpanded }) => {
@@ -85,7 +76,8 @@ const DataBarCell: React.FC<{
   value: number;
   max: number;
   type?: "volume" | "currency" | "danger" | "success";
-}> = ({ value = 0, max = 1, type = "volume" }) => {
+  symbol?: string;
+}> = ({ value = 0, max = 1, type = "volume", symbol = "$" }) => {
   const percentage = Math.min(Math.max((value / (max || 1)) * 100, 4), 100);
 
   let containerStyle = "";
@@ -112,7 +104,7 @@ const DataBarCell: React.FC<{
         style={{ width: `${percentage}%` }}
       />
       <span className="relative z-1 font-mono text-xs font-semibold text-text-primary dark:text-gray-100">
-        {type === "currency" ? `$${Number(value || 0).toFixed(2)}` : Number(value || 0).toLocaleString()}
+        {type === "currency" ? `${symbol}${Number(value || 0).toFixed(2)}` : Number(value || 0).toLocaleString()}
       </span>
     </div>
   );
@@ -159,7 +151,7 @@ const MarginPctCell: React.FC<{ pct: number }> = ({ pct = 0 }) => {
   );
 };
 
-const tableHeaders = [
+const getTableHeaders = (symbol: string) => [
   "Entity",
   "Attempts",
   "Successful",
@@ -168,9 +160,10 @@ const tableHeaders = [
   "DLR %",
   "Delivered",
   "Failed",
-  "Revenue ($)",
-  "Vendor Cost ($)",
-  "Margin ($)",
+  "Rejected",
+  `Revenue (${symbol})`,
+  `Vendor Cost (${symbol})`,
+  `Margin (${symbol})`,
   "Margin %",
 ];
 
@@ -191,54 +184,7 @@ const DATE_PRESETS: DatePresetOption[] = [
   { key: "lastMonth", label: "Last Month" },
 ];
 
-const getPresetDateRange = (preset: DatePresetKey): { start: string; end: string } => {
-  const now = new Date();
-  const todayStr = formatLocalDate(now);
 
-  switch (preset) {
-    case "today":
-      return { start: todayStr, end: todayStr };
-
-    case "yesterday": {
-      const y = new Date(now);
-      y.setDate(now.getDate() - 1);
-      return { start: formatLocalDate(y), end: todayStr };
-    }
-
-    case "last7": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 6);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last30": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 29);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last60": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 59);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "last90": {
-      const start = new Date(now);
-      start.setDate(now.getDate() - 89);
-      return { start: formatLocalDate(start), end: todayStr };
-    }
-
-    case "lastMonth": {
-      const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const end = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { start: formatLocalDate(start), end: formatLocalDate(end) };
-    }
-
-    default:
-      return { start: todayStr, end: todayStr };
-  }
-};
 
 const AnalyticsReport: React.FC = () => {
   const [companyRows, setCompanyRows] = useState<any[]>([]);
@@ -278,6 +224,7 @@ const AnalyticsReport: React.FC = () => {
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [currencySymbol, setCurrencySymbol] = useState<string>("$");
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
 
   useEffect(() => {
@@ -345,10 +292,10 @@ const AnalyticsReport: React.FC = () => {
       } else if (colDef?.type === "date_gt_lt") {
         const [gt, lt] = val.split(",");
         if (gt && gt.trim() !== "") {
-          params.start_date = gt;
+          params.start_date = gt.includes("T") ? gt : `${gt}T00:00:00`;
         }
         if (lt && lt.trim() !== "") {
-          params.end_date = lt;
+          params.end_date = lt.includes("T") ? lt : `${lt}T23:59:59`;
         }
       } else {
         params[colDef?.filterKey || key] = val;
@@ -394,6 +341,12 @@ const AnalyticsReport: React.FC = () => {
       const res = await getAnalyticsDataApi(searchParams);
       if (newController.signal.aborted) return;
 
+      if (res.base_currency_symbol) {
+        setCurrencySymbol(res.base_currency_symbol);
+      } else if (res.base_currency) {
+        setCurrencySymbol(res.base_currency);
+      }
+
       const rawList: any[] = Array.isArray(res)
         ? res
         : res.results || [];
@@ -414,6 +367,7 @@ const AnalyticsReport: React.FC = () => {
           dlrPct: m.dlr_percent || 0,
           delivered: m.delivered || 0,
           failed: m.failed || 0,
+          rejected: m.rejected || 0,
           revenue: m.revenue || 0,
           vendorCost: m.vendor_cost || 0,
           marginUsd: m.margin_usd || 0,
@@ -440,6 +394,16 @@ const AnalyticsReport: React.FC = () => {
     fetchCompanyData(1, false);
     return () => {
       if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchCompanyData(1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
   }, []);
 
@@ -538,6 +502,7 @@ const AnalyticsReport: React.FC = () => {
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
@@ -673,11 +638,12 @@ const AnalyticsReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     handleFilterChange(
                       col.key,
@@ -687,11 +653,12 @@ const AnalyticsReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     handleFilterChange(
                       col.key,
@@ -752,7 +719,7 @@ const AnalyticsReport: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-30 shadow-xs">
               <tr>
-                {tableHeaders.map((header, i) => (
+                {getTableHeaders(currencySymbol).map((header, i) => (
                   <th
                     key={i}
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]"
@@ -766,7 +733,7 @@ const AnalyticsReport: React.FC = () => {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={tableHeaders.length}
+                    colSpan={13}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     Loading analytics data...
@@ -775,7 +742,7 @@ const AnalyticsReport: React.FC = () => {
               ) : companyRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={tableHeaders.length}
+                    colSpan={13}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     No analytics records found.
@@ -812,9 +779,10 @@ const AnalyticsReport: React.FC = () => {
                         <td className="px-2 py-2"><DlrCell pct={amRow.dlrPct} /></td>
                         <td className="px-2 py-2"><DataBarCell value={amRow.delivered} max={maxAttempts} type="success" /></td>
                         <td className="px-2 py-2"><DataBarCell value={amRow.failed} max={maxAttempts} type="danger" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.revenue} max={maxRevenue} type="currency" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.rejected} max={maxAttempts} type="danger" /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.vendorCost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.marginUsd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                         <td className="px-2 py-2"><MarginPctCell pct={amRow.marginPct} /></td>
                       </tr>
 
@@ -822,11 +790,11 @@ const AnalyticsReport: React.FC = () => {
                       {isAmExpanded && (
                         isAmLoading ? (
                           <tr>
-                            <td colSpan={12} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
+                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
                           </tr>
                         ) : companies.length === 0 ? (
                           <tr>
-                            <td colSpan={12} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
+                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
                           </tr>
                         ) : (
                           companies.map((companyRow: any, cIdx: number) => {
@@ -859,9 +827,10 @@ const AnalyticsReport: React.FC = () => {
                                   <td className="px-2 py-1.5"><DlrCell pct={companyRow.dlr_percent} /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.delivered} max={maxAttempts} type="success" /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.failed} max={maxAttempts} type="danger" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                   <td className="px-2 py-1.5"><MarginPctCell pct={companyRow.margin_percent} /></td>
                                 </tr>
 
@@ -869,11 +838,11 @@ const AnalyticsReport: React.FC = () => {
                                 {isCompanyExpanded && (
                                   isCompanyLoading ? (
                                     <tr>
-                                      <td colSpan={12} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
+                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
                                     </tr>
                                   ) : countries.length === 0 ? (
                                     <tr>
-                                      <td colSpan={12} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
+                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
                                     </tr>
                                   ) : (
                                     countries.map((countryRow: any, coIdx: number) => {
@@ -910,9 +879,10 @@ const AnalyticsReport: React.FC = () => {
                                             <td className="px-2 py-1"><DlrCell pct={countryRow.dlr_percent} /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.delivered} max={maxAttempts} type="success" /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.failed} max={maxAttempts} type="danger" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                             <td className="px-2 py-1"><MarginPctCell pct={countryRow.margin_percent} /></td>
                                           </tr>
 
@@ -920,11 +890,11 @@ const AnalyticsReport: React.FC = () => {
                                           {isCountryExpanded && (
                                             isCountryLoading ? (
                                               <tr>
-                                                <td colSpan={12} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
+                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
                                               </tr>
                                             ) : vendors.length === 0 ? (
                                               <tr>
-                                                <td colSpan={12} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
+                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
                                               </tr>
                                             ) : (
                                               vendors.map((vendorRow: any, vIdx: number) => {
@@ -951,9 +921,10 @@ const AnalyticsReport: React.FC = () => {
                                                     <td className="px-2 py-1"><DlrCell pct={vendorRow.dlr_percent} /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.delivered} max={maxAttempts} type="success" /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.failed} max={maxAttempts} type="danger" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                                     <td className="px-2 py-1"><MarginPctCell pct={vendorRow.margin_percent} /></td>
                                                   </tr>
                                                 );

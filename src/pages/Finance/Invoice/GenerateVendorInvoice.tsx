@@ -36,7 +36,11 @@ const GenerateVendorInvoice: React.FC = () => {
   const findVendorInvoiceUrl = (): string => {
     const walk = (items: any[]): string | null => {
       for (const item of items) {
-        if (item.url && item.url.endsWith("vendorInvoice") && !item.url.includes("generateVendorInvoice")) {
+        if (
+          item.url &&
+          (item.url.endsWith("vendorCompanyInvoice") || item.url.endsWith("vendorInvoice")) &&
+          !item.url.toLowerCase().includes("generate")
+        ) {
           return item.url;
         }
         if (item.children && item.children.length > 0) {
@@ -47,7 +51,7 @@ const GenerateVendorInvoice: React.FC = () => {
       return null;
     };
     const found = navItems?.results ? walk(navItems.results) : null;
-    const url = found || "/finance/vendorInvoice";
+    const url = found || "/finance/invoice/vendorBilling/vendorCompanyInvoice";
     return url.startsWith("/") ? url : `/${url}`;
   };
 

@@ -75,7 +75,20 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
   };
 
   const handleApply = (close: () => void) => {
-    const finalKeys = Array.from(new Set([...activeDefaultColumns, ...tempSelectedKeys]));
+    // Preserve the custom arrangement of already selected columns
+    let finalKeys = selectedColumns.filter(k => activeDefaultColumns.includes(k) || tempSelectedKeys.includes(k));
+    
+    // Append newly selected columns
+    const newlyAdded = tempSelectedKeys.filter(k => !finalKeys.includes(k));
+    finalKeys = [...finalKeys, ...newlyAdded];
+    
+    // Safety check: ensure all locked default columns are included
+    activeDefaultColumns.forEach(def => {
+      if (!finalKeys.includes(def)) {
+        finalKeys.unshift(def);
+      }
+    });
+
     onFilter(finalKeys);
     close();
   };

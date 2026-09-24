@@ -56,6 +56,7 @@ export const getClientsApi = async (
   const params: any = {
     page: page,
     page_size: pageSize,
+    ...(pageSize >= 1000 ? { dropdown: "true" } : {}),
     ...searchParams,
   };
   const response = await api.get(`/client/`, { params });

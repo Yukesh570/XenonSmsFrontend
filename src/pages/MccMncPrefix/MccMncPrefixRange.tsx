@@ -4,10 +4,10 @@ import Button from "../../components/ui/Button";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
-import { 
-  getMccMncPrefixRangesApi, 
-  deleteMccMncPrefixRangeApi, 
-  type MccMncPrefixRangeData 
+import {
+  getMccMncPrefixRangesApi,
+  deleteMccMncPrefixRangeApi,
+  type MccMncPrefixRangeData
 } from "../../api/mccMncPrefixApi/mccMncPrefixRangeApi";
 import { MccMncPrefixRangeModal } from "../../components/modals/MccMncPrefix/MccMncPrefixRangeModal";
 import { DeleteModal } from "../../components/modals/DeleteModal";
@@ -58,7 +58,7 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["countryName", "mccmnc", "status"];
+const DEFAULT_SEARCH_COLUMNS = ["countryName", "mccmnc", "status", "number"];
 const DEFAULT_TABLE_COLUMNS = [
   "countryName",
   "mccmnc",
@@ -152,11 +152,11 @@ const MccMncPrefixRange: React.FC = () => {
   ];
 
   const allColumns: ColumnConfig[] = [
-    { 
-      key: "countryName", 
-      label: "Country Name", 
-      type: "text", 
-      filterKey: "country__name__icontains", 
+    {
+      key: "countryName",
+      label: "Country Name",
+      type: "text",
+      filterKey: "country__name__icontains",
       options: countryOptions,
       render: (c) => {
         const match = countryOptions.find((opt) => opt.value === c.countryName);
@@ -176,51 +176,42 @@ const MccMncPrefixRange: React.FC = () => {
       options: statusOptions,
       filterKey: "status__icontains",
       render: (c) => (
-        <StatusBadge 
-          status={c.status === "ACTIVE" ? "ACTIVE" : "EXPIRED"} 
-          customText={c.status === "ACTIVE" ? "Active" : "Inactive"} 
+        <StatusBadge
+          status={c.status === "ACTIVE" ? "ACTIVE" : "EXPIRED"}
+          customText={c.status === "ACTIVE" ? "Active" : "Inactive"}
         />
       )
     },
-    { 
-      key: "operatorPrefixStartRange", 
-      label: "Start Range (Exact)", 
+    {
+      key: "operatorPrefixStartRange",
+      label: "Start Range",
       tableLabel: "Start Range",
-      type: "number", 
-      filterKey: "operatorPrefixStartRange" 
+      type: "number",
     },
-    { 
-      key: "operatorPrefixStartRange__gt_lt", 
-      label: "Start Range (> / <)", 
-      type: "number_gt_lt", 
-      filterKey: "operatorPrefixStartRange",
-      isSearchOnly: true,
-    },
-    { 
-      key: "operatorPrefixEndRange", 
-      label: "End Range (Exact)", 
+    {
+      key: "operatorPrefixEndRange",
+      label: "End Range",
       tableLabel: "End Range",
-      type: "number", 
-      filterKey: "operatorPrefixEndRange" 
+      type: "number",
     },
-    { 
-      key: "operatorPrefixEndRange__gt_lt", 
-      label: "End Range (> / <)", 
-      type: "number_gt_lt", 
-      filterKey: "operatorPrefixEndRange",
+    {
+      key: "number",
+      label: "Phone Number (Range Match)",
+      type: "number",
+      filterKey: "number",
       isSearchOnly: true,
     },
-    { 
-      key: "externalPrefixId", 
-      label: "External Prefix ID", 
-      type: "text", 
-      filterKey: "externalPrefixId__icontains" 
+    {
+      key: "externalPrefixId",
+      label: "External Prefix ID",
+      type: "text",
+      filterKey: "externalPrefixId__icontains"
     },
-    { 
-      key: "sourceFileName", 
-      label: "Source File Name", 
-      type: "text", 
-      filterKey: "sourceFileName__icontains" 
+    {
+      key: "sourceFileName",
+      label: "Source File Name",
+      type: "text",
+      filterKey: "sourceFileName__icontains"
     },
     {
       key: "createdBy",
@@ -236,26 +227,28 @@ const MccMncPrefixRange: React.FC = () => {
       filterKey: "updatedBy__username__icontains",
       render: (c: any) => c.updatedByName || c.updatedBy || "-",
     },
-    { 
-      key: "createdAt", 
-      label: "Created At (Exact)", 
-      tableLabel: "Created At", 
-      type: "date", 
-      filterKey: "createdAt", 
-      render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") 
+    {
+      key: "createdAt",
+      label: "Created At",
+      isSearchable: false,
+
+      tableLabel: "Created At",
+      type: "date",
+      filterKey: "createdAt",
+      render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-")
     },
-    { 
-      key: "createdAt__gt_lt", 
-      label: "Created At (After / Before)", 
-      type: "date_gt_lt", 
-      filterKey: "createdAt", 
-      isSearchOnly: true 
+    {
+      key: "createdAt__gt_lt",
+      label: "Created At (From / To)",
+      type: "date_gt_lt",
+      filterKey: "createdAt",
+      isSearchOnly: true
     },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
   const visibleSearchFields = searchableColumns.filter((col) => searchColumns.includes(col.key));
-  
+
   // Map columns according to custom reordered user preference
   const visibleTableFields = tableColumns
     .map((key) => allColumns.find((col) => col.key === key))
@@ -401,7 +394,7 @@ const MccMncPrefixRange: React.FC = () => {
   ] : [];
 
   const tableHeaders = ["S.N.", ...visibleTableFields.map((col) => col.tableLabel || col.label)];
-  
+
   const getBaseLabel = (label: string) => {
     if (!label) return "";
     return label.split(" (")[0].trim();
@@ -419,34 +412,34 @@ const MccMncPrefixRange: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white mr-2">Prefix Range</h1>
           <div className="relative z-20">
-            <AdvancedFilter 
-              columns={tableFilterColumns as any} 
-              selectedColumns={tableColumns} 
+            <AdvancedFilter
+              columns={tableFilterColumns as any}
+              selectedColumns={tableColumns}
               defaultColumns={DEFAULT_TABLE_COLUMNS}
-              onFilter={(cols: string[]) => setTableColumns(cols)} 
-              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)} 
-              buttonLabel="Columns" 
+              onFilter={(cols: string[]) => setTableColumns(cols)}
+              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
+              buttonLabel="Columns"
               enableReorder={true}
             />
           </div>
           <div className="relative z-20">
-            <AdvancedFilter 
-              columns={searchableColumns as any} 
-              selectedColumns={searchColumns} 
+            <AdvancedFilter
+              columns={searchableColumns as any}
+              selectedColumns={searchColumns}
               defaultColumns={DEFAULT_SEARCH_COLUMNS}
-              onFilter={(newCols: string[]) => { 
-                setSearchColumns(newCols); 
-                setFilterValues((prev) => { 
-                  const next = { ...prev }; 
-                  Object.keys(next).forEach((k) => { 
-                    if (!newCols.includes(k)) delete next[k]; 
-                  }); 
-                  return next; 
-                }); 
-              }} 
-              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)} 
-              isLoading={isLoading} 
-              buttonLabel="Search Fields" 
+              onFilter={(newCols: string[]) => {
+                setSearchColumns(newCols);
+                setFilterValues((prev) => {
+                  const next = { ...prev };
+                  Object.keys(next).forEach((k) => {
+                    if (!newCols.includes(k)) delete next[k];
+                  });
+                  return next;
+                });
+              }}
+              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
+              isLoading={isLoading}
+              buttonLabel="Search Fields"
             />
           </div>
         </div>
@@ -466,8 +459,8 @@ const MccMncPrefixRange: React.FC = () => {
             const [gtStr, ltStr] = (filterValues[col.key] || "").split(",");
             return (
               <React.Fragment key={col.key}>
-                <DatePicker label={`Search ${baseLabel} (> After)`} selected={gtStr ? new Date(gtStr) : null} onChange={(val: Date | null) => { const newGt = val ? formatLocalDate(val) : ""; const currentLt = ltStr || ""; handleFilterChange(col.key, newGt || currentLt ? `${newGt},${currentLt}` : ""); }} />
-                <DatePicker label={`Search ${baseLabel} (< Before)`} selected={ltStr ? new Date(ltStr) : null} onChange={(val: Date | null) => { const newLt = val ? formatLocalDate(val) : ""; const currentGt = gtStr || ""; handleFilterChange(col.key, currentGt || newLt ? `${currentGt},${newLt}` : ""); }} />
+                <DatePicker label={`Search ${baseLabel} (From)`} selected={gtStr ? new Date(gtStr) : null} onChange={(val: Date | null) => { const newGt = val ? formatLocalDate(val) : ""; const currentLt = ltStr || ""; handleFilterChange(col.key, newGt || currentLt ? `${newGt},${currentLt}` : ""); }} />
+                <DatePicker label={`Search ${baseLabel} (To)`} selected={ltStr ? new Date(ltStr) : null} onChange={(val: Date | null) => { const newLt = val ? formatLocalDate(val) : ""; const currentGt = gtStr || ""; handleFilterChange(col.key, currentGt || newLt ? `${currentGt},${newLt}` : ""); }} />
               </React.Fragment>
             );
           }
@@ -506,14 +499,14 @@ const MccMncPrefixRange: React.FC = () => {
         })}
       </FilterCard>
 
-      <DataTable 
-        serverSide={true} 
-        data={data} 
-        totalItems={totalItems} 
-        currentPage={currentPage} 
-        rowsPerPage={rowsPerPage} 
-        onPageChange={setCurrentPage} 
-        onRowsPerPageChange={setRowsPerPage} 
+      <DataTable
+        serverSide={true}
+        data={data}
+        totalItems={totalItems}
+        currentPage={currentPage}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
         rowsPerPageOptions={[
           { value: "10", label: "10" },
           { value: "25", label: "25" },
@@ -521,13 +514,13 @@ const MccMncPrefixRange: React.FC = () => {
           { value: "100", label: "100" },
           { value: "500", label: "500" },
           { value: "1000", label: "1000" },
-        ]} 
+        ]}
         density="compact"
-        headers={tableHeaders} 
+        headers={tableHeaders}
         isLoading={isLoading}
         onSort={handleSort}
         sortColumnIndex={sortConfig ? visibleTableFields.findIndex(c => c.key === sortConfig.key) + 1 : null}
-        sortDirection={sortConfig?.direction || null} 
+        sortDirection={sortConfig?.direction || null}
         onReorderColumns={(fromIdx, toIdx) => {
           setTableColumns((prev) => {
             const validKeys = prev.filter(key => allColumns.some(c => c.key === key));
@@ -561,15 +554,15 @@ const MccMncPrefixRange: React.FC = () => {
 
       <MccMncPrefixRangeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSuccess={fetchData} moduleName={routeName} editingData={editingData} isViewMode={isViewMode} />
 
-      <DeleteModal 
-        isOpen={!!deleteId} 
+      <DeleteModal
+        isOpen={!!deleteId}
         onClose={() => {
           setDeleteId(null);
           setSelectedRowData(null);
-        }} 
-        onConfirm={handleDelete} 
-        title="Delete Prefix Range" 
-        message={`Are you sure you want to delete prefix range "${prefixRangeIdentifier}"? This action cannot be undone.`} 
+        }}
+        onConfirm={handleDelete}
+        title="Delete Prefix Range"
+        message={`Are you sure you want to delete prefix range "${prefixRangeIdentifier}"? This action cannot be undone.`}
       />
     </div>
   );

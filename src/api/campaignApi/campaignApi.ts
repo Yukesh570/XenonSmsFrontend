@@ -15,6 +15,7 @@ export interface CampaignFormData {
   schedule: string;
   content: string;
   template: string;
+  senderId?: string;
   is_active: boolean;
   module: string;
 }

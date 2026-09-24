@@ -3,6 +3,7 @@ import type { ClientSessionData } from "../../../api/clientSessionApi/clientSess
 import Input from "../../ui/Input";
 import Button from "../../ui/Button";
 import Modal from "../../ui/Modal";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface ClientSessionModalProps {
   isOpen: boolean;
@@ -48,22 +49,22 @@ export const ClientSessionModal: React.FC<ClientSessionModalProps> = ({
             <Input label="Bind Type" value={sessionData.bindType || "-"} disabled />
             <Input
               label="Connected At"
-              value={sessionData.connectedAt ? new Date(sessionData.connectedAt).toLocaleString() : "-"}
+              value={formatDateTime(sessionData.connectedAt)}
               disabled
             />
             <Input
               label="Bound At"
-              value={sessionData.boundAt ? new Date(sessionData.boundAt).toLocaleString() : "-"}
+              value={formatDateTime(sessionData.boundAt)}
               disabled
             />
             <Input
               label="Last Activity At"
-              value={sessionData.last_activityAt ? new Date(sessionData.last_activityAt).toLocaleString() : "-"}
+              value={formatDateTime(sessionData.last_activityAt)}
               disabled
             />
             <Input
               label="Disconnected At"
-              value={sessionData.disconnectedAt ? new Date(sessionData.disconnectedAt).toLocaleString() : "-"}
+              value={formatDateTime(sessionData.disconnectedAt)}
               disabled
             />
             <Input label="Disconnect Reason" value={sessionData.disconnectReason || "-"} disabled />

@@ -35,6 +35,7 @@ import {
   updateNotificationApi,
   type NotificationData,
 } from "../../api/userActionApi/notificationApi";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -446,7 +447,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
                               </p>
                               <div className="mt-2 flex items-center text-[11px] text-gray-400 dark:text-gray-500 font-medium">
                                 <Clock size={12} className="mr-1" />
-                                {notification.createdAt ? new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: appTimezone }).format(new Date(notification.createdAt)) : "Just now"}
+                                {notification.createdAt ? formatDateTime(notification.createdAt) : "Just now"}
                               </div>
                             </div>
                           </div>

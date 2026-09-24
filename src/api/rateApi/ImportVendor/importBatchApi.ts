@@ -4,6 +4,9 @@ export interface ImportBatchData {
   id?: number;
   sourceType?: string;
   parserProfileId?: number;
+  vendorName?: string;
+  senderEmail?: string;
+  subject?: string;
   totalRows?: number;
   validRows?: number;
   invalidRows?: number;

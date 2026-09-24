@@ -1,8 +1,9 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 import { loginApi, type loginData } from "../api/loginAPi/login";
-import { decodeJwtPayload } from "../helper/decrypt";
+import { decodeJwtPayload, isTokenExpired } from "../helper/decrypt";
 
 // Define the shape of the user data (from the token)
 interface AuthPayload {
@@ -32,17 +33,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // This effect runs ONCE when the app loads
   useEffect(() => {
-    const checkAuth = () => {
+    const checkAuth = async () => {
       setIsLoading(true);
       try {
-        const { token, payload } = decodeJwtPayload();
-        if (token && payload) {
-          setIsAuthenticated(true);
-          setPayload(payload as AuthPayload);
-        } else {
+        const accessToken = localStorage.getItem("accessToken");
+        const refreshToken = localStorage.getItem("refreshToken");
+
+        if (!accessToken && !refreshToken) {
           setIsAuthenticated(false);
           setPayload(null);
+          return;
         }
+
+        // 1. If access token is still valid, authenticate immediately
+        if (accessToken && !isTokenExpired(accessToken)) {
+          const { payload } = decodeJwtPayload(accessToken);
+          if (payload) {
+            setIsAuthenticated(true);
+            setPayload(payload as AuthPayload);
+            return;
+          }
+        }
+
+        // 2. If access token is expired, check if refresh token is valid
+        if (refreshToken && !isTokenExpired(refreshToken)) {
+          try {
+            const refreshResponse = await axios.post(
+              `${import.meta.env.VITE_API_BASE_URL}refresh/`,
+              { refresh: refreshToken }
+            );
+            const newAccessToken = refreshResponse.data.access;
+            localStorage.setItem("accessToken", newAccessToken);
+            if (refreshResponse.data.refresh) {
+              localStorage.setItem("refreshToken", refreshResponse.data.refresh);
+            }
+            const { payload } = decodeJwtPayload(newAccessToken);
+            if (payload) {
+              setIsAuthenticated(true);
+              setPayload(payload as AuthPayload);
+              return;
+            }
+          } catch (refreshErr) {
+            console.error("Auto refresh on startup failed:", refreshErr);
+          }
+        }
+
+        // 3. If neither token is valid, wipe credentials cleanly
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        localStorage.removeItem("sidebar_collapsed");
+        setIsAuthenticated(false);
+        setPayload(null);
       } catch (error) {
         console.error("Auth check failed", error);
         setIsAuthenticated(false);

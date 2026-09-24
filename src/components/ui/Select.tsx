@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Combobox, Transition } from "@headlessui/react";
 import { ChevronDown, Check, X } from "lucide-react";
 import LoadingSpinner from "./LoadingSpinner";
+import FastTooltip from "./FastTooltip";
 
 export interface SelectOption {
   value: string;
@@ -27,6 +28,8 @@ interface SelectProps {
   allowCustomValue?: boolean;
   renderTrigger?: (selectedOption?: SelectOption, open?: boolean) => React.ReactNode;
   isLoading?: boolean;
+  menuWidth?: number | string;
+  minMenuWidth?: number | string;
 }
 
 const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
@@ -44,6 +47,8 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   allowCustomValue = false,
   renderTrigger,
   isLoading,
+  menuWidth,
+  minMenuWidth,
   open,
 }) => {
   const [query, setQuery] = useState("");
@@ -55,6 +60,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
   const [resolvedPlacement, setResolvedPlacement] = useState<"top" | "bottom">(placement);
   const [isTyping, setIsTyping] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -191,6 +197,10 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   }
 
   const selectedOption = options.find((o) => o.value === value);
+  const hasValueSet = Boolean(selectedOption || (value && String(value).trim() !== ""));
+  const hoverText = hasValueSet
+    ? (selectedOption ? (selectedOption.displayLabel ?? selectedOption.label) : String(value))
+    : "";
 
   return (
     <div className={`flex flex-col ${hasLabel ? "" : "justify-end"} ${className}`}>
@@ -212,97 +222,101 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
             <Combobox.Input className="sr-only" aria-hidden="true" tabIndex={-1} readOnly value={value || ""} />
           </>
         ) : (
-          <div
-            className={`relative w-full rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
-            ${
-              error
-                ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500"
-                : "border-gray-200 focus-within:border-primary focus-within:ring-primary"
-            } 
-            ${
-              disabled
-                ? "bg-gray-100 dark:bg-gray-800"
-                : "bg-white dark:bg-gray-800"
-            }
-            dark:border-gray-700`}
-          >
-          {selectedOption?.icon && !isTyping && (
-            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              {selectedOption.icon}
-            </span>
-          )}
-          <Combobox.Input
-            ref={inputRef}
-            name="search-select-field"
-            autoComplete="off"
-            data-bwignore="true"
-            data-lpignore="true"
-            data-1p-ignore="true"
-            data-dashlane-ignore="true"
-            data-form-type="other"
-            spellCheck={false}
-            autoCorrect="off"
-            autoCapitalize="off"
-            className={`w-full border-none bg-transparent ${selectedOption?.icon && !isTyping ? "pl-10" : "px-3"} pr-10 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-sm ${
-              hasLabel ? "py-2.5" : "py-2"
-            } ${
-              disabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
-            }`}
-            displayValue={(val: string) => {
-              const opt = options.find((option) => option.value === val);
-              return opt ? (opt.displayLabel ?? opt.label) : (val || "");
-            }}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setIsTyping(true);
-            }}
-            onKeyDown={handleKeyDown}
-            onBlur={() => {
-              if (allowCustomValue && query.trim() !== "") {
-                const trimmedQuery = query.trim();
-                const match = options.find(
-                  (o) =>
-                    o.value === trimmedQuery ||
-                    o.label.toLowerCase() === trimmedQuery.toLowerCase() ||
-                    (o.displayLabel && o.displayLabel.toLowerCase() === trimmedQuery.toLowerCase())
-                );
-                if (!match && trimmedQuery !== value) {
-                  onChange(trimmedQuery);
-                }
-              } else if (!allowCustomValue) {
-                setQuery("");
-                setIsTyping(false);
-                if (inputRef.current) {
-                  const opt = options.find((o) => o.value === value);
-                  const actualDisplayValue = opt ? (opt.displayLabel ?? opt.label) : (value || "");
-                  inputRef.current.value = actualDisplayValue;
-                }
+          <FastTooltip text={hoverText} disabled={open || isFocused || isTyping || !hasValueSet}>
+            <div
+              className={`relative w-full rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
+              ${
+                error
+                  ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500"
+                  : "border-gray-200 focus-within:border-primary focus-within:ring-primary"
+              } 
+              ${
+                disabled
+                  ? "bg-gray-100 dark:bg-gray-800"
+                  : "bg-white dark:bg-gray-800"
               }
-            }}
-            placeholder={placeholder}
-          />
-
-          <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
-            <ChevronDown
-              size={18}
-              className={`${
-                disabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
-              }`}
-              aria-hidden="true"
-            />
-          </Combobox.Button>
-
-          {(value || query) && clearable && !disabled && (
-            <span
-              onClick={handleClear}
-              className="absolute inset-y-0 right-8 flex items-center pr-2 cursor-pointer hover:text-red-500 group z-10"
-              title="Clear selection"
+              dark:border-gray-700`}
             >
-              <X size={16} className="text-gray-400 group-hover:text-red-500" />
-            </span>
-          )}
-        </div>
-      )}
+              {selectedOption?.icon && !isTyping && (
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  {selectedOption.icon}
+                </span>
+              )}
+              <Combobox.Input
+                ref={inputRef}
+                name="search-select-field"
+                autoComplete="off"
+                data-bwignore="true"
+                data-lpignore="true"
+                data-1p-ignore="true"
+                data-dashlane-ignore="true"
+                data-form-type="other"
+                spellCheck={false}
+                autoCorrect="off"
+                autoCapitalize="off"
+                className={`w-full border-none bg-transparent ${selectedOption?.icon && !isTyping ? "pl-10" : "px-3"} pr-10 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-sm ${
+                  hasLabel ? "py-2.5" : "py-2"
+                } ${
+                  disabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
+                }`}
+                displayValue={(val: string) => {
+                  const opt = options.find((option) => option.value === val);
+                  return opt ? (opt.displayLabel ?? opt.label) : (val || "");
+                }}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setIsTyping(true);
+                }}
+                onFocus={() => setIsFocused(true)}
+                onKeyDown={handleKeyDown}
+                onBlur={() => {
+                  setIsFocused(false);
+                  if (allowCustomValue && query.trim() !== "") {
+                    const trimmedQuery = query.trim();
+                    const match = options.find(
+                      (o) =>
+                        o.value === trimmedQuery ||
+                        o.label.toLowerCase() === trimmedQuery.toLowerCase() ||
+                        (o.displayLabel && o.displayLabel.toLowerCase() === trimmedQuery.toLowerCase())
+                    );
+                    if (!match && trimmedQuery !== value) {
+                      onChange(trimmedQuery);
+                    }
+                  } else if (!allowCustomValue) {
+                    setQuery("");
+                    setIsTyping(false);
+                    if (inputRef.current) {
+                      const opt = options.find((o) => o.value === value);
+                      const actualDisplayValue = opt ? (opt.displayLabel ?? opt.label) : (value || "");
+                      inputRef.current.value = actualDisplayValue;
+                    }
+                  }
+                }}
+                placeholder={placeholder}
+              />
+
+              <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                <ChevronDown
+                  size={18}
+                  className={`${
+                    disabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
+                  }`}
+                  aria-hidden="true"
+                />
+              </Combobox.Button>
+
+              {(value || query) && clearable && !disabled && !open && (
+                <span
+                  onClick={handleClear}
+                  className="absolute inset-y-0 right-8 flex items-center pr-2 cursor-pointer hover:text-red-500 group z-10"
+                  title="Clear selection"
+                >
+                  <X size={16} className="text-gray-400 group-hover:text-red-500" />
+                </span>
+              )}
+            </div>
+          </FastTooltip>
+        )}
 
         {!disabled &&
           coords &&
@@ -325,9 +339,21 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                       : undefined,
                   left: renderTrigger
                     ? Math.max(8, Math.min(coords.left, window.innerWidth - Math.max(coords.width, 130) - 8))
-                    : coords.left,
-                  width: renderTrigger ? Math.max(coords.width, 130) : coords.width,
-                  minWidth: renderTrigger ? 130 : undefined,
+                    : Math.max(
+                        8,
+                        Math.min(
+                          coords.left,
+                          window.innerWidth -
+                            (typeof menuWidth === "number"
+                              ? menuWidth
+                              : typeof minMenuWidth === "number"
+                              ? minMenuWidth
+                              : coords.width) -
+                            8
+                        )
+                      ),
+                  width: menuWidth ?? (renderTrigger ? Math.max(coords.width, 130) : coords.width),
+                  minWidth: minMenuWidth ?? (renderTrigger ? 130 : undefined),
                 }}
                 className="z-[99999] overflow-auto rounded-md bg-white dark:bg-gray-800 py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm border border-gray-100 dark:border-gray-700 custom-grid-scroll max-h-60"
               >

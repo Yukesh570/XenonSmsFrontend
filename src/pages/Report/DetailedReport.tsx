@@ -1,17 +1,19 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Eye } from "lucide-react";
+import { Home, Eye, Download } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
   getDetailedReportsApi,
+  downloadDetailedReportCsvApi,
   type DetailedReportData,
 } from "../../api/reportApi/detailedReportApi";
 import { DetailedReportModal } from "../../components/modals/Report/DetailedReportModal";
+import { handleCsvExportWithApi } from "../../helper/csvExport";
 
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import AdvancedFilter, {
@@ -21,10 +23,18 @@ import ContextMenu, {
   type ContextMenuItem,
 } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import {
+  formatDateTime,
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+import { getClientsApi } from "../../api/clientApi/clientApi";
+import { getCompaniesApi } from "../../api/companyApi/companyApi";
+import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
 
 interface Option {
   label: string;
@@ -63,33 +73,66 @@ const statusOptions: Option[] = [
   { label: "Undelivered", value: "UNDELIVERED" },
 ];
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
+
+
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "2days"
+  | "7days"
+  | "15days"
+  | "30days"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "2days", label: "2 Days" },
+  { key: "7days", label: "7 Days" },
+  { key: "15days", label: "15 Days" },
+  { key: "30days", label: "30 Days" },
+];
+
+
 
 const DEFAULT_SEARCH_COLUMNS = [
-  "client",
-  "destination",
-  "submitStatus",
   "text_message_id",
+  "destination",
+  "countryMCC",
+  "operatorMNC",
+  "senderId",
+  "countryName",
+  "company",
+
+  "submitStatus",
+  "client",
+  "vendor",
+  "failure_reason",
+  "request_time__gt_lt",
+  "effectiveSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
   "text_message_id",
   "destination",
+  "countryMCC",
+  "operatorMNC",
   "senderId",
-  "effectiveSenderId",
   "countryName",
   "submitStatus",
+  "content",
   "client",
+  "company",
   "vendor",
-  "vendor_msg_id",
+  "failure_reason",
   "request_time",
+  "message_delivered_at",
+  "message_failed_at",
+  "effectiveSenderId",
 ];
 
 const BATCH_SIZE = 100;
@@ -102,6 +145,7 @@ const DetailedReport: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [currencySymbol, setCurrencySymbol] = useState("$");
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewLog, setViewLog] = useState<DetailedReportData | null>(null);
@@ -112,6 +156,8 @@ const DetailedReport: React.FC = () => {
   } | null>(null);
   const [selectedRowLog, setSelectedRowLog] =
     useState<DetailedReportData | null>(null);
+
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("detailed_search_columns");
@@ -132,26 +178,46 @@ const DetailedReport: React.FC = () => {
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
-
+  const currentSearchParamsRef = useRef<Record<string, string>>({});
+  
   const [countryOptions, setCountryOptions] = useState<Option[]>([]);
+  const [clientOptions, setClientOptions] = useState<Option[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<Option[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<Option[]>([]);
 
   useEffect(() => {
-    const fetchCountries = async () => {
+    const fetchOptions = async () => {
       try {
-        const res = await getCountriesApi("country", 1, 1000);
-        const data = res.results || (Array.isArray(res) ? res : []);
-        setCountryOptions(
-          data.map((item: any) => ({
+        const [countriesRes, clientsRes, companiesRes, vendorsRes] = await Promise.all([
+          getCountriesApi("country", 1, 1000),
+          getClientsApi("client", 1, 1000),
+          getCompaniesApi("company", 1, 1000),
+          getVendorsApi("vendor", 1, 1000)
+        ]);
+
+        const formatOptions = (res: any, extraFormat?: (item: any) => any) => {
+          const data = res.results || (Array.isArray(res) ? res : []);
+          return data.map((item: any) => ({
             label: item.name || "Unknown",
             value: item.name || String(item.id),
-            ...(item.iso2 ? { icon: <CountryFlag iso2={item.iso2} /> } : {}),
-          })),
+            ...(extraFormat ? extraFormat(item) : {})
+          }));
+        };
+
+        setCountryOptions(
+          formatOptions(countriesRes, (item) => (item.iso2 ? { icon: <CountryFlag iso2={item.iso2} /> } : {}))
         );
+        setClientOptions(formatOptions(clientsRes));
+        setCompanyOptions(formatOptions(companiesRes));
+        setVendorOptions(formatOptions(vendorsRes, (item) => ({ 
+          label: item.profileName || item.company_name || "Unknown", 
+          value: item.profileName || String(item.id) 
+        })));
       } catch (error) {
-        console.error("Failed to fetch countries", error);
+        console.error("Failed to fetch dropdown options", error);
       }
     };
-    fetchCountries();
+    fetchOptions();
   }, []);
 
   const tableWrapperRef = useRef<HTMLDivElement>(null);
@@ -181,6 +247,17 @@ const DetailedReport: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     {
+      key: "destination",
+      label: "Destination",
+      type: "text",
+      filterKey: "destination__icontains",
+      render: (log) => (
+        <span className="text-sm font-medium text-text-primary dark:text-white">
+          {log.destination}
+        </span>
+      ),
+    },
+    {
       key: "text_message_id",
       label: "Message ID",
       type: "text",
@@ -198,22 +275,13 @@ const DetailedReport: React.FC = () => {
       filterKey: "message__message_id__icontains",
       isSearchOnly: true,
     },
-    {
-      key: "destination",
-      label: "Destination",
-      type: "text",
-      filterKey: "destination__icontains",
-      render: (log) => (
-        <span className="text-sm font-medium text-text-primary dark:text-white">
-          {log.destination}
-        </span>
-      ),
-    },
+
     {
       key: "countryName",
       label: "Country",
       type: "text",
-      isSearchable: false,
+      options: countryOptions,
+      filterKey: "message__country__name",
       render: (log) => {
         const match = countryOptions.find(
           (opt) => opt.label === log.countryName,
@@ -231,30 +299,37 @@ const DetailedReport: React.FC = () => {
       label: "Country MCC",
       type: "text",
       filterKey: "countryMCC__icontains",
-      isSearchOnly: true,
     },
     {
       key: "operatorMNC",
       label: "Operator MNC",
       type: "text",
       filterKey: "operatorMNC__icontains",
-      isSearchOnly: true,
     },
     {
       key: "client",
       label: "Client",
       type: "text",
+      options: clientOptions,
       filterKey: "client__icontains",
+    },
+    {
+      key: "company",
+      label: "Company",
+      type: "text",
+      options: companyOptions,
+      filterKey: "message__client__company__name__icontains",
     },
     {
       key: "vendor",
       label: "Vendor",
       type: "text",
+      options: vendorOptions,
       filterKey: "vendor__icontains",
     },
     {
       key: "senderId",
-      label: "Original Sender ID",
+      label: "Sender ID",
       type: "text",
       filterKey: "senderId__icontains",
     },
@@ -309,29 +384,27 @@ const DetailedReport: React.FC = () => {
       filterKey: "submitStatus__icontains",
       render: (log) => <StatusBadge status={log.submitStatus} />,
     },
+
     {
-      key: "clientRate",
-      label: "Client Rate",
+      key: "base_client_charge",
+      label: "Base Client Charge",
+      tableLabel: `Base Client Charge (${currencySymbol})`,
       type: "number",
-      filterKey: "clientRate__icontains",
+      filterKey: "base_client_charge__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_client_charge || 0).toFixed(6)}</span>
+      ),
     },
+
     {
-      key: "client_charge",
-      label: "Client Charge",
+      key: "base_vendor_charge",
+      label: "Base Vendor Charge",
+      tableLabel: `Base Vendor Charge (${currencySymbol})`,
       type: "number",
-      filterKey: "client_charge__icontains",
-    },
-    {
-      key: "vendorRate",
-      label: "Vendor Rate",
-      type: "number",
-      filterKey: "vendorRate__icontains",
-    },
-    {
-      key: "vendor_charge",
-      label: "Vendor Charge",
-      type: "number",
-      filterKey: "vendor_charge__icontains",
+      filterKey: "base_vendor_charge__icontains",
+      render: (log: any) => (
+        <span className="font-mono">{Number(log.base_vendor_charge || 0).toFixed(6)}</span>
+      ),
     },
     {
       key: "part_total",
@@ -341,10 +414,11 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "request_time",
-      label: "Request Time (Exact)",
+      label: "Request Time",
       tableLabel: "Request Time",
       type: "date",
       filterKey: "request_time",
+      isSearchable: false,
       render: (log) => (
         <span>
           {log.request_time ? formatDateTime(log.request_time) : "-"}
@@ -353,17 +427,18 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "request_time__gt_lt",
-      label: "Request Time (After / Before)",
+      label: "Request Time (From / To)",
       type: "date_gt_lt",
       filterKey: "request_time",
       isSearchOnly: true,
     },
     {
       key: "delivery_time",
-      label: "Delivery Time (Exact)",
+      label: "Delivery Time",
       tableLabel: "Delivery Time",
       type: "date",
       filterKey: "delivery_time",
+      isSearchable: false,
       render: (log: any) => (
         <span>
           {log.delivery_time ? formatDateTime(log.delivery_time) : "-"}
@@ -372,14 +447,14 @@ const DetailedReport: React.FC = () => {
     },
     {
       key: "delivery_time__gt_lt",
-      label: "Delivery Time (After / Before)",
+      label: "Delivery Time (From / To)",
       type: "date_gt_lt",
       filterKey: "delivery_time",
       isSearchOnly: true,
     },
     {
       key: "senderId",
-      label: "Original Sender ID",
+      label: "Sender ID",
       type: "text",
       isSearchable: false,
     },
@@ -422,23 +497,62 @@ const DetailedReport: React.FC = () => {
     {
       key: "message_queued_at",
       label: "Queued At",
+      tableLabel: "Queued At",
       type: "date",
+      filterKey: "message__queued_at",
       isSearchable: false,
-      render: (log) => <span>{log.message_queued_at || "-"}</span>,
+      render: (log) => (
+        <span>
+          {log.message_queued_at ? formatDateTime(log.message_queued_at) : "-"}
+        </span>
+      ),
+    },
+    {
+      key: "message_queued_at__gt_lt",
+      label: "Queued At (From / To)",
+      type: "date_gt_lt",
+      filterKey: "message__queued_at",
+      isSearchOnly: true,
     },
     {
       key: "message_delivered_at",
       label: "Delivered At",
+      tableLabel: "Delivered At",
       type: "date",
+      filterKey: "message__delivered_at",
       isSearchable: false,
-      render: (log) => <span>{log.message_delivered_at || "-"}</span>,
+      render: (log) => (
+        <span>
+          {log.message_delivered_at ? formatDateTime(log.message_delivered_at) : "-"}
+        </span>
+      ),
+    },
+    {
+      key: "message_delivered_at__gt_lt",
+      label: "Delivered At (From / To)",
+      type: "date_gt_lt",
+      filterKey: "message__delivered_at",
+      isSearchOnly: true,
     },
     {
       key: "message_failed_at",
       label: "Failed At",
+      tableLabel: "Failed At",
       type: "date",
+      filterKey: "message__failed_at",
       isSearchable: false,
-      render: (log) => <span>{log.message_failed_at || "-"}</span>,
+      render: (log) => (
+        <span>
+          {log.message_failed_at ? formatDateTime(log.message_failed_at) : "-"}
+        </span>
+      ),
+    },
+    {
+      key: "message_failed_at__gt_lt",
+      label: "Failed At (From / To)",
+      type: "date_gt_lt",
+      filterKey: "message__failed_at",
+      isSearchOnly: true,
     },
   ];
 
@@ -463,13 +577,31 @@ const DetailedReport: React.FC = () => {
     }));
 
   const handleFilterChange = (key: string, value: string) => {
+    if (key === "request_time" || key === "request_time__gt_lt") {
+      setActivePreset("custom");
+    }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
+    let updatedFilters: Record<string, string> = {};
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next.request_time;
+      delete next.request_time__gt_lt;
+      updatedFilters = next;
+      return next;
+    });
+    fetchReports(updatedFilters, 1, false, presetKey);
   };
 
   const fetchReports = async (
     filters: Record<string, string> | null = null,
     page: number = 1,
     append: boolean = false,
+    presetOverride?: DatePresetKey,
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -536,6 +668,25 @@ const DetailedReport: React.FC = () => {
         }
       });
 
+      // Apply preset date range for request_time if no explicit date filter is active
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+      const hasExplicitRequestTime =
+        currentSearchParams["request_time__range"] ||
+        currentSearchParams["request_time__gte"] ||
+        currentSearchParams["request_time__lte"] ||
+        currentSearchParams["request_time"];
+
+      if (!hasExplicitRequestTime && currentPreset && currentPreset !== "custom") {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          currentSearchParams["request_time__range"] = `${range.start},${range.end}`;
+        }
+      }
+
+      // Keep ref in sync so the Download button always has the latest params
+      currentSearchParamsRef.current = currentSearchParams;
+
       const response: any = await getDetailedReportsApi(
         page,
         BATCH_SIZE,
@@ -550,6 +701,9 @@ const DetailedReport: React.FC = () => {
         setTotalItems(response.count);
         setHasMore(Boolean(response.next));
         setLoadedPage(page);
+        if (response.currency?.symbol) {
+          setCurrencySymbol(response.currency.symbol);
+        }
       } else {
         if (!append) setReports([]);
         setTotalItems(0);
@@ -574,6 +728,16 @@ const DetailedReport: React.FC = () => {
   }, [searchColumns]);
 
   useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchReports(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
+
+  useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
       ".custom-scrollbar",
     );
@@ -595,8 +759,9 @@ const DetailedReport: React.FC = () => {
     fetchReports(undefined, 1, false);
   };
   const handleClearFilters = () => {
+    setActivePreset("today");
     setFilterValues({});
-    fetchReports({}, 1, false);
+    fetchReports({}, 1, false, "today");
   };
 
   const handleContextMenu = (e: React.MouseEvent, log: DetailedReportData) => {
@@ -607,19 +772,26 @@ const DetailedReport: React.FC = () => {
 
   const menuItems: ContextMenuItem[] = selectedRowLog
     ? [
-        {
-          label: "View Details",
-          icon: <Eye size={16} />,
-          onClick: () => {
-            setViewLog(selectedRowLog);
-            setIsModalOpen(true);
-          },
+      {
+        label: "View Details",
+        icon: <Eye size={16} />,
+        onClick: () => {
+          setViewLog(selectedRowLog);
+          setIsModalOpen(true);
         },
-      ]
+      },
+      {
+        label: "Download CSV Report",
+        icon: <Download size={16} />,
+        onClick: () => {
+          handleCsvExportWithApi(downloadDetailedReportCsvApi, currentSearchParamsRef.current);
+        },
+      },
+    ]
     : [];
 
   const tableHeaders = [
-    "S.N",
+    "S.N.",
     ...visibleTableFields.map((col) => col.tableLabel || col.label),
   ];
   const getBaseLabel = (label: string) =>
@@ -674,6 +846,8 @@ const DetailedReport: React.FC = () => {
         </div>
       </div>
 
+
+
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
@@ -696,10 +870,13 @@ const DetailedReport: React.FC = () => {
                 label={`Search ${baseLabel}`}
                 showTimeSelect={true}
                 selected={
-                  filterValues[col.key] ? new Date(filterValues[col.key]) : null
+                  filterValues[col.key] ? parseDateValue(filterValues[col.key]) : null
                 }
-                onChange={(val: Date | null) =>
-                  handleFilterChange(col.key, val ? formatLocalDateTime(val) : "")
+                dateMode={
+                  filterValues[col.key] ? (filterValues[col.key].includes("T") ? "specific_time" : "whole_day") : undefined
+                }
+                onChange={(val: Date | null, mode?: DatePickerMode) =>
+                  handleFilterChange(col.key, val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "")
                 }
                 placeholder="Select Date & Time"
               />
@@ -709,11 +886,12 @@ const DetailedReport: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     handleFilterChange(
                       col.key,
@@ -723,11 +901,12 @@ const DetailedReport: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     handleFilterChange(
                       col.key,
@@ -762,10 +941,30 @@ const DetailedReport: React.FC = () => {
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => allColumns.some(c => c.key === key));
-            const next = [...validKeys];
+              const next = [...validKeys];
               const [moved] = next.splice(fromIdx, 1);
               next.splice(toIdx, 0, moved);
               return next;

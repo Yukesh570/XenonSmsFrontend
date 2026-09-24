@@ -230,7 +230,9 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "effectiveFrom",
-      label: "Effective From (Exact)",
+      label: "Effective From",
+      isSearchable: false,
+
       tableLabel: "Effective From",
       type: "date",
       filterKey: "effectiveFrom",
@@ -238,14 +240,16 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "effectiveFrom__gt_lt",
-      label: "Effective From (After / Before)",
+      label: "Effective From (From / To)",
       type: "date_gt_lt",
       filterKey: "effectiveFrom",
       isSearchOnly: true,
     },
     {
       key: "effectiveTo",
-      label: "Effective To (Exact)",
+      label: "Effective To",
+      isSearchable: false,
+
       tableLabel: "Effective To",
       type: "date",
       filterKey: "effectiveTo",
@@ -253,7 +257,7 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "effectiveTo__gt_lt",
-      label: "Effective To (After / Before)",
+      label: "Effective To (From / To)",
       type: "date_gt_lt",
       filterKey: "effectiveTo",
       isSearchOnly: true,
@@ -285,7 +289,9 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "createdAt",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "createdAt",
@@ -293,7 +299,7 @@ const OperatorNetworkCode: React.FC = () => {
     },
     {
       key: "createdAt__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
@@ -616,7 +622,7 @@ const OperatorNetworkCode: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
                     const newGt = val ? formatLocalDate(val) : "";
@@ -629,7 +635,7 @@ const OperatorNetworkCode: React.FC = () => {
                   placeholder={`> After`}
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
                     const newLt = val ? formatLocalDate(val) : "";

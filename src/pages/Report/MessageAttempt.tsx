@@ -8,14 +8,19 @@ import {
 } from "../../api/reportApi/messageAttemptApi";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { MessageAttemptModal } from "../../components/modals/Report/MessageAttemptModal";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import {
+  formatDateTime,
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 
 interface Option {
@@ -56,15 +61,32 @@ const statusOptions: Option[] = [
   { label: "Expired", value: "EXPIRED" },
 ];
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
+
+
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "2days"
+  | "7days"
+  | "15days"
+  | "30days"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "2days", label: "2 Days" },
+  { key: "7days", label: "7 Days" },
+  { key: "15days", label: "15 Days" },
+  { key: "30days", label: "30 Days" },
+];
+
+
 
 const DEFAULT_SEARCH_COLUMNS = ["destination", "provider", "status", "vendorMessageId"];
 const DEFAULT_TABLE_COLUMNS = ["id", "attempt_number", "provider", "vendorMessageId", "status", "started_at"];
@@ -79,6 +101,8 @@ const MessageAttempt: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedRow, setSelectedRow] = useState<MessageAttemptData | null>(null);
@@ -136,22 +160,25 @@ const MessageAttempt: React.FC = () => {
     
     {
       key: "started_at",
-      label: "Started At (Exact)",
+      label: "Started At",
       tableLabel: "Started At",
       type: "date",
       filterKey: "started_at",
+      isSearchable: false,
       render: (data: any) => data.started_at ? formatDateTime(data.started_at) : "-"
     },
     {
       key: "started_at__gt_lt",
-      label: "Started At (After / Before)",
+      label: "Started At (From / To)",
       type: "date_gt_lt",
       filterKey: "started_at",
       isSearchOnly: true
     },
     {
       key: "completed_at",
-      label: "Completed At (Exact)",
+      label: "Completed At",
+      isSearchable: false,
+
       tableLabel: "Completed At",
       type: "date",
       filterKey: "completed_at",
@@ -159,7 +186,7 @@ const MessageAttempt: React.FC = () => {
     },
     {
       key: "completed_at__gt_lt",
-      label: "Completed At (After / Before)",
+      label: "Completed At (From / To)",
       type: "date_gt_lt",
       filterKey: "completed_at",
       isSearchOnly: true
@@ -179,10 +206,25 @@ const MessageAttempt: React.FC = () => {
 
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type as FilterColumnType }));
 
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
+    let updatedFilters: Record<string, string> = {};
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next.started_at;
+      delete next.started_at__gt_lt;
+      updatedFilters = next;
+      return next;
+    });
+    fetchAttempts(updatedFilters, 1, false, presetKey);
+  };
+
   const fetchAttempts = async (
     filters: Record<string, string> | null = null,
     page: number = 1,
     append: boolean = false,
+    presetOverride?: DatePresetKey,
   ) => {
     if (append) setIsFetchingMore(true);
     else setIsLoading(true);
@@ -231,6 +273,22 @@ const MessageAttempt: React.FC = () => {
         }
       });
 
+      // Apply preset date range for started_at if no explicit date filter is active
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+      const hasExplicitStartedAt =
+        cleanParams["started_at__range"] ||
+        cleanParams["started_at__gte"] ||
+        cleanParams["started_at__lte"] ||
+        cleanParams["started_at"];
+
+      if (!hasExplicitStartedAt && currentPreset && currentPreset !== "custom") {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          cleanParams["started_at__range"] = `${range.start},${range.end}`;
+        }
+      }
+
       const response: any = await getMessageAttemptApi(routeName, page, BATCH_SIZE, cleanParams);
       if (response && response.results) {
         setAttempts((prev) => (append ? [...prev, ...response.results] : response.results));
@@ -251,6 +309,16 @@ const MessageAttempt: React.FC = () => {
   };
 
   useEffect(() => { fetchAttempts(undefined, 1, false); }, [searchColumns]);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchAttempts(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
@@ -335,7 +403,16 @@ const MessageAttempt: React.FC = () => {
         </div>
       </div>
 
-      <FilterCard onSearch={() => { fetchAttempts(undefined, 1, false); }} onClear={() => { setFilterValues({}); fetchAttempts({}, 1, false); }}>
+      <FilterCard
+        onSearch={() => {
+          fetchAttempts(undefined, 1, false);
+        }}
+        onClear={() => {
+          setActivePreset("today");
+          setFilterValues({});
+          fetchAttempts({}, 1, false, "today");
+        }}
+      >
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
 
@@ -358,13 +435,17 @@ const MessageAttempt: React.FC = () => {
                 key={col.key}
                 label={`Search ${baseLabel}`}
                 showTimeSelect={true}
-                selected={filterValues[col.key] ? new Date(filterValues[col.key]) : null}
-                onChange={(val: Date | null) =>
+                selected={filterValues[col.key] ? parseDateValue(filterValues[col.key]) : null}
+                dateMode={filterValues[col.key] ? (filterValues[col.key].includes("T") ? "specific_time" : "whole_day") : undefined}
+                onChange={(val: Date | null, mode?: DatePickerMode) => {
+                  if (col.key === "started_at") {
+                    setActivePreset("custom");
+                  }
                   setFilterValues((p) => ({
                     ...p,
-                    [col.key]: val ? formatLocalDateTime(val) : "",
-                  }))
-                }
+                    [col.key]: val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "",
+                  }));
+                }}
                 placeholder="Select Date & Time"
               />
             );
@@ -374,11 +455,15 @@ const MessageAttempt: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    if (col.key === "started_at" || col.key === "started_at__gt_lt") {
+                      setActivePreset("custom");
+                    }
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     setFilterValues((p) => ({
                       ...p,
@@ -388,11 +473,15 @@ const MessageAttempt: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    if (col.key === "started_at" || col.key === "started_at__gt_lt") {
+                      setActivePreset("custom");
+                    }
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     setFilterValues((p) => ({
                       ...p,
@@ -422,10 +511,31 @@ const MessageAttempt: React.FC = () => {
           data={attempts}
           totalItems={totalItems}
           rowsPerPage={BATCH_SIZE}
-          headers={["S.N", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
+          headers={["S.N.", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
+                      isActive
+                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => allColumns.some(c => c.key === key));

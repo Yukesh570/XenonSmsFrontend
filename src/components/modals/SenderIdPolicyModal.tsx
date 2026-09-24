@@ -406,6 +406,7 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
             <DataTable
               density="compact"
               serverSide
+              storageKey="sender_id_rules_table"
               data={rules}
               totalItems={rulesTotal}
               currentPage={rulesPage}
@@ -585,6 +586,7 @@ const SenderIdPolicyModal: React.FC<SenderIdPolicyModalProps> = ({
             <DataTable
               density="compact"
               serverSide
+              storageKey="sender_id_audit_table"
               data={audits}
               totalItems={auditTotal}
               currentPage={auditPage}

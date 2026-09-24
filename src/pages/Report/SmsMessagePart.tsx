@@ -8,14 +8,19 @@ import {
 } from "../../api/reportApi/smsMessagePartApi";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
-import DatePicker from "../../components/ui/DatePicker";
+import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
 import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedFilter";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { SmsMessagePartModal } from "../../components/modals/Report/SmsMessagePartModal";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import {
+  formatDateTime,
+  getPresetDateRange,
+  formatLocalDate,
+  formatLocalDateTime,
+} from "../../helper/dateFormatter";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 
 interface Option {
@@ -106,15 +111,32 @@ const renderBooleanBadge = (value?: boolean) => {
   return <StatusBadge status={statusKey} customText={labelText} />;
 };
 
-const formatLocalDateTime = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const seconds = String(date.getSeconds()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-};
+
+
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "2days"
+  | "7days"
+  | "15days"
+  | "30days"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "2days", label: "2 Days" },
+  { key: "7days", label: "7 Days" },
+  { key: "15days", label: "15 Days" },
+  { key: "30days", label: "30 Days" },
+];
+
+
 
 const DEFAULT_SEARCH_COLUMNS = ["parent_message_destination", "submit_status", "vendor_msg_id"];
 const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at"];
@@ -129,6 +151,8 @@ const SmsMessagePart: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedRow, setSelectedRow] = useState<SmsMessagePartData | null>(null);
@@ -232,22 +256,25 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "clientDlrSuppressedAt",
-      label: "Client DLR Suppressed At (Exact)",
+      label: "Client DLR Suppressed At",
       tableLabel: "Client DLR Suppressed At",
       type: "date",
       filterKey: "clientDlrSuppressedAt",
+      isSearchable: false,
       render: (data: any) => data.clientDlrSuppressedAt ? formatDateTime(data.clientDlrSuppressedAt) : "-"
     },
     {
       key: "clientDlrSuppressedAt__gt_lt",
-      label: "Client DLR Suppressed At (After / Before)",
+      label: "Client DLR Suppressed At (From / To)",
       type: "date_gt_lt",
       filterKey: "clientDlrSuppressedAt",
       isSearchOnly: true
     },
     {
       key: "submitted_at",
-      label: "Submitted At (Exact)",
+      label: "Submitted At",
+      isSearchable: false,
+
       tableLabel: "Submitted At",
       type: "date",
       filterKey: "submitted_at",
@@ -255,14 +282,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "submitted_at__gt_lt",
-      label: "Submitted At (After / Before)",
+      label: "Submitted At (From / To)",
       type: "date_gt_lt",
       filterKey: "submitted_at",
       isSearchOnly: true
     },
     {
       key: "sent_at",
-      label: "Sent At (Exact)",
+      label: "Sent At",
+      isSearchable: false,
+
       tableLabel: "Sent At",
       type: "date",
       filterKey: "sent_at",
@@ -270,14 +299,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "sent_at__gt_lt",
-      label: "Sent At (After / Before)",
+      label: "Sent At (From / To)",
       type: "date_gt_lt",
       filterKey: "sent_at",
       isSearchOnly: true
     },
     {
       key: "delivered_at",
-      label: "Delivered At (Exact)",
+      label: "Delivered At",
+      isSearchable: false,
+
       tableLabel: "Delivered At",
       type: "date",
       filterKey: "delivered_at",
@@ -285,14 +316,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "delivered_at__gt_lt",
-      label: "Delivered At (After / Before)",
+      label: "Delivered At (From / To)",
       type: "date_gt_lt",
       filterKey: "delivered_at",
       isSearchOnly: true
     },
     {
       key: "failed_at",
-      label: "Failed At (Exact)",
+      label: "Failed At",
+      isSearchable: false,
+
       tableLabel: "Failed At",
       type: "date",
       filterKey: "failed_at",
@@ -300,14 +333,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "failed_at__gt_lt",
-      label: "Failed At (After / Before)",
+      label: "Failed At (From / To)",
       type: "date_gt_lt",
       filterKey: "failed_at",
       isSearchOnly: true
     },
     {
       key: "created_at",
-      label: "Created At (Exact)",
+      label: "Created At",
+      isSearchable: false,
+
       tableLabel: "Created At",
       type: "date",
       filterKey: "created_at",
@@ -315,14 +350,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "created_at__gt_lt",
-      label: "Created At (After / Before)",
+      label: "Created At (From / To)",
       type: "date_gt_lt",
       filterKey: "created_at",
       isSearchOnly: true
     },
     {
       key: "updated_at",
-      label: "Updated At (Exact)",
+      label: "Updated At",
+      isSearchable: false,
+
       tableLabel: "Updated At",
       type: "date",
       filterKey: "updated_at",
@@ -330,14 +367,16 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "updated_at__gt_lt",
-      label: "Updated At (After / Before)",
+      label: "Updated At (From / To)",
       type: "date_gt_lt",
       filterKey: "updated_at",
       isSearchOnly: true
     },
     {
       key: "last_submit_at",
-      label: "Last Submit At (Exact)",
+      label: "Last Submit At",
+      isSearchable: false,
+
       tableLabel: "Last Submit At",
       type: "date",
       filterKey: "last_submit_at",
@@ -345,7 +384,7 @@ const SmsMessagePart: React.FC = () => {
     },
     {
       key: "last_submit_at__gt_lt",
-      label: "Last Submit At (After / Before)",
+      label: "Last Submit At (From / To)",
       type: "date_gt_lt",
       filterKey: "last_submit_at",
       isSearchOnly: true
@@ -363,10 +402,25 @@ const SmsMessagePart: React.FC = () => {
 
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type as FilterColumnType }));
 
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
+    let updatedFilters: Record<string, string> = {};
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next.created_at;
+      delete next.created_at__gt_lt;
+      updatedFilters = next;
+      return next;
+    });
+    fetchSegments(updatedFilters, 1, false, presetKey);
+  };
+
   const fetchSegments = async (
     filters: Record<string, string> | null = null,
     page: number = 1,
     append: boolean = false,
+    presetOverride?: DatePresetKey,
   ) => {
     if (append) setIsFetchingMore(true);
     else setIsLoading(true);
@@ -416,6 +470,22 @@ const SmsMessagePart: React.FC = () => {
         }
       });
 
+      // Apply preset date range for created_at if no explicit date filter is active
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+      const hasExplicitCreatedAt =
+        cleanParams["created_at__range"] ||
+        cleanParams["created_at__gte"] ||
+        cleanParams["created_at__lte"] ||
+        cleanParams["created_at"];
+
+      if (!hasExplicitCreatedAt && currentPreset && currentPreset !== "custom") {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          cleanParams["created_at__range"] = `${range.start},${range.end}`;
+        }
+      }
+
       const response: any = await getSmsMessagePartApi(routeName, page, BATCH_SIZE, cleanParams);
       if (response && response.results) {
         setSegments((prev) => (append ? [...prev, ...response.results] : response.results));
@@ -436,6 +506,16 @@ const SmsMessagePart: React.FC = () => {
   };
 
   useEffect(() => { fetchSegments(undefined, 1, false); }, [searchColumns]);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchSegments(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
@@ -520,7 +600,16 @@ const SmsMessagePart: React.FC = () => {
         </div>
       </div>
 
-      <FilterCard onSearch={() => { fetchSegments(undefined, 1, false); }} onClear={() => { setFilterValues({}); fetchSegments({}, 1, false); }}>
+      <FilterCard
+        onSearch={() => {
+          fetchSegments(undefined, 1, false);
+        }}
+        onClear={() => {
+          setActivePreset("today");
+          setFilterValues({});
+          fetchSegments({}, 1, false, "today");
+        }}
+      >
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
 
@@ -543,13 +632,17 @@ const SmsMessagePart: React.FC = () => {
                 key={col.key}
                 label={`Search ${baseLabel}`}
                 showTimeSelect={true}
-                selected={filterValues[col.key] ? new Date(filterValues[col.key]) : null}
-                onChange={(val: Date | null) =>
+                selected={filterValues[col.key] ? parseDateValue(filterValues[col.key]) : null}
+                dateMode={filterValues[col.key] ? (filterValues[col.key].includes("T") ? "specific_time" : "whole_day") : undefined}
+                onChange={(val: Date | null, mode?: DatePickerMode) => {
+                  if (col.key === "created_at") {
+                    setActivePreset("custom");
+                  }
                   setFilterValues((p) => ({
                     ...p,
-                    [col.key]: val ? formatLocalDateTime(val) : "",
-                  }))
-                }
+                    [col.key]: val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "",
+                  }));
+                }}
                 placeholder="Select Date & Time"
               />
             );
@@ -559,11 +652,15 @@ const SmsMessagePart: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
-                  selected={gtStr ? new Date(gtStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newGt = val ? formatLocalDateTime(val) : "";
+                  selected={gtStr ? parseDateValue(gtStr) : null}
+                  dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    if (col.key === "created_at" || col.key === "created_at__gt_lt") {
+                      setActivePreset("custom");
+                    }
+                    const newGt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentLt = ltStr || "";
                     setFilterValues((p) => ({
                       ...p,
@@ -573,11 +670,15 @@ const SmsMessagePart: React.FC = () => {
                   placeholder="Select Date & Time"
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
-                  selected={ltStr ? new Date(ltStr) : null}
-                  onChange={(val: Date | null) => {
-                    const newLt = val ? formatLocalDateTime(val) : "";
+                  selected={ltStr ? parseDateValue(ltStr) : null}
+                  dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
+                  onChange={(val: Date | null, mode?: DatePickerMode) => {
+                    if (col.key === "created_at" || col.key === "created_at__gt_lt") {
+                      setActivePreset("custom");
+                    }
+                    const newLt = val ? (mode === "specific_time" ? formatLocalDateTime(val) : formatLocalDate(val)) : "";
                     const currentGt = gtStr || "";
                     setFilterValues((p) => ({
                       ...p,
@@ -607,10 +708,31 @@ const SmsMessagePart: React.FC = () => {
           data={segments}
           totalItems={totalItems}
           rowsPerPage={BATCH_SIZE}
-          headers={["S.N", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
+          headers={["S.N.", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
+                      isActive
+                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => allColumns.some(c => c.key === key));

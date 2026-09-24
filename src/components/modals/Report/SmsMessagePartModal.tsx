@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import type { SmsMessagePartData } from "../../../api/reportApi/smsMessagePartApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface SmsMessagePartModalProps {
   isOpen: boolean;
@@ -108,7 +109,7 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             </div>
             <div className="lg:col-span-2">
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client DLR Suppressed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.clientDlrSuppressedAt ? new Date(viewLog.clientDlrSuppressedAt).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.clientDlrSuppressedAt)}</div>
             </div>
           </div>
           <div>
@@ -129,31 +130,31 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Submitted At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.submitted_at ? new Date(viewLog.submitted_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.submitted_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Sent At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.sent_at ? new Date(viewLog.sent_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.sent_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Delivered At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.delivered_at ? new Date(viewLog.delivered_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.delivered_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Failed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.failed_at ? new Date(viewLog.failed_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.failed_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Created At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.created_at ? new Date(viewLog.created_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.created_at)}</div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Updated At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.updated_at ? new Date(viewLog.updated_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.updated_at)}</div>
             </div>
             <div className="lg:col-span-2">
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Last Submit At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.last_submit_at ? new Date(viewLog.last_submit_at).toLocaleString() : "-"}</div>
+              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.last_submit_at)}</div>
             </div>
           </div>
         </fieldset>

@@ -15,7 +15,7 @@ import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedF
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import { formatDateTime, getPresetDateRange, formatLocalDate } from "../../helper/dateFormatter";
 import { RejectedSMSLogModal } from "../../components/modals/Report/RejectedSMSLogModal";
 
 interface Option { label: string; value: string; }
@@ -23,12 +23,32 @@ interface ColumnConfig extends FilterColumn { render?: (data: any) => React.Reac
 
 
 
-const formatLocalDate = (date: Date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+
+
+type DatePresetKey =
+  | "today"
+  | "yesterday"
+  | "2days"
+  | "7days"
+  | "15days"
+  | "30days"
+  | "custom";
+
+interface DatePresetOption {
+  key: DatePresetKey;
+  label: string;
+}
+
+const DATE_PRESETS: DatePresetOption[] = [
+  { key: "today", label: "Today" },
+  { key: "yesterday", label: "Yesterday" },
+  { key: "2days", label: "2 Days" },
+  { key: "7days", label: "7 Days" },
+  { key: "15days", label: "15 Days" },
+  { key: "30days", label: "30 Days" },
+];
+
+
 
 const DEFAULT_SEARCH_COLUMNS = ["client__name", "system_id", "destination_addr", "message_id"];
 const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit"];
@@ -44,10 +64,13 @@ const RejectedSMSLog: React.FC = () => {
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
 
+  const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
+
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedRow, setSelectedRow] = useState<RejectedSMSLogData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [viewLog, setViewLog] = useState<RejectedSMSLogData | null>(null); const [searchColumns, setSearchColumns] = useState<string[]>(DEFAULT_SEARCH_COLUMNS);
+  const [viewLog, setViewLog] = useState<RejectedSMSLogData | null>(null);
+  const [searchColumns, setSearchColumns] = useState<string[]>(DEFAULT_SEARCH_COLUMNS);
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const [tableColumns, setTableColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("rejected_sms_columns");
@@ -74,8 +97,8 @@ const RejectedSMSLog: React.FC = () => {
     { key: "available_credit", label: "Available Credit", type: "text", isSearchable: false },
     { key: "used_credit", label: "Used Credit", type: "text", isSearchable: false },
     { key: "smpp_command_status", label: "Status Code", type: "text", isSearchable: false },
-    { key: "timestamp", label: "Timestamp (Single Day)", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", render: (data: any) => data.timestamp ? formatDateTime(data.timestamp) : "-" },
-    { key: "timestamp__range", label: "Timestamp (Range)", type: "date_range", filterKey: "timestamp__range", isSearchOnly: true },
+    { key: "timestamp", label: "Timestamp", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", isSearchable: false, render: (data: any) => data.timestamp ? formatDateTime(data.timestamp) : "-" },
+    { key: "timestamp__range", label: "Timestamp (From / To)", type: "date_range", filterKey: "timestamp__range", isSearchOnly: true },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -88,10 +111,25 @@ const RejectedSMSLog: React.FC = () => {
 
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type }));
 
+  const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
+    let updatedFilters: Record<string, string> = {};
+    setFilterValues((prev) => {
+      const next = { ...prev };
+      delete next.timestamp;
+      delete next.timestamp__range;
+      updatedFilters = next;
+      return next;
+    });
+    fetchEvents(updatedFilters, 1, false, presetKey);
+  };
+
   const fetchEvents = async (
     filters: Record<string, string> | null = null,
     page: number = 1,
     append: boolean = false,
+    presetOverride?: DatePresetKey,
   ) => {
     if (append) setIsFetchingMore(true);
     else setIsLoading(true);
@@ -114,6 +152,22 @@ const RejectedSMSLog: React.FC = () => {
         }
       });
 
+      // Apply preset date range for timestamp if no explicit date filter is active
+      const currentPreset =
+        presetOverride !== undefined ? presetOverride : activePreset;
+      const hasExplicitTimestamp =
+        cleanParams["timestamp__range"] ||
+        cleanParams["timestamp__gte"] ||
+        cleanParams["timestamp__lte"] ||
+        cleanParams["timestamp"];
+
+      if (!hasExplicitTimestamp && currentPreset && currentPreset !== "custom") {
+        const range = getPresetDateRange(currentPreset);
+        if (range) {
+          cleanParams["timestamp__range"] = `${range.start},${range.end}`;
+        }
+      }
+
       const response: any = await getRejectedSMSLogApi(routeName, page, BATCH_SIZE, cleanParams);
       if (response && response.results) {
         setEvents((prev) => (append ? [...prev, ...response.results] : response.results));
@@ -134,6 +188,16 @@ const RejectedSMSLog: React.FC = () => {
   };
 
   useEffect(() => { fetchEvents(undefined, 1, false); }, [searchColumns]);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => {
+      fetchEvents(undefined, 1, false);
+    };
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => {
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
+    };
+  }, []);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
@@ -227,7 +291,16 @@ const RejectedSMSLog: React.FC = () => {
         </div>
       </div>
 
-      <FilterCard onSearch={() => { fetchEvents(undefined, 1, false); }} onClear={() => { setFilterValues({}); fetchEvents({}, 1, false); }}>
+      <FilterCard
+        onSearch={() => {
+          fetchEvents(undefined, 1, false);
+        }}
+        onClear={() => {
+          setActivePreset("today");
+          setFilterValues({});
+          fetchEvents({}, 1, false, "today");
+        }}
+      >
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
 
@@ -253,6 +326,7 @@ const RejectedSMSLog: React.FC = () => {
                 label={`Search ${baseLabel}`}
                 selected={datePart ? new Date(datePart) : null}
                 onChange={(val: Date | null) => {
+                  setActivePreset("custom");
                   if (val) {
                     const formatted = formatLocalDate(val);
                     setFilterValues(p => ({ ...p, [col.key]: `${formatted}T00:00:00,${formatted}T23:59:59` }));
@@ -274,6 +348,7 @@ const RejectedSMSLog: React.FC = () => {
                   label={`Search ${baseLabel} (From)`}
                   selected={startStr ? new Date(startStr) : null}
                   onChange={(val: Date | null) => {
+                    setActivePreset("custom");
                     const newStart = val ? formatLocalDate(val) : "";
                     const currentEnd = endStr || "";
                     if (newStart || currentEnd) {
@@ -289,6 +364,7 @@ const RejectedSMSLog: React.FC = () => {
                   label={`Search ${baseLabel} (To)`}
                   selected={endStr ? new Date(endStr) : null}
                   onChange={(val: Date | null) => {
+                    setActivePreset("custom");
                     const newEnd = val ? formatLocalDate(val) : "";
                     const currentStart = startStr || "";
                     if (currentStart || newEnd) {
@@ -321,10 +397,31 @@ const RejectedSMSLog: React.FC = () => {
           data={events}
           totalItems={totalItems}
           rowsPerPage={BATCH_SIZE}
-          headers={["S.N", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
+          headers={["S.N.", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"
+          headerActions={
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 items-center justify-end">
+              {DATE_PRESETS.map((preset) => {
+                const isActive = activePreset === preset.key;
+                return (
+                  <button
+                    key={preset.key}
+                    type="button"
+                    onClick={() => handlePresetClick(preset.key)}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
+                      isActive
+                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+          }
           onReorderColumns={(fromIdx, toIdx) => {
             setTableColumns((prev) => {
               const validKeys = prev.filter(key => allColumns.some(c => c.key === key));

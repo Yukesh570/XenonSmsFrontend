@@ -27,7 +27,7 @@ const userTypeOptions = [
   { value: "NOC", label: "NOC" },
   { value: "RATE", label: "RATE" },
   { value: "FINANCE", label: "FINANCE" },
-  { value: "ACCOUNT_MANAGER", label: "Account Manager" },
+  { value: "ACCOUNT_MANAGER", label: "ACCOUNT MANAGER" },
 ];
 
 export const UserCreationModal: React.FC<UserCreationModalProps> = ({

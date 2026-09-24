@@ -40,6 +40,7 @@ export interface RouteLookupResponse {
   mccmnc?: string | null;
   mcc?: string | null;
   mnc?: string | null;
+  network_name?: string | null;
   routing_basis?: string | null;
   client?: ClientInfo | null;
   route?: RouteItem[];
@@ -49,13 +50,20 @@ export interface RouteLookupResponse {
 
 export const getRouteLookupApi = async (
   _moduleName?: string,
-  number?: string,
-  clientId?: string
-): Promise<RouteLookupResponse> => {
-  const params: Record<string, any> = { number };
-  if (clientId) {
-    params.client_id = clientId;
+  paramsData?: {
+    number?: string;
+    clientId?: string;
+    mcc?: string;
+    mnc?: string;
+    network_name?: string;
   }
+): Promise<RouteLookupResponse> => {
+  const params: Record<string, any> = {};
+  if (paramsData?.number) params.number = paramsData.number;
+  if (paramsData?.clientId) params.client_id = paramsData.clientId;
+  if (paramsData?.mcc) params.mcc = paramsData.mcc;
+  if (paramsData?.mnc) params.mnc = paramsData.mnc;
+  if (paramsData?.network_name) params.network_name = paramsData.network_name;
   const response = await api.get(`/routeLookup/`, { params });
   return response.data;
 };

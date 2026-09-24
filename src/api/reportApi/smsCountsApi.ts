@@ -4,6 +4,7 @@ export interface SmsStatsData {
   count: number;
   deliveredCount: number;
   failedCount: number;
+  rejectedCount: number;
   deliveryRate: number;
 }
 

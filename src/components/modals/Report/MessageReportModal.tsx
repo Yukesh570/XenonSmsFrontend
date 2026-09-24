@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import { type MessageLogData } from "../../../api/reportApi/messageReportApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface MessageReportModalProps {
   isOpen: boolean;
@@ -55,7 +56,7 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               Created At
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.createdAt ? new Date(viewLog.createdAt).toLocaleString() : "-"}
+              {formatDateTime(viewLog.createdAt)}
             </div>
           </div>
 
@@ -65,7 +66,7 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               Queued At
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.queued_at ? new Date(viewLog.queued_at).toLocaleString() : "-"}
+              {formatDateTime(viewLog.queued_at)}
             </div>
           </div>
           <div>
@@ -73,7 +74,7 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               Submitted At
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.submitted_at ? new Date(viewLog.submitted_at).toLocaleString() : "-"}
+              {formatDateTime(viewLog.submitted_at)}
             </div>
           </div>
           <div>
@@ -81,15 +82,7 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               Delivered At
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.delivered_at ? new Date(viewLog.delivered_at).toLocaleString() : "-"}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-              Delivered At
-            </label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.delivered_at ? new Date(viewLog.delivered_at).toLocaleString() : "-"}
+              {formatDateTime(viewLog.delivered_at)}
             </div>
           </div>
           <div>
@@ -97,7 +90,7 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               Failed At
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-              {viewLog.failed_at ? new Date(viewLog.failed_at).toLocaleString() : "-"}
+              {formatDateTime(viewLog.failed_at)}
             </div>
           </div>
 

@@ -47,6 +47,7 @@ export const getGroupedCustomRoutesApi = async (
   const params: any = {
     page: page,
     page_size: pageSize,
+    ...(pageSize >= 1000 ? { dropdown: "true" } : {}),
     ...searchParams,
   };
   const response = await api.get(`/routeGroup/`, { params });
@@ -90,6 +91,7 @@ export const getCustomRoutesApi = async (
   const params: any = {
     page: page,
     page_size: pageSize,
+    ...(pageSize >= 1000 ? { dropdown: "true" } : {}),
     ...searchParams,
   };
   const response = await api.get(`/customRoute/`, { params });

@@ -157,31 +157,48 @@ const MccMncPrefixImportBatch: React.FC = () => {
     },
     { 
       key: "uploadedAt", 
-      label: "Uploaded At (Exact)", 
+      label: "Uploaded At", 
       tableLabel: "Uploaded At", 
       type: "date", 
       filterKey: "uploadedAt", 
+      isSearchable: false, 
       render: (c) => (c.uploadedAt ? formatDateTime(c.uploadedAt) : "-") 
     },
     { 
+      key: "uploadedAt__gt_lt", 
+      label: "Uploaded At (From / To)", 
+      type: "date_gt_lt", 
+      filterKey: "uploadedAt", 
+      isSearchOnly: true 
+    },
+    { 
       key: "completedAt", 
-      label: "Completed At (Exact)", 
+      label: "Completed At", 
       tableLabel: "Completed At", 
       type: "date", 
       filterKey: "completedAt", 
+      isSearchable: false, 
       render: (c) => (c.completedAt ? formatDateTime(c.completedAt) : "-") 
     },
     { 
+      key: "completedAt__gt_lt", 
+      label: "Completed At (From / To)", 
+      type: "date_gt_lt", 
+      filterKey: "completedAt", 
+      isSearchOnly: true 
+    },
+    { 
       key: "createdAt", 
-      label: "Created At (Exact)", 
+      label: "Created At", 
       tableLabel: "Created At", 
       type: "date", 
       filterKey: "createdAt", 
+      isSearchable: false, 
       render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") 
     },
     { 
       key: "createdAt__gt_lt", 
-      label: "Created At (After / Before)", 
+      label: "Created At (From / To)", 
       type: "date_gt_lt", 
       filterKey: "createdAt", 
       isSearchOnly: true 
@@ -373,8 +390,8 @@ const MccMncPrefixImportBatch: React.FC = () => {
             const [gtStr, ltStr] = (filterValues[col.key] || "").split(",");
             return (
               <React.Fragment key={col.key}>
-                <DatePicker label={`Search ${baseLabel} (> After)`} selected={gtStr ? new Date(gtStr) : null} onChange={(val: Date | null) => { const newGt = val ? formatLocalDate(val) : ""; const currentLt = ltStr || ""; handleFilterChange(col.key, newGt || currentLt ? `${newGt},${currentLt}` : ""); }} />
-                <DatePicker label={`Search ${baseLabel} (< Before)`} selected={ltStr ? new Date(ltStr) : null} onChange={(val: Date | null) => { const newLt = val ? formatLocalDate(val) : ""; const currentGt = gtStr || ""; handleFilterChange(col.key, currentGt || newLt ? `${currentGt},${newLt}` : ""); }} />
+                <DatePicker label={`Search ${baseLabel} (From)`} selected={gtStr ? new Date(gtStr) : null} onChange={(val: Date | null) => { const newGt = val ? formatLocalDate(val) : ""; const currentLt = ltStr || ""; handleFilterChange(col.key, newGt || currentLt ? `${newGt},${currentLt}` : ""); }} />
+                <DatePicker label={`Search ${baseLabel} (To)`} selected={ltStr ? new Date(ltStr) : null} onChange={(val: Date | null) => { const newLt = val ? formatLocalDate(val) : ""; const currentGt = gtStr || ""; handleFilterChange(col.key, currentGt || newLt ? `${currentGt},${newLt}` : ""); }} />
               </React.Fragment>
             );
           }

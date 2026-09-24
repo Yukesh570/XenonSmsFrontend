@@ -371,8 +371,8 @@ const Client: React.FC = () => {
       filterKey: "updatedBy__username__icontains",
       render: (c: any) => c.updatedByName || c.updatedBy || "-",
     },
-    { key: "createdAt", label: "Created At (Exact)", tableLabel: "Created At", type: "date", filterKey: "createdAt", render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
-    { key: "createdAt__gt_lt", label: "Created At (After / Before)", type: "date_gt_lt", isSearchOnly: true },
+    { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt", isSearchable: false, render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
+    { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", isSearchOnly: true },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -812,7 +812,7 @@ const Client: React.FC = () => {
             return (
               <React.Fragment key={col.key}>
                 <DatePicker
-                  label={`Search ${baseLabel} (> After)`}
+                  label={`Search ${baseLabel} (From)`}
                   selected={gtStr ? new Date(gtStr) : null}
                   onChange={(val: Date | null) => {
                     const newGt = val ? formatLocalDate(val) : "";
@@ -823,7 +823,7 @@ const Client: React.FC = () => {
                   }}
                 />
                 <DatePicker
-                  label={`Search ${baseLabel} (< Before)`}
+                  label={`Search ${baseLabel} (To)`}
                   selected={ltStr ? new Date(ltStr) : null}
                   onChange={(val: Date | null) => {
                     const newLt = val ? formatLocalDate(val) : "";

@@ -40,7 +40,6 @@ import {
   type ClientSessionSummaryData,
 } from "../../api/clientSessionApi/clientSessionApi";
 import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
-import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getNotificationApi, type NotificationData } from "../../api/userActionApi/notificationApi";
 import {
   getSmsDailyApi,
@@ -64,6 +63,7 @@ import {
   getFailureReasonCountsApi,
   type FailureReasonCountsData,
 } from "../../api/reportApi/smsCountsApi";
+import { getDaysAgoInAppTimezone, formatDateTime } from "../../helper/dateFormatter";
 
 
 
@@ -115,6 +115,7 @@ const Dashboard: React.FC = () => {
   const [totalSms, setTotalSms] = useState<string>("-");
   const [deliveredCount, setDeliveredCount] = useState<string>("-");
   const [failedCount, setFailedCount] = useState<string>("-");
+  const [rejectedCount, setRejectedCount] = useState<string>("-");
   const [deliveryRate, setDeliveryRate] = useState<string>("-");
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [activeSessionsCount, setActiveSessionsCount] = useState<number | string>("-");
@@ -133,7 +134,8 @@ const Dashboard: React.FC = () => {
   // --- Table / panel states ---
   const [liveSessions, setLiveSessions] = useState<ClientSessionSummaryData[]>([]);
   const [isLiveSessionsLoading, setIsLiveSessionsLoading] = useState(true);
-  const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const [tpsNotifications, setTpsNotifications] = useState<NotificationData[]>([]);
+  const [isTpsLoading, setIsTpsLoading] = useState(false);
   const [revenue, setRevenue] = useState<RevenueData | null>(null);
 
 
@@ -179,8 +181,11 @@ const Dashboard: React.FC = () => {
   const [rangeOpen, setRangeOpen] = useState(false);
 
   const buildParams = (range: RangeKey): Record<string, any> => {
-    if (range === "today") return { today: true };
     if (range === "all") return {};
+    if (range === "today") {
+      const today = getDaysAgoInAppTimezone(0);
+      return { today: true, startDate: today, endDate: today };
+    }
     const end = new Date();
     const start = new Date();
 
@@ -191,12 +196,53 @@ const Dashboard: React.FC = () => {
     else if (range === "4h") start.setHours(start.getHours() - 4);
     else {
       const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
-      start.setDate(start.getDate() - days + 1);
-      const fmtDate = (d: Date) => d.toISOString().split("T")[0];
-      return { startDate: fmtDate(start), endDate: fmtDate(end) };
+      return {
+        startDate: getDaysAgoInAppTimezone(days - 1),
+        endDate: getDaysAgoInAppTimezone(0),
+      };
     }
 
     return { startDate: start.toISOString(), endDate: end.toISOString() };
+  };
+
+  const buildTpsParams = (range: RangeKey): Record<string, any> => {
+    const params: Record<string, any> = {
+      title: "Client TPS Throttled",
+    };
+
+    if (range === "all") return params;
+
+    if (range === "today") {
+      const today = getDaysAgoInAppTimezone(0);
+      params.createdAt__gte = `${today}T00:00:00`;
+      params.createdAt__lte = `${today}T23:59:59`;
+      return params;
+    }
+
+    if (range === "5m" || range === "15m" || range === "1h" || range === "2h" || range === "4h") {
+      const end = new Date();
+      const start = new Date();
+      if (range === "5m") start.setMinutes(start.getMinutes() - 5);
+      else if (range === "15m") start.setMinutes(start.getMinutes() - 15);
+      else if (range === "1h") start.setHours(start.getHours() - 1);
+      else if (range === "2h") start.setHours(start.getHours() - 2);
+      else if (range === "4h") start.setHours(start.getHours() - 4);
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fmt = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+      params.createdAt__gte = fmt(start);
+      params.createdAt__lte = fmt(end);
+      return params;
+    }
+
+    const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+    const start = getDaysAgoInAppTimezone(days - 1);
+    const end = getDaysAgoInAppTimezone(0);
+    params.createdAt__gte = `${start}T00:00:00`;
+    params.createdAt__lte = `${end}T23:59:59`;
+    return params;
   };
 
   // ─── Fetchers ────────────────────────────────────────────────────────────────
@@ -224,6 +270,7 @@ const Dashboard: React.FC = () => {
       setTotalSms(Number(d.count).toLocaleString());
       setDeliveredCount(Number(d.deliveredCount).toLocaleString());
       setFailedCount(Number(d.failedCount).toLocaleString());
+      setRejectedCount(Number(d.rejectedCount || 0).toLocaleString());
       setDeliveryRate(`${d.deliveryRate}%`);
     } catch (e) {
       console.error("fetchSmsStats failed", e);
@@ -250,8 +297,8 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchClientSessionSummary = async () => {
-    setIsLiveSessionsLoading(true);
+  const fetchClientSessionSummary = async (isRefetch = false) => {
+    if (!isRefetch) setIsLiveSessionsLoading(true);
     try {
       const data = await getClientSessionSummaryApi();
       setLiveSessions(data);
@@ -259,12 +306,15 @@ const Dashboard: React.FC = () => {
       // Calculate total active sessions directly from the summary data!
       const totalCount = data.reduce((sum, item) => sum + (item.active_sessions || 0), 0);
       setActiveSessionsCount(totalCount);
+      setOnlineClients(data.length);
     } catch (e) {
       console.error("fetchClientSessionSummary failed", e);
-      setLiveSessions([]);
-      setActiveSessionsCount("-");
+      if (!isRefetch) {
+        setLiveSessions([]);
+        setActiveSessionsCount("-");
+      }
     } finally {
-      setIsLiveSessionsLoading(false);
+      if (!isRefetch) setIsLiveSessionsLoading(false);
     }
   };
 
@@ -277,22 +327,40 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchOnlineClients = async () => {
+  const fetchTpsNotifications = async (range: RangeKey = activeRangeRef.current) => {
+    setIsTpsLoading(true);
     try {
-      const res = await getClientsApi("client", 1, 1, { bindStatus: "ONLINE" });
-      if (res?.count !== undefined) setOnlineClients(res.count);
+      const res = await getNotificationApi(1, 15, buildTpsParams(range));
+      if (res?.results) {
+        setTpsNotifications(res.results);
+      } else if (Array.isArray(res)) {
+        setTpsNotifications(res);
+      } else {
+        setTpsNotifications([]);
+      }
     } catch (e) {
-      console.error("fetchOnlineClients failed", e);
+      console.error("fetchTpsNotifications failed", e);
+      setTpsNotifications([]);
+    } finally {
+      setIsTpsLoading(false);
     }
   };
 
-  const fetchNotifications = async () => {
-    try {
-      const res = await getNotificationApi(1, 5);
-      if (res?.results) setNotifications(res.results);
-    } catch (e) {
-      console.error("fetchNotifications failed", e);
+  const parseTpsDescription = (desc?: string) => {
+    if (!desc) return { clientName: null, message: "" };
+    const clientPrefixMatch = desc.match(/^Client\s+['"]([^'"]+)['"]\s+(.+)$/i);
+    if (clientPrefixMatch) {
+      return { clientName: clientPrefixMatch[1], message: clientPrefixMatch[2] };
     }
+    const quotedMatch = desc.match(/^['"]([^'"]+)['"]\s+(.+)$/);
+    if (quotedMatch) {
+      return { clientName: quotedMatch[1], message: quotedMatch[2] };
+    }
+    const unquotedMatch = desc.match(/^([a-zA-Z0-9_\-\s]+?)\s+(exceeded\s+.*)$/i);
+    if (unquotedMatch) {
+      return { clientName: unquotedMatch[1], message: unquotedMatch[2] };
+    }
+    return { clientName: null, message: desc };
   };
 
   const fetchRevenue = async (range: RangeKey) => {
@@ -386,16 +454,25 @@ const Dashboard: React.FC = () => {
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    fetchFailureBreakdown(activeRange);
-    fetchVendorPerformance(activeRange);
-    fetchClientPerformance(activeRange);
-    fetchGeoBreakdown(activeRange);
-    fetchLatencyStats(activeRange);
-    fetchSmsStats(activeRange);
-    fetchTrafficTraffic(activeRange);
-    fetchDlrStats(activeRange);
-    fetchRevenue(activeRange);
-    setSelectedFailureCategory(null);
+    const refreshData = () => {
+      fetchFailureBreakdown(activeRange);
+      fetchVendorPerformance(activeRange);
+      fetchClientPerformance(activeRange);
+      fetchGeoBreakdown(activeRange);
+      fetchLatencyStats(activeRange);
+      fetchSmsStats(activeRange);
+      fetchTrafficTraffic(activeRange);
+      fetchDlrStats(activeRange);
+      fetchRevenue(activeRange);
+      fetchTpsNotifications(activeRange);
+      setSelectedFailureCategory(null);
+    };
+
+    refreshData();
+    window.addEventListener("timezoneChanged", refreshData);
+    return () => {
+      window.removeEventListener("timezoneChanged", refreshData);
+    };
   }, [activeRange]);
 
   useEffect(() => {
@@ -409,8 +486,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClientSessionSummary();
     fetchOnlineVendors();
-    fetchOnlineClients();
-    fetchNotifications();
+    fetchTpsNotifications();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
     if (!wsBase) {
       console.error("WebSocket Error: VITE_WS_BASE_URL is missing in your .env file!");
@@ -421,6 +497,14 @@ const Dashboard: React.FC = () => {
     const wsUrl = `${wsBase}/ws/status/`;
     let ws: WebSocket;
     let reconnectTimeout: ReturnType<typeof setTimeout>;
+
+    let fetchTimeout: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      fetchTimeout = setTimeout(() => {
+        fetchClientSessionSummary(true);
+      }, 500);
+    };
 
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
@@ -446,31 +530,18 @@ const Dashboard: React.FC = () => {
           const payload = JSON.parse(event.data);
           // console.log("WebSocket Message Received:", payload); // Keep it less spammy in console too
 
-          if (payload.status === "DISCONNECTED" || payload.status === "OFFLINE") {
-            setActiveSessionsCount((prev) => {
-              if (typeof prev === "number" && prev > 0) {
-                return prev - 1;
-              }
-              return prev;
-            });
+          if ((payload.username && payload.status) || payload.type === "session_count_change") {
+            debouncedFetch();
           }
 
           if (payload.action === "dashboard_metrics_update") {
             const { data } = payload;
-
-            const currentPath = window.location.pathname;
-            // Only fetch if the user is actually looking at the dashboard!
-            if (currentPath === "/dashboard" || currentPath === "/") {
-              if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
-                fetchClientSessionSummary();
-              }
-            }
-
             if (isMetricsLiveRef.current && activeRangeRef.current === "today") {
               if (data.smsStats) {
                 setTotalSms(Number(data.smsStats.count).toLocaleString());
                 setDeliveredCount(Number(data.smsStats.deliveredCount).toLocaleString());
                 setFailedCount(Number(data.smsStats.failedCount).toLocaleString());
+                setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
               }
@@ -521,6 +592,17 @@ const Dashboard: React.FC = () => {
               }
             }
           }
+
+          if (payload.action === "new_notification" && payload.notification) {
+            console.log("Got a live notification:", payload.notification);
+            const notif = payload.notification;
+            if (!notif.title || notif.title === "Client TPS Throttled") {
+              setTpsNotifications((prev) => [
+                notif,
+                ...prev.filter((item) => item.id !== notif.id),
+              ]);
+            }
+          }
         } catch (err) {
           console.error("WebSocket parse error in Dashboard", err);
         }
@@ -529,10 +611,63 @@ const Dashboard: React.FC = () => {
 
     connectWebSocket();
 
+    const wsDashboardUrl = `${wsBase}/ws/dashboard/`;
+    let wsDashboard: WebSocket;
+    let reconnectDashboardTimeout: ReturnType<typeof setTimeout>;
+
+    const connectDashboardWebSocket = () => {
+      console.log(`Attempting to connect to Dashboard WebSocket at: ${wsDashboardUrl}`);
+      wsDashboard = new WebSocket(wsDashboardUrl);
+
+      wsDashboard.onopen = () => {
+        console.log("Dashboard WebSocket connected successfully!");
+      };
+
+      wsDashboard.onerror = (error) => {
+        console.error("Dashboard WebSocket error:", error);
+      };
+
+      wsDashboard.onclose = (event) => {
+        console.warn("Dashboard WebSocket closed.", event.reason);
+        if (isMounted) {
+          reconnectDashboardTimeout = setTimeout(connectDashboardWebSocket, 3000);
+        }
+      };
+
+      wsDashboard.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.action === "new_notification" && data.notification) {
+            console.log("Got a live notification:", data.notification);
+            const notif = data.notification;
+            if (!notif.title || notif.title === "Client TPS Throttled") {
+              setTpsNotifications((prev) => [
+                notif,
+                ...prev.filter((item) => item.id !== notif.id),
+              ]);
+            }
+          }
+        } catch (err) {
+          console.error("Dashboard WebSocket parse error", err);
+        }
+      };
+    };
+
+    connectDashboardWebSocket();
+
+    const tpsPollInterval = setInterval(() => {
+      if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
+        fetchTpsNotifications(activeRangeRef.current);
+      }
+    }, 15000);
+
     return () => {
       isMounted = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (reconnectDashboardTimeout) clearTimeout(reconnectDashboardTimeout);
       if (ws) ws.close();
+      if (wsDashboard) wsDashboard.close();
+      clearInterval(tpsPollInterval);
     };
   }, []);
 
@@ -542,15 +677,6 @@ const Dashboard: React.FC = () => {
     if (seconds < 1) return `${Math.round(seconds * 1000)}ms`;
     if (seconds < 60) return `${seconds.toFixed(1)}s`;
     return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-  };
-
-  const formatNotificationTime = (iso?: string) => {
-    if (!iso) return "";
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
   };
 
   const activeRangeLabel = RANGE_OPTIONS.find((r) => r.key === activeRange)?.label ?? "";
@@ -712,7 +838,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 1: KPI Cards — SMS stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <StatCard
           title={`Total SMS (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : totalSms}
@@ -727,6 +853,11 @@ const Dashboard: React.FC = () => {
           title={`Failed (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : failedCount}
           icon={<XCircle size={24} />}
+        />
+        <StatCard
+          title={`Rejected (${activeRangeLabel})`}
+          value={isStatsLoading ? "…" : rejectedCount}
+          icon={<AlertTriangle size={24} />}
         />
         <StatCard
           title="Delivery Rate"
@@ -1041,19 +1172,67 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Notifications */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4">Recent Notifications</h3>
-          <div className="flex-1 overflow-y-auto space-y-3 max-h-[220px] custom-scrollbar">
-            {notifications.length > 0 ? (
-              notifications.map((n, i) => (
-                <div key={n.id || i} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-xs">
-                  <p className="font-medium text-text-primary dark:text-white">{n.title || "Alert"}</p>
-                  <span className="text-text-secondary dark:text-gray-400 mt-1 block">{formatNotificationTime(n.createdAt)}</span>
-                </div>
-              ))
+        {/* Client TPS Throttled Notifications */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center">
+                Client TPS Throttled
+              </h3>
+              {tpsNotifications.length > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full border border-amber-500/20">
+                  {tpsNotifications.length}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-3.5 flex-1 overflow-y-auto space-y-2 max-h-[280px] custom-scrollbar">
+            {isTpsLoading && tpsNotifications.length === 0 ? (
+              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
+                Loading TPS alerts…
+              </p>
+            ) : tpsNotifications.length > 0 ? (
+              tpsNotifications.map((n, i) => {
+                const { clientName, message } = parseTpsDescription(n.description);
+                return (
+                  <div
+                    key={n.id || i}
+                    className="p-2.5 rounded-lg bg-gray-50/80 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700/60 hover:bg-gray-100/70 dark:hover:bg-gray-700/60 transition-all flex items-start gap-2.5"
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      <div className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 p-1.5 rounded-md">
+                        <AlertTriangle size={13} />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-text-secondary dark:text-gray-300 leading-snug">
+                        {clientName ? (
+                          <>
+                            <span className="font-semibold text-text-primary dark:text-white">
+                              '{clientName}'
+                            </span>{" "}
+                            <span>{message}</span>
+                          </>
+                        ) : (
+                          n.description
+                        )}
+                      </p>
+
+                      {n.createdAt && (
+                        <div className="mt-1 flex items-center text-[11px] text-text-secondary dark:text-gray-400 font-mono">
+                          <Clock size={11} className="mr-1 shrink-0 opacity-70" />
+                          <span>{formatDateTime(n.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-4">No new notifications.</p>
+              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
+                No TPS throttled alerts.
+              </p>
             )}
           </div>
         </div>
