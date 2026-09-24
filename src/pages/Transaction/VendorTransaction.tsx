@@ -306,7 +306,7 @@ const VendorTransaction: React.FC = () => {
     { label: "View Details", icon: <Eye size={16} />, onClick: () => handleView(selectedRowLog) },
   ] : [];
 
-  const tableHeaders = ["S.N", ...visibleTableFields.map((col) => col.tableLabel || col.label)];
+  const tableHeaders = ["S.N.", ...visibleTableFields.map((col) => col.tableLabel || col.label)];
   const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
   const hasLoggedOpening = useRef(false);

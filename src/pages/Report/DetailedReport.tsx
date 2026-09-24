@@ -791,7 +791,7 @@ const DetailedReport: React.FC = () => {
     : [];
 
   const tableHeaders = [
-    "S.N",
+    "S.N.",
     ...visibleTableFields.map((col) => col.tableLabel || col.label),
   ];
   const getBaseLabel = (label: string) =>

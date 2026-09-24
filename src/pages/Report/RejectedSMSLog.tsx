@@ -397,7 +397,7 @@ const RejectedSMSLog: React.FC = () => {
           data={events}
           totalItems={totalItems}
           rowsPerPage={BATCH_SIZE}
-          headers={["S.N", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
+          headers={["S.N.", ...visibleTableFields.map(c => c.tableLabel || c.label)]}
           isLoading={isLoading}
           showCountOnly={true}
           density="compact"

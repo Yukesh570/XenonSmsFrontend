@@ -125,7 +125,13 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         const saved = localStorage.getItem(effectiveStorageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && typeof parsed === "object") return parsed;
+          if (parsed && typeof parsed === "object") {
+            delete parsed["S.N."];
+            delete parsed["S.N"];
+            delete parsed["SN"];
+            delete parsed["#"];
+            return parsed;
+          }
         }
       } catch (e) {
         console.error("Error loading column widths from localStorage", e);
@@ -137,7 +143,12 @@ export function ModalDataTable<T extends Record<string, any> = any>({
   const saveWidths = (widths: Record<string, number>) => {
     if (typeof window !== "undefined") {
       try {
-        localStorage.setItem(effectiveStorageKey, JSON.stringify(widths));
+        const cleaned = { ...widths };
+        delete cleaned["S.N."];
+        delete cleaned["S.N"];
+        delete cleaned["SN"];
+        delete cleaned["#"];
+        localStorage.setItem(effectiveStorageKey, JSON.stringify(cleaned));
       } catch (e) {
         console.error("Error saving column widths to localStorage", e);
       }
@@ -312,9 +323,22 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     serverSide ? (activePage - 1) * activeRows + data.length : startIndex + activeRows
   )} of ${activeTotal}`;
 
+  // Check if first column is an S.N. column (non-reorderable serial number)
+  const firstHeaderRaw =
+    headers.length > 0 && typeof headers[0] === "string"
+      ? headers[0].trim().toUpperCase().replace(/[\s.]/g, "")
+      : "";
+  const hasSnColumn =
+    headers.length > 0 &&
+    (firstHeaderRaw === "SN" ||
+      firstHeaderRaw === "SNO" ||
+      firstHeaderRaw === "SLNO" ||
+      firstHeaderRaw === "#" ||
+      firstHeaderRaw === "NO");
+
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (!onReorderColumns) return;
+    if (!onReorderColumns || (hasSnColumn && index === 0)) return;
     setDraggedHeaderIdx(index);
     hasDraggedRef.current = true;
     e.dataTransfer.effectAllowed = "move";
@@ -322,7 +346,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (!onReorderColumns || draggedHeaderIdx === null) return;
+    if (!onReorderColumns || (hasSnColumn && index === 0) || draggedHeaderIdx === null) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
 
@@ -349,7 +373,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedHeaderIdx === null || !onReorderColumns) return;
+    if (draggedHeaderIdx === null || !onReorderColumns || (hasSnColumn && (draggedHeaderIdx === 0 || targetIndex === 0))) return;
 
     let finalDropIndex = targetIndex;
     if (dropSide === "right" && draggedHeaderIdx > targetIndex) {
@@ -385,6 +409,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     index: number,
     header: string
   ) => {
+    if (hasSnColumn && index === 0) return;
     e.stopPropagation();
     e.preventDefault();
 
@@ -396,12 +421,16 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
     const startX = e.clientX;
     const startWidth = thEl.getBoundingClientRect().width;
-    const minWidth = 70;
+    const minWidth = hasSnColumn && index === 0 ? 40 : 70;
 
     const baseWidths: Record<string, number> = { ...columnWidths };
     headers.forEach((h, idx) => {
-      if (!baseWidths[h] && thRefs.current[idx]) {
-        baseWidths[h] = Math.max(50, Math.round(thRefs.current[idx]!.getBoundingClientRect().width));
+      if (!baseWidths[h]) {
+        if (hasSnColumn && idx === 0) {
+          baseWidths[h] = 40;
+        } else if (thRefs.current[idx]) {
+          baseWidths[h] = Math.max(50, Math.round(thRefs.current[idx]!.getBoundingClientRect().width));
+        }
       }
     });
 
@@ -444,25 +473,28 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     document.addEventListener("mouseup", onMouseUp);
   };
 
-  const hasCustomWidths = Object.keys(columnWidths).length > 0;
-  const isResizingActive = resizingHeaderIdx !== null;
-  const isFixedLayout = Boolean(resizableColumns && (hasCustomWidths || isResizingActive));
+  const isFixedLayout = true;
 
-  const getColWidth = (header: string) => {
+  const getColWidth = (header: string, index?: number) => {
+    if (hasSnColumn && index === 0) {
+      return 48;
+    }
     if (columnWidths[header]) {
       return columnWidths[header];
     }
     return undefined;
   };
 
-  const totalTableWidth = headers.reduce((sum, h) => {
-    const w = getColWidth(h) || 120;
+  const totalTableWidth = headers.reduce((sum, h, i) => {
+    const w = getColWidth(h, i) || (hasSnColumn && i === 0 ? 48 : 120);
     return sum + w;
   }, 0);
 
   return (
     <div
       className={`rounded-lg bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col relative z-0 app-modal-data-table ${
+        hasSnColumn ? "has-sn-column" : ""
+      } ${
         density === "compact" ? "table-density-compact" : ""
       }`}
     >
@@ -558,45 +590,43 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         className="overflow-auto relative z-0 custom-scrollbar"
       >
         <table
-          className={`min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 ${
-            isFixedLayout ? "table-resizable-active" : ""
-          }`}
-          style={
-            isFixedLayout
-              ? {
-                  tableLayout: "fixed",
-                  width: `${Math.max(totalTableWidth, containerWidth || 0)}px`,
-                }
-              : undefined
-          }
+          className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 table-resizable-active"
+          style={{
+            tableLayout: "fixed",
+            width: containerWidth
+              ? `${Math.max(totalTableWidth, containerWidth)}px`
+              : "100%",
+          }}
         >
-          {isFixedLayout && (
-            <colgroup>
-              {headers.map((h, i) => {
-                const w = getColWidth(h);
-                return (
-                  <col
-                    key={i}
-                    style={{
-                      width: w ? `${w}px` : undefined,
-                      minWidth: w ? `${w}px` : undefined,
-                    }}
-                  />
-                );
-              })}
-            </colgroup>
-          )}
+          <colgroup>
+            {headers.map((h, i) => {
+              const isSn = Boolean(hasSnColumn && i === 0);
+              const w = getColWidth(h, i);
+              return (
+                <col
+                  key={i}
+                  width={isSn ? 48 : undefined}
+                  style={{
+                    width: isSn ? "48px" : (w ? `${w}px` : undefined),
+                    minWidth: isSn ? "48px" : undefined,
+                    maxWidth: isSn ? "48px" : undefined,
+                  }}
+                />
+              );
+            })}
+          </colgroup>
 
           <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
             {/* Header Titles Row with Drag & Drop, Sort, and Resizing */}
             <tr>
               {headers.map((header, i) => {
-                const isDraggable = Boolean(onReorderColumns);
+                const isSn = Boolean(hasSnColumn && i === 0);
+                const isDraggable = Boolean(onReorderColumns && !isSn);
                 const isBeingDragged = draggedHeaderIdx === i;
                 const isDragOver = dragOverHeaderIdx === i;
-                const isSortable = Boolean(onSort || columnKeys || headers);
+                const isSortable = Boolean(!isSn && (onSort || columnKeys || headers));
                 const isSorted = effectiveSortCol === i;
-                const colWidth = getColWidth(header);
+                const colWidth = getColWidth(header, i);
                 const isBeingResized = resizingHeaderIdx === i;
 
                 return (
@@ -605,34 +635,30 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                     ref={(el) => {
                       thRefs.current[i] = el;
                     }}
-                    draggable={isDraggable && !isBeingResized}
+                    draggable={isDraggable && !isBeingResized && !isSn}
                     onDragStart={(e) => {
-                      if (isResizingRef.current || isBeingResized) {
+                      if (isResizingRef.current || isBeingResized || isSn) {
                         e.preventDefault();
                         return;
                       }
                       handleDragStart(e, i);
                     }}
                     onDragOver={(e) => {
-                      if (isResizingRef.current || isBeingResized) return;
+                      if (isResizingRef.current || isBeingResized || isSn) return;
                       handleDragOver(e, i);
                     }}
                     onDragLeave={handleDragLeave}
                     onDrop={(e) => {
-                      if (isResizingRef.current || isBeingResized) return;
+                      if (isResizingRef.current || isBeingResized || isSn) return;
                       handleDrop(e, i);
                     }}
                     onDragEnd={handleDragEnd}
-                    style={
-                      isFixedLayout
-                        ? {
-                            width: colWidth ? `${colWidth}px` : undefined,
-                            minWidth: colWidth ? `${colWidth}px` : "70px",
-                            maxWidth: colWidth ? `${colWidth}px` : undefined,
-                          }
-                        : undefined
-                    }
-                    className={`group px-3 py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                    style={{
+                      width: isSn ? "48px" : (isFixedLayout && colWidth ? `${colWidth}px` : undefined),
+                      minWidth: isSn ? "48px" : (isFixedLayout ? (colWidth ? `${colWidth}px` : "70px") : undefined),
+                      maxWidth: isSn ? "48px" : undefined,
+                    }}
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-3"} py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       isSorted
                         ? "text-primary dark:text-primary bg-primary/[0.04] dark:bg-primary/[0.08]"
                         : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
@@ -650,7 +676,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         : ""
                     }`}
                     onClick={() => {
-                      if (hasDraggedRef.current || isResizingRef.current || isBeingResized) return;
+                      if (hasDraggedRef.current || isResizingRef.current || isBeingResized || isSn) return;
                       if (onSort) {
                         onSort(i);
                       } else {
@@ -667,8 +693,8 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       }
                     }}
                   >
-                    <div className="flex items-center gap-1.5 min-w-0 pr-2 overflow-hidden">
-                      {isDraggable && (
+                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1.5 min-w-0 pr-2 overflow-hidden"}`}>
+                      {isDraggable && !isSn && (
                         <GripVertical
                           size={14}
                           className="text-gray-400 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing pointer-events-auto"
@@ -679,9 +705,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
-                        {header}
+                        {isSn ? "S.N." : header}
                       </span>
-                      {isSortable && (
+                      {isSortable && !isSn && (
                         <span className="inline-flex items-center shrink-0 ml-0.5">
                           {isSorted ? (
                             effectiveSortDir === "asc" ? (
@@ -700,7 +726,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                     </div>
 
                     {/* Column Resizer */}
-                    {resizableColumns && (
+                    {resizableColumns && !isSn && (
                       <div
                         onMouseDown={(e) => handleResizeStart(e, i, header)}
                         onClick={(e) => e.stopPropagation()}
@@ -723,22 +749,23 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             {/* Optional Filter Row - Synced with draggable & resizable columns */}
             {renderFilterCell && (
               <tr className="bg-gray-50/70 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700">
-                {headers.map((header, i) => (
-                  <th
-                    key={`filter-${i}`}
-                    className="p-1 font-normal border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700"
-                    style={
-                      isFixedLayout
-                        ? {
-                            width: getColWidth(header) ? `${getColWidth(header)}px` : undefined,
-                            minWidth: getColWidth(header) ? `${getColWidth(header)}px` : "70px",
-                          }
-                        : undefined
-                    }
-                  >
-                    {renderFilterCell(header, i)}
-                  </th>
-                ))}
+                {headers.map((header, i) => {
+                  const isSn = Boolean(hasSnColumn && i === 0);
+                  const w = getColWidth(header, i);
+                  return (
+                    <th
+                      key={`filter-${i}`}
+                      className="p-1 font-normal border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700"
+                      style={{
+                        width: isSn ? "48px" : (isFixedLayout && w ? `${w}px` : undefined),
+                        minWidth: isSn ? "48px" : (isFixedLayout ? (w ? `${w}px` : "70px") : undefined),
+                        maxWidth: isSn ? "48px" : undefined,
+                      }}
+                    >
+                      {renderFilterCell(header, i)}
+                    </th>
+                  );
+                })}
               </tr>
             )}
           </thead>
@@ -790,6 +817,33 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         .app-modal-data-table tbody tr:nth-child(even) { background-color: #f9fafb; }
         .dark .app-modal-data-table tbody tr:nth-child(odd) { background-color: #1f2937; }
         .dark .app-modal-data-table tbody tr:nth-child(even) { background-color: rgba(17, 24, 39, 0.45); }
+
+        .app-modal-data-table.has-sn-column th:first-child,
+        .app-modal-data-table.has-sn-column td:first-child:not([colspan]) {
+          width: 48px !important;
+          min-width: 48px !important;
+          max-width: 48px !important;
+          box-sizing: border-box !important;
+          white-space: nowrap !important;
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+          text-align: center !important;
+        }
+
+        .app-modal-data-table.has-sn-column th:first-child > div {
+          justify-content: center !important;
+          width: 100% !important;
+          padding-right: 0 !important;
+          text-align: center !important;
+        }
+
+        .app-modal-data-table.has-sn-column td:first-child:not([colspan]) > * {
+          text-align: center !important;
+          margin-left: auto !important;
+          margin-right: auto !important;
+          display: block !important;
+          width: 100% !important;
+        }
         `,
         }}
       />

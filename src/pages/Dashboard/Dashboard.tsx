@@ -63,7 +63,7 @@ import {
   getFailureReasonCountsApi,
   type FailureReasonCountsData,
 } from "../../api/reportApi/smsCountsApi";
-import { getDaysAgoInAppTimezone } from "../../helper/dateFormatter";
+import { getDaysAgoInAppTimezone, formatDateTime } from "../../helper/dateFormatter";
 
 
 
@@ -134,7 +134,8 @@ const Dashboard: React.FC = () => {
   // --- Table / panel states ---
   const [liveSessions, setLiveSessions] = useState<ClientSessionSummaryData[]>([]);
   const [isLiveSessionsLoading, setIsLiveSessionsLoading] = useState(true);
-  const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const [tpsNotifications, setTpsNotifications] = useState<NotificationData[]>([]);
+  const [isTpsLoading, setIsTpsLoading] = useState(false);
   const [revenue, setRevenue] = useState<RevenueData | null>(null);
 
 
@@ -202,6 +203,46 @@ const Dashboard: React.FC = () => {
     }
 
     return { startDate: start.toISOString(), endDate: end.toISOString() };
+  };
+
+  const buildTpsParams = (range: RangeKey): Record<string, any> => {
+    const params: Record<string, any> = {
+      title: "Client TPS Throttled",
+    };
+
+    if (range === "all") return params;
+
+    if (range === "today") {
+      const today = getDaysAgoInAppTimezone(0);
+      params.createdAt__gte = `${today}T00:00:00`;
+      params.createdAt__lte = `${today}T23:59:59`;
+      return params;
+    }
+
+    if (range === "5m" || range === "15m" || range === "1h" || range === "2h" || range === "4h") {
+      const end = new Date();
+      const start = new Date();
+      if (range === "5m") start.setMinutes(start.getMinutes() - 5);
+      else if (range === "15m") start.setMinutes(start.getMinutes() - 15);
+      else if (range === "1h") start.setHours(start.getHours() - 1);
+      else if (range === "2h") start.setHours(start.getHours() - 2);
+      else if (range === "4h") start.setHours(start.getHours() - 4);
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const fmt = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+      params.createdAt__gte = fmt(start);
+      params.createdAt__lte = fmt(end);
+      return params;
+    }
+
+    const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+    const start = getDaysAgoInAppTimezone(days - 1);
+    const end = getDaysAgoInAppTimezone(0);
+    params.createdAt__gte = `${start}T00:00:00`;
+    params.createdAt__lte = `${end}T23:59:59`;
+    return params;
   };
 
   // ─── Fetchers ────────────────────────────────────────────────────────────────
@@ -286,13 +327,40 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const fetchNotifications = async () => {
+  const fetchTpsNotifications = async (range: RangeKey = activeRangeRef.current) => {
+    setIsTpsLoading(true);
     try {
-      const res = await getNotificationApi(1, 5);
-      if (res?.results) setNotifications(res.results);
+      const res = await getNotificationApi(1, 15, buildTpsParams(range));
+      if (res?.results) {
+        setTpsNotifications(res.results);
+      } else if (Array.isArray(res)) {
+        setTpsNotifications(res);
+      } else {
+        setTpsNotifications([]);
+      }
     } catch (e) {
-      console.error("fetchNotifications failed", e);
+      console.error("fetchTpsNotifications failed", e);
+      setTpsNotifications([]);
+    } finally {
+      setIsTpsLoading(false);
     }
+  };
+
+  const parseTpsDescription = (desc?: string) => {
+    if (!desc) return { clientName: null, message: "" };
+    const clientPrefixMatch = desc.match(/^Client\s+['"]([^'"]+)['"]\s+(.+)$/i);
+    if (clientPrefixMatch) {
+      return { clientName: clientPrefixMatch[1], message: clientPrefixMatch[2] };
+    }
+    const quotedMatch = desc.match(/^['"]([^'"]+)['"]\s+(.+)$/);
+    if (quotedMatch) {
+      return { clientName: quotedMatch[1], message: quotedMatch[2] };
+    }
+    const unquotedMatch = desc.match(/^([a-zA-Z0-9_\-\s]+?)\s+(exceeded\s+.*)$/i);
+    if (unquotedMatch) {
+      return { clientName: unquotedMatch[1], message: unquotedMatch[2] };
+    }
+    return { clientName: null, message: desc };
   };
 
   const fetchRevenue = async (range: RangeKey) => {
@@ -396,6 +464,7 @@ const Dashboard: React.FC = () => {
       fetchTrafficTraffic(activeRange);
       fetchDlrStats(activeRange);
       fetchRevenue(activeRange);
+      fetchTpsNotifications(activeRange);
       setSelectedFailureCategory(null);
     };
 
@@ -417,7 +486,7 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClientSessionSummary();
     fetchOnlineVendors();
-    fetchNotifications();
+    fetchTpsNotifications();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
     if (!wsBase) {
       console.error("WebSocket Error: VITE_WS_BASE_URL is missing in your .env file!");
@@ -523,6 +592,17 @@ const Dashboard: React.FC = () => {
               }
             }
           }
+
+          if (payload.action === "new_notification" && payload.notification) {
+            console.log("Got a live notification:", payload.notification);
+            const notif = payload.notification;
+            if (!notif.title || notif.title === "Client TPS Throttled") {
+              setTpsNotifications((prev) => [
+                notif,
+                ...prev.filter((item) => item.id !== notif.id),
+              ]);
+            }
+          }
         } catch (err) {
           console.error("WebSocket parse error in Dashboard", err);
         }
@@ -531,10 +611,63 @@ const Dashboard: React.FC = () => {
 
     connectWebSocket();
 
+    const wsDashboardUrl = `${wsBase}/ws/dashboard/`;
+    let wsDashboard: WebSocket;
+    let reconnectDashboardTimeout: ReturnType<typeof setTimeout>;
+
+    const connectDashboardWebSocket = () => {
+      console.log(`Attempting to connect to Dashboard WebSocket at: ${wsDashboardUrl}`);
+      wsDashboard = new WebSocket(wsDashboardUrl);
+
+      wsDashboard.onopen = () => {
+        console.log("Dashboard WebSocket connected successfully!");
+      };
+
+      wsDashboard.onerror = (error) => {
+        console.error("Dashboard WebSocket error:", error);
+      };
+
+      wsDashboard.onclose = (event) => {
+        console.warn("Dashboard WebSocket closed.", event.reason);
+        if (isMounted) {
+          reconnectDashboardTimeout = setTimeout(connectDashboardWebSocket, 3000);
+        }
+      };
+
+      wsDashboard.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.action === "new_notification" && data.notification) {
+            console.log("Got a live notification:", data.notification);
+            const notif = data.notification;
+            if (!notif.title || notif.title === "Client TPS Throttled") {
+              setTpsNotifications((prev) => [
+                notif,
+                ...prev.filter((item) => item.id !== notif.id),
+              ]);
+            }
+          }
+        } catch (err) {
+          console.error("Dashboard WebSocket parse error", err);
+        }
+      };
+    };
+
+    connectDashboardWebSocket();
+
+    const tpsPollInterval = setInterval(() => {
+      if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
+        fetchTpsNotifications(activeRangeRef.current);
+      }
+    }, 15000);
+
     return () => {
       isMounted = false;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (reconnectDashboardTimeout) clearTimeout(reconnectDashboardTimeout);
       if (ws) ws.close();
+      if (wsDashboard) wsDashboard.close();
+      clearInterval(tpsPollInterval);
     };
   }, []);
 
@@ -544,15 +677,6 @@ const Dashboard: React.FC = () => {
     if (seconds < 1) return `${Math.round(seconds * 1000)}ms`;
     if (seconds < 60) return `${seconds.toFixed(1)}s`;
     return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-  };
-
-  const formatNotificationTime = (iso?: string) => {
-    if (!iso) return "";
-    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
   };
 
   const activeRangeLabel = RANGE_OPTIONS.find((r) => r.key === activeRange)?.label ?? "";
@@ -1048,19 +1172,67 @@ const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Notifications */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4">Recent Notifications</h3>
-          <div className="flex-1 overflow-y-auto space-y-3 max-h-[220px] custom-scrollbar">
-            {notifications.length > 0 ? (
-              notifications.map((n, i) => (
-                <div key={n.id || i} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-xs">
-                  <p className="font-medium text-text-primary dark:text-white">{n.title || "Alert"}</p>
-                  <span className="text-text-secondary dark:text-gray-400 mt-1 block">{formatNotificationTime(n.createdAt)}</span>
-                </div>
-              ))
+        {/* Client TPS Throttled Notifications */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center">
+                Client TPS Throttled
+              </h3>
+              {tpsNotifications.length > 0 && (
+                <span className="text-xs font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full border border-amber-500/20">
+                  {tpsNotifications.length}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="p-3.5 flex-1 overflow-y-auto space-y-2 max-h-[280px] custom-scrollbar">
+            {isTpsLoading && tpsNotifications.length === 0 ? (
+              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
+                Loading TPS alerts…
+              </p>
+            ) : tpsNotifications.length > 0 ? (
+              tpsNotifications.map((n, i) => {
+                const { clientName, message } = parseTpsDescription(n.description);
+                return (
+                  <div
+                    key={n.id || i}
+                    className="p-2.5 rounded-lg bg-gray-50/80 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700/60 hover:bg-gray-100/70 dark:hover:bg-gray-700/60 transition-all flex items-start gap-2.5"
+                  >
+                    <div className="shrink-0 mt-0.5">
+                      <div className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 p-1.5 rounded-md">
+                        <AlertTriangle size={13} />
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-text-secondary dark:text-gray-300 leading-snug">
+                        {clientName ? (
+                          <>
+                            <span className="font-semibold text-text-primary dark:text-white">
+                              '{clientName}'
+                            </span>{" "}
+                            <span>{message}</span>
+                          </>
+                        ) : (
+                          n.description
+                        )}
+                      </p>
+
+                      {n.createdAt && (
+                        <div className="mt-1 flex items-center text-[11px] text-text-secondary dark:text-gray-400 font-mono">
+                          <Clock size={11} className="mr-1 shrink-0 opacity-70" />
+                          <span>{formatDateTime(n.createdAt)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-4">No new notifications.</p>
+              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
+                No TPS throttled alerts.
+              </p>
             )}
           </div>
         </div>

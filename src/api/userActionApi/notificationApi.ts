@@ -5,6 +5,7 @@ export interface NotificationData {
   title: string;
   description: string;
   createdAt?: string;
+  seen?: boolean;
 }
 
 export interface PaginatedResponse<T> {
