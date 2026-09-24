@@ -76,7 +76,8 @@ const DataBarCell: React.FC<{
   value: number;
   max: number;
   type?: "volume" | "currency" | "danger" | "success";
-}> = ({ value = 0, max = 1, type = "volume" }) => {
+  symbol?: string;
+}> = ({ value = 0, max = 1, type = "volume", symbol = "$" }) => {
   const percentage = Math.min(Math.max((value / (max || 1)) * 100, 4), 100);
 
   let containerStyle = "";
@@ -103,7 +104,7 @@ const DataBarCell: React.FC<{
         style={{ width: `${percentage}%` }}
       />
       <span className="relative z-1 font-mono text-xs font-semibold text-text-primary dark:text-gray-100">
-        {type === "currency" ? `$${Number(value || 0).toFixed(2)}` : Number(value || 0).toLocaleString()}
+        {type === "currency" ? `${symbol}${Number(value || 0).toFixed(2)}` : Number(value || 0).toLocaleString()}
       </span>
     </div>
   );
@@ -150,7 +151,7 @@ const MarginPctCell: React.FC<{ pct: number }> = ({ pct = 0 }) => {
   );
 };
 
-const tableHeaders = [
+const getTableHeaders = (symbol: string) => [
   "Entity",
   "Attempts",
   "Successful",
@@ -159,9 +160,10 @@ const tableHeaders = [
   "DLR %",
   "Delivered",
   "Failed",
-  "Revenue ($)",
-  "Vendor Cost ($)",
-  "Margin ($)",
+  "Rejected",
+  `Revenue (${symbol})`,
+  `Vendor Cost (${symbol})`,
+  `Margin (${symbol})`,
   "Margin %",
 ];
 
@@ -222,6 +224,7 @@ const AnalyticsReport: React.FC = () => {
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const [currencySymbol, setCurrencySymbol] = useState<string>("$");
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
 
   useEffect(() => {
@@ -338,6 +341,12 @@ const AnalyticsReport: React.FC = () => {
       const res = await getAnalyticsDataApi(searchParams);
       if (newController.signal.aborted) return;
 
+      if (res.base_currency_symbol) {
+        setCurrencySymbol(res.base_currency_symbol);
+      } else if (res.base_currency) {
+        setCurrencySymbol(res.base_currency);
+      }
+
       const rawList: any[] = Array.isArray(res)
         ? res
         : res.results || [];
@@ -358,6 +367,7 @@ const AnalyticsReport: React.FC = () => {
           dlrPct: m.dlr_percent || 0,
           delivered: m.delivered || 0,
           failed: m.failed || 0,
+          rejected: m.rejected || 0,
           revenue: m.revenue || 0,
           vendorCost: m.vendor_cost || 0,
           marginUsd: m.margin_usd || 0,
@@ -708,7 +718,7 @@ const AnalyticsReport: React.FC = () => {
           <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-30 shadow-xs">
               <tr>
-                {tableHeaders.map((header, i) => (
+                {getTableHeaders(currencySymbol).map((header, i) => (
                   <th
                     key={i}
                     className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]"
@@ -722,7 +732,7 @@ const AnalyticsReport: React.FC = () => {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={tableHeaders.length}
+                    colSpan={13}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     Loading analytics data...
@@ -731,7 +741,7 @@ const AnalyticsReport: React.FC = () => {
               ) : companyRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={tableHeaders.length}
+                    colSpan={13}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     No analytics records found.
@@ -768,9 +778,10 @@ const AnalyticsReport: React.FC = () => {
                         <td className="px-2 py-2"><DlrCell pct={amRow.dlrPct} /></td>
                         <td className="px-2 py-2"><DataBarCell value={amRow.delivered} max={maxAttempts} type="success" /></td>
                         <td className="px-2 py-2"><DataBarCell value={amRow.failed} max={maxAttempts} type="danger" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.revenue} max={maxRevenue} type="currency" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.vendorCost} max={maxRevenue} type="currency" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.marginUsd} max={maxRevenue} type="currency" /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.rejected} max={maxAttempts} type="danger" /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.vendorCost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                        <td className="px-2 py-2"><DataBarCell value={amRow.marginUsd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                         <td className="px-2 py-2"><MarginPctCell pct={amRow.marginPct} /></td>
                       </tr>
 
@@ -778,11 +789,11 @@ const AnalyticsReport: React.FC = () => {
                       {isAmExpanded && (
                         isAmLoading ? (
                           <tr>
-                            <td colSpan={12} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
+                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
                           </tr>
                         ) : companies.length === 0 ? (
                           <tr>
-                            <td colSpan={12} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
+                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
                           </tr>
                         ) : (
                           companies.map((companyRow: any, cIdx: number) => {
@@ -815,9 +826,10 @@ const AnalyticsReport: React.FC = () => {
                                   <td className="px-2 py-1.5"><DlrCell pct={companyRow.dlr_percent} /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.delivered} max={maxAttempts} type="success" /></td>
                                   <td className="px-2 py-1.5"><DataBarCell value={companyRow.failed} max={maxAttempts} type="danger" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendor_cost} max={maxRevenue} type="currency" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.margin_usd} max={maxRevenue} type="currency" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                   <td className="px-2 py-1.5"><MarginPctCell pct={companyRow.margin_percent} /></td>
                                 </tr>
 
@@ -825,11 +837,11 @@ const AnalyticsReport: React.FC = () => {
                                 {isCompanyExpanded && (
                                   isCompanyLoading ? (
                                     <tr>
-                                      <td colSpan={12} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
+                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
                                     </tr>
                                   ) : countries.length === 0 ? (
                                     <tr>
-                                      <td colSpan={12} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
+                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
                                     </tr>
                                   ) : (
                                     countries.map((countryRow: any, coIdx: number) => {
@@ -866,9 +878,10 @@ const AnalyticsReport: React.FC = () => {
                                             <td className="px-2 py-1"><DlrCell pct={countryRow.dlr_percent} /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.delivered} max={maxAttempts} type="success" /></td>
                                             <td className="px-2 py-1"><DataBarCell value={countryRow.failed} max={maxAttempts} type="danger" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendor_cost} max={maxRevenue} type="currency" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.margin_usd} max={maxRevenue} type="currency" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                            <td className="px-2 py-1"><DataBarCell value={countryRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                             <td className="px-2 py-1"><MarginPctCell pct={countryRow.margin_percent} /></td>
                                           </tr>
 
@@ -876,11 +889,11 @@ const AnalyticsReport: React.FC = () => {
                                           {isCountryExpanded && (
                                             isCountryLoading ? (
                                               <tr>
-                                                <td colSpan={12} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
+                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
                                               </tr>
                                             ) : vendors.length === 0 ? (
                                               <tr>
-                                                <td colSpan={12} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
+                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
                                               </tr>
                                             ) : (
                                               vendors.map((vendorRow: any, vIdx: number) => {
@@ -907,9 +920,10 @@ const AnalyticsReport: React.FC = () => {
                                                     <td className="px-2 py-1"><DlrCell pct={vendorRow.dlr_percent} /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.delivered} max={maxAttempts} type="success" /></td>
                                                     <td className="px-2 py-1"><DataBarCell value={vendorRow.failed} max={maxAttempts} type="danger" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.margin_usd} max={maxRevenue} type="currency" /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.rejected || 0} max={maxAttempts} type="danger" /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
+                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
                                                     <td className="px-2 py-1"><MarginPctCell pct={vendorRow.margin_percent} /></td>
                                                   </tr>
                                                 );

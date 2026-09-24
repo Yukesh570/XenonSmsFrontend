@@ -18,6 +18,7 @@ export interface DetailedReportData {
   operatorMNC?: string;
   networkName?: string;
   client: string;
+  company?: string;
   destination: string;
   base_clientRate?: string | number;
   base_client_charge?: string | number;

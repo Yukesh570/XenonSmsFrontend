@@ -63,6 +63,7 @@ export const getCompaniesApi = async (
   const params: any = {
     page: page,
     page_size: pageSize,
+    ...(pageSize >= 1000 ? { dropdown: "true" } : {}),
     ...searchParams
   };
   const response = await api.get(`/company/`, { params });

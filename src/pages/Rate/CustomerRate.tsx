@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit, Trash } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash, Download } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -9,8 +9,10 @@ import {
   deleteCustomerRateGroupApi,
   createCustomerRateGroupApi,
   updateCustomerRateGroupApi,
+  downloadCustomerRatesCsvApi,
   type CustomerRateGroupData
 } from "../../api/rateApi/customerRateApi";
+import { handleCsvExportWithApi } from "../../helper/csvExport";
 
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
@@ -358,8 +360,18 @@ const CustomerRate: React.FC = () => {
     setIsSubTableModalOpen(true);
   };
 
+  const handleDownloadCSV = (groupId: number) => {
+    handleCsvExportWithApi(
+      () => downloadCustomerRatesCsvApi(groupId),
+      {},
+      [],
+      false
+    );
+  };
+
   const menuItems: ContextMenuItem[] = selectedRowGroup ? [
     { label: "Manage Rates", icon: <Layers size={16} />, onClick: () => openSubTableModal(selectedRowGroup) },
+    { label: "Download CSV", icon: <Download size={16} />, onClick: () => { handleDownloadCSV(selectedRowGroup.id!); setContextMenuPos(null); } },
     ...(canUpdate ? [{ label: "Edit Group", icon: <Edit size={16} />, onClick: () => { setEditingGroup(selectedRowGroup); setIsCreateModalOpen(true); } }] : []),
     ...(canDelete ? [{ label: "Delete Group", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedRowGroup.id!) }] : []),
   ] : [];

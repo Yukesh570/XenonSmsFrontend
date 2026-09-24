@@ -115,6 +115,7 @@ const Dashboard: React.FC = () => {
   const [totalSms, setTotalSms] = useState<string>("-");
   const [deliveredCount, setDeliveredCount] = useState<string>("-");
   const [failedCount, setFailedCount] = useState<string>("-");
+  const [rejectedCount, setRejectedCount] = useState<string>("-");
   const [deliveryRate, setDeliveryRate] = useState<string>("-");
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [activeSessionsCount, setActiveSessionsCount] = useState<number | string>("-");
@@ -228,6 +229,7 @@ const Dashboard: React.FC = () => {
       setTotalSms(Number(d.count).toLocaleString());
       setDeliveredCount(Number(d.deliveredCount).toLocaleString());
       setFailedCount(Number(d.failedCount).toLocaleString());
+      setRejectedCount(Number(d.rejectedCount || 0).toLocaleString());
       setDeliveryRate(`${d.deliveryRate}%`);
     } catch (e) {
       console.error("fetchSmsStats failed", e);
@@ -470,6 +472,7 @@ const Dashboard: React.FC = () => {
                 setTotalSms(Number(data.smsStats.count).toLocaleString());
                 setDeliveredCount(Number(data.smsStats.deliveredCount).toLocaleString());
                 setFailedCount(Number(data.smsStats.failedCount).toLocaleString());
+                setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
               }
@@ -711,7 +714,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 1: KPI Cards — SMS stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
         <StatCard
           title={`Total SMS (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : totalSms}
@@ -726,6 +729,11 @@ const Dashboard: React.FC = () => {
           title={`Failed (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : failedCount}
           icon={<XCircle size={24} />}
+        />
+        <StatCard
+          title={`Rejected (${activeRangeLabel})`}
+          value={isStatsLoading ? "…" : rejectedCount}
+          icon={<AlertTriangle size={24} />}
         />
         <StatCard
           title="Delivery Rate"

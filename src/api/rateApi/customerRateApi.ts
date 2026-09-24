@@ -49,6 +49,7 @@ export const getCustomerRateGroupsApi = async (
   const params: any = {
     page: page,
     page_size: pageSize,
+    ...(pageSize >= 1000 ? { dropdown: "true" } : {}),
     ...searchParams,
   };
   const response = await api.get(`/customerRateGroup/`, { params });
@@ -167,5 +168,12 @@ export const exportCustomerRatesEmailApi = async (
   _module?: string,
 ): Promise<any> => {
   const response = await api.post(`/customerRateGroup/${rateGroupId}/export_rates_email/`, data);
+  return response.data;
+};
+// ⚡️ Added: Download Rates CSV
+export const downloadCustomerRatesCsvApi = async (
+  rateGroupId: number,
+): Promise<{ task_id: string }> => {
+  const response = await api.get(`/customerRateGroup/${rateGroupId}/download_rates_csv/`);
   return response.data;
 };

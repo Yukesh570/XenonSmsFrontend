@@ -6,7 +6,9 @@ import {
   getCustomerRatesApi,
   getCustomerRatesPerMNCMCCApi,
   exportCustomerRatesEmailApi,
+  downloadCustomerRatesCsvApi,
 } from "../../../api/rateApi/customerRateApi";
+import { handleCsvExportWithApi } from "../../../helper/csvExport";
 import { getEmailTemplatesApi } from "../../../api/emailTemplateApi/emailTemplateApi";
 import { CustomerRateModal } from "./CustomerRateModal";
 import { RateVersionTableModal } from "./RateVersionTableModal";
@@ -220,6 +222,16 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
     }
   };
 
+  const handleDownloadCSV = () => {
+    if (!rateGroupId) return toast.error("Rate Group ID is not available.");
+    handleCsvExportWithApi(
+      () => downloadCustomerRatesCsvApi(rateGroupId),
+      {},
+      [],
+      false
+    );
+  };
+
   const handleExportEmail = async (exportOnlyNew: boolean) => {
     if (!selectedEmailTemplate) {
       return toast.error("Please select an email template.");
@@ -335,6 +347,14 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
             </div>
             {canUpdate && (
               <div className="flex shrink-0 w-full sm:w-auto gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={handleDownloadCSV}
+                  leftIcon={<Download size={16} />}
+                  className="w-full sm:w-auto text-sm py-1.5 px-4"
+                >
+                  Download CSV
+                </Button>
                 <Button
                   variant="secondary"
                   onClick={() => {

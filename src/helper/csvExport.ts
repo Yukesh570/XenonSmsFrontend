@@ -127,12 +127,15 @@ export const handleCsvExportWithApi = async (
     apiFn: (params: Record<string, any>) => Promise<any>,
     searchParams: Record<string, any>,
     dateKeys: string[] = ["request_time", "queued_at", "submitted_at", "delivered_at", "failed_at"],
+    requireDateFilter: boolean = true,
 ) => {
     try {
-        const validation = validateDateRange(searchParams);
-        if (!validation.valid) {
-            toast.error(validation.message);
-            return;
+        if (requireDateFilter) {
+            const validation = validateDateRange(searchParams);
+            if (!validation.valid) {
+                toast.error(validation.message);
+                return;
+            }
         }
 
         const toastId = toast.loading("Export started. Please wait...");

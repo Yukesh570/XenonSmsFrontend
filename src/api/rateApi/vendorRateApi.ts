@@ -168,3 +168,10 @@ export const exportVendorRatesEmailApi = async (
   const response = await api.post(`/vendorRateGroup/emailtemplate/${rateGroupId}/export_rates_email/`, data);
   return response.data;
 };
+// ⚡️ Added: Download Rates CSV
+export const downloadVendorRatesCsvApi = async (
+  rateGroupId: number,
+): Promise<{ task_id: string }> => {
+  const response = await api.get(`/vendorRateGroup/${rateGroupId}/download_rates_csv/`);
+  return response.data;
+};

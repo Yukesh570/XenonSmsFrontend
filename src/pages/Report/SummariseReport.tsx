@@ -388,6 +388,7 @@ const SummariseReport: React.FC = () => {
     "Submitted",
     "Delivered",
     "Failed",
+    "Rejected",
     `Revenue (${currencySymbol})`,
     `Vendor Cost (${currencySymbol})`,
     `Margin (${currencySymbol})`,
@@ -576,6 +577,9 @@ const SummariseReport: React.FC = () => {
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
                   {Number(row.failed || 0).toLocaleString()}
                 </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                  {Number((row as any).rejected || 0).toLocaleString()}
+                </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {currencySymbol}
                   {Number(row.revenue || 0).toFixed(4)}
@@ -638,6 +642,9 @@ const SummariseReport: React.FC = () => {
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.failed).toLocaleString()}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+                    {Number((totals as any).rejected || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.revenue).toFixed(4)}

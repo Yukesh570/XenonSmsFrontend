@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit, Trash } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash, Download } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -8,8 +8,10 @@ import {
   deleteVendorRateGroupApi,
   createVendorRateGroupApi,
   updateVendorRateGroupApi,
+  downloadVendorRatesCsvApi,
   type VendorRateGroupData
 } from "../../api/rateApi/vendorRateApi";
+import { handleCsvExportWithApi } from "../../helper/csvExport";
 
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 import { getTimezoneApi } from "../../api/settingApi/timezoneApi/timezoneApi";
@@ -53,7 +55,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "status"];
-const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "autoImportedAt", "createdAt"];
 
 // ⚡️ Modal for Creating/Editing Vendor Rate Groups
 const GroupModal = ({ isOpen, onClose, onSuccess, moduleName, editingGroup }: any) => {
@@ -204,6 +206,13 @@ const VendorRate: React.FC = () => {
       type: "number",
       filterKey: "total_rates",
       render: (c: any) => c.total_rates || 0,
+    },
+    {
+      key: "autoImportedAt",
+      label: "Auto Imported At",
+      type: "date",
+      filterKey: "autoImportedAt__icontains",
+      render: (c: any) => (c.autoImportedAt ? formatDateTime(c.autoImportedAt) : "-"),
     },
     {
       key: "createdBy",
@@ -371,8 +380,18 @@ const VendorRate: React.FC = () => {
     setIsSubTableModalOpen(true);
   };
 
+  const handleDownloadCSV = (groupId: number) => {
+    handleCsvExportWithApi(
+      () => downloadVendorRatesCsvApi(groupId),
+      {},
+      [],
+      false
+    );
+  };
+
   const menuItems: ContextMenuItem[] = selectedRowGroup ? [
     { label: "Manage Rates", icon: <Layers size={16} />, onClick: () => openSubTableModal(selectedRowGroup) },
+    { label: "Download CSV", icon: <Download size={16} />, onClick: () => { handleDownloadCSV(selectedRowGroup.id!); setContextMenuPos(null); } },
     ...(canUpdate ? [{ label: "Edit Group", icon: <Edit size={16} />, onClick: () => { setEditingGroup(selectedRowGroup); setIsCreateModalOpen(true); } }] : []),
     ...(canDelete ? [{ label: "Delete Group", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedRowGroup.id!) }] : []),
   ] : [];
@@ -506,15 +525,15 @@ const VendorRate: React.FC = () => {
         timezoneMap={timezoneMap}
       />
 
-      <DeleteModal 
-        isOpen={!!deleteId} 
+      <DeleteModal
+        isOpen={!!deleteId}
         onClose={() => {
           setDeleteId(null);
           setSelectedRowGroup(null);
-        }} 
-        onConfirm={handleDelete} 
-        title="Delete Rate Group" 
-        message={`Are you sure you want to delete vendor rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`} 
+        }}
+        onConfirm={handleDelete}
+        title="Delete Rate Group"
+        message={`Are you sure you want to delete vendor rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`}
       />
     </div>
   );

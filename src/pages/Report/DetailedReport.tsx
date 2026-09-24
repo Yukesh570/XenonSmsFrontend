@@ -32,6 +32,9 @@ import {
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+import { getClientsApi } from "../../api/clientApi/clientApi";
+import { getCompaniesApi } from "../../api/companyApi/companyApi";
+import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
 
 interface Option {
   label: string;
@@ -104,6 +107,8 @@ const DEFAULT_SEARCH_COLUMNS = [
   "operatorMNC",
   "senderId",
   "countryName",
+  "company",
+
   "submitStatus",
   "client",
   "vendor",
@@ -121,6 +126,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "submitStatus",
   "content",
   "client",
+  "company",
   "vendor",
   "failure_reason",
   "request_time",
@@ -172,28 +178,46 @@ const DetailedReport: React.FC = () => {
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
-  // Track the latest resolved search params so the Download button always uses current filters
   const currentSearchParamsRef = useRef<Record<string, string>>({});
-
+  
   const [countryOptions, setCountryOptions] = useState<Option[]>([]);
+  const [clientOptions, setClientOptions] = useState<Option[]>([]);
+  const [companyOptions, setCompanyOptions] = useState<Option[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<Option[]>([]);
 
   useEffect(() => {
-    const fetchCountries = async () => {
+    const fetchOptions = async () => {
       try {
-        const res = await getCountriesApi("country", 1, 1000);
-        const data = res.results || (Array.isArray(res) ? res : []);
-        setCountryOptions(
-          data.map((item: any) => ({
+        const [countriesRes, clientsRes, companiesRes, vendorsRes] = await Promise.all([
+          getCountriesApi("country", 1, 1000),
+          getClientsApi("client", 1, 1000),
+          getCompaniesApi("company", 1, 1000),
+          getVendorsApi("vendor", 1, 1000)
+        ]);
+
+        const formatOptions = (res: any, extraFormat?: (item: any) => any) => {
+          const data = res.results || (Array.isArray(res) ? res : []);
+          return data.map((item: any) => ({
             label: item.name || "Unknown",
             value: item.name || String(item.id),
-            ...(item.iso2 ? { icon: <CountryFlag iso2={item.iso2} /> } : {}),
-          })),
+            ...(extraFormat ? extraFormat(item) : {})
+          }));
+        };
+
+        setCountryOptions(
+          formatOptions(countriesRes, (item) => (item.iso2 ? { icon: <CountryFlag iso2={item.iso2} /> } : {}))
         );
+        setClientOptions(formatOptions(clientsRes));
+        setCompanyOptions(formatOptions(companiesRes));
+        setVendorOptions(formatOptions(vendorsRes, (item) => ({ 
+          label: item.profileName || item.company_name || "Unknown", 
+          value: item.profileName || String(item.id) 
+        })));
       } catch (error) {
-        console.error("Failed to fetch countries", error);
+        console.error("Failed to fetch dropdown options", error);
       }
     };
-    fetchCountries();
+    fetchOptions();
   }, []);
 
   const tableWrapperRef = useRef<HTMLDivElement>(null);
@@ -285,12 +309,21 @@ const DetailedReport: React.FC = () => {
       key: "client",
       label: "Client",
       type: "text",
+      options: clientOptions,
       filterKey: "client__icontains",
+    },
+    {
+      key: "company",
+      label: "Company",
+      type: "text",
+      options: companyOptions,
+      filterKey: "message__client__company__name__icontains",
     },
     {
       key: "vendor",
       label: "Vendor",
       type: "text",
+      options: vendorOptions,
       filterKey: "vendor__icontains",
     },
     {
