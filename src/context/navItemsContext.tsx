@@ -48,9 +48,14 @@ export const NavItemProvider = ({
       const data = await getUserSideBarApi();
       console.log("Fetched nav items:", data);
       setNavItems(data);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching nav items:", error);
-      setError(true); // ⚡️ FIX: Flag that the request completely failed
+      // Do not trigger "Connection Failed" screen for auth/token errors (401/403)
+      // axiosInstance will handle token refresh or redirect to /login
+      const status = error?.response?.status;
+      if (status !== 401 && status !== 403) {
+        setError(true);
+      }
     } finally {
       setLoading(false);
     }

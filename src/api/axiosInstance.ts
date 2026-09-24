@@ -12,10 +12,28 @@ const handleLogout = () => {
   localStorage.removeItem("refreshToken");
   localStorage.removeItem("user");
   localStorage.removeItem("sidebar_collapsed");
+  window.dispatchEvent(new Event("storage"));
 
-  if (window.location.pathname !== "/login" && window.location.pathname !== "/") {
+  if (window.location.pathname !== "/login") {
     window.location.href = "/login";
   }
+};
+
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (err: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else if (token) {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
 };
 
 // 1. Request Interceptor (Adds token)
@@ -58,39 +76,61 @@ api.interceptors.response.use(
 
     // Handle token expiration -> Refresh or Redirect to /login
     if (!isLoginRequest && isTokenExpired) {
-      if (!originalRequest._retry) {
-        originalRequest._retry = true;
-        try {
-          const refreshToken = localStorage.getItem("refreshToken");
-          if (!refreshToken) {
-            throw new Error("No refresh token available");
-          }
-          const refreshResponse = await axios.post(
-            `${import.meta.env.VITE_API_BASE_URL}refresh/`,
-            { refresh: refreshToken }
-          );
-          const newAccessToken = refreshResponse.data.access;
+      if (isRefreshing) {
+        return new Promise<string>((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
 
-          localStorage.setItem("accessToken", newAccessToken);
-          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+      originalRequest._retry = true;
+      isRefreshing = true;
 
-          return api(originalRequest);
-        } catch (refreshError) {
-          if (axios.isAxiosError(refreshError)) {
-            console.error(
-              "Refresh API failed:",
-              refreshError.response?.data || refreshError.message
-            );
-          } else {
-            console.error("An unexpected error occurred during refresh:", refreshError);
-          }
-
-          handleLogout();
-          return Promise.reject(refreshError);
-        }
-      } else {
+      const refreshToken = localStorage.getItem("refreshToken");
+      if (!refreshToken) {
+        isRefreshing = false;
         handleLogout();
         return Promise.reject(error);
+      }
+
+      try {
+        const refreshResponse = await axios.post(
+          `${import.meta.env.VITE_API_BASE_URL}refresh/`,
+          { refresh: refreshToken }
+        );
+        const newAccessToken = refreshResponse.data.access;
+
+        localStorage.setItem("accessToken", newAccessToken);
+        if (refreshResponse.data.refresh) {
+          localStorage.setItem("refreshToken", refreshResponse.data.refresh);
+        }
+
+        api.defaults.headers.common.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+
+        processQueue(null, newAccessToken);
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        if (axios.isAxiosError(refreshError)) {
+          console.error(
+            "Refresh API failed:",
+            refreshError.response?.data || refreshError.message
+          );
+        } else {
+          console.error("An unexpected error occurred during refresh:", refreshError);
+        }
+
+        handleLogout();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
 

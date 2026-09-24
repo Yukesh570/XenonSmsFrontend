@@ -112,9 +112,8 @@ const RejectedSMSLog: React.FC = () => {
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type }));
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
       const next = { ...prev };
@@ -123,7 +122,7 @@ const RejectedSMSLog: React.FC = () => {
       updatedFilters = next;
       return next;
     });
-    fetchEvents(updatedFilters, 1, false, nextPreset);
+    fetchEvents(updatedFilters, 1, false, presetKey);
   };
 
   const fetchEvents = async (

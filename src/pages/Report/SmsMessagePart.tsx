@@ -403,9 +403,8 @@ const SmsMessagePart: React.FC = () => {
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type as FilterColumnType }));
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
       const next = { ...prev };
@@ -414,7 +413,7 @@ const SmsMessagePart: React.FC = () => {
       updatedFilters = next;
       return next;
     });
-    fetchSegments(updatedFilters, 1, false, nextPreset);
+    fetchSegments(updatedFilters, 1, false, presetKey);
   };
 
   const fetchSegments = async (

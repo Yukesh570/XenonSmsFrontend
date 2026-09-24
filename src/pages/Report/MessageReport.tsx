@@ -656,9 +656,8 @@ const MessageReport: React.FC = () => {
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
       const next = { ...prev };
@@ -667,7 +666,7 @@ const MessageReport: React.FC = () => {
       updatedFilters = next;
       return next;
     });
-    fetchLogs(updatedFilters, 1, false, false, nextPreset);
+    fetchLogs(updatedFilters, 1, false, false, presetKey);
   };
 
   const handleSearch = () => {

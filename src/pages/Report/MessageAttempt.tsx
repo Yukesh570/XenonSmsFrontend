@@ -207,9 +207,8 @@ const MessageAttempt: React.FC = () => {
   const tableFilterColumns = allColumns.filter((c) => !c.isSearchOnly).map((c) => ({ key: c.key, label: c.tableLabel || c.label, type: c.type as FilterColumnType }));
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
       const next = { ...prev };
@@ -218,7 +217,7 @@ const MessageAttempt: React.FC = () => {
       updatedFilters = next;
       return next;
     });
-    fetchAttempts(updatedFilters, 1, false, nextPreset);
+    fetchAttempts(updatedFilters, 1, false, presetKey);
   };
 
   const fetchAttempts = async (

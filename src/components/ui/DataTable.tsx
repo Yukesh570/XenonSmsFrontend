@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
+import React, { useState, useEffect, useRef } from "react";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
 import {
@@ -242,147 +241,7 @@ export function DataTable<T extends { id?: number | string }>({
     }
   };
 
-  // Fast hover tooltip for table cells and headers
-  const [hoverTooltip, setHoverTooltip] = useState<{
-    text: string;
-    coords: { top: number; left: number };
-    placement: "above" | "below";
-  } | null>(null);
-  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const activeCellRef = useRef<HTMLElement | null>(null);
 
-  const clearTooltip = useCallback(() => {
-    if (tooltipTimerRef.current) {
-      clearTimeout(tooltipTimerRef.current);
-      tooltipTimerRef.current = null;
-    }
-    activeCellRef.current = null;
-    setHoverTooltip(null);
-  }, []);
-
-  const handleCellMouseOver = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const cell = target.closest("td, th") as HTMLElement | null;
-    if (!cell) {
-      clearTooltip();
-      return;
-    }
-
-    // Skip interactive child elements: buttons, inputs, links, action icons, or resize handles
-    if (target.closest("button, input, select, a, [role='menu'], [role='dialog'], .group\\/resizer")) {
-      clearTooltip();
-      return;
-    }
-
-    if (cell === activeCellRef.current) return;
-
-    activeCellRef.current = cell;
-    if (tooltipTimerRef.current) {
-      clearTimeout(tooltipTimerRef.current);
-    }
-
-    const titleEl = (target.closest("[data-cell-title]") || cell.querySelector("[data-cell-title]") || cell) as HTMLElement | null;
-    const customTitle = titleEl?.getAttribute("data-cell-title");
-    const rawText = customTitle || cell.innerText?.trim();
-    if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
-      clearTooltip();
-      return;
-    }
-
-    const text = rawText.replace(/\s+/g, " ");
-
-    tooltipTimerRef.current = setTimeout(() => {
-      if (!activeCellRef.current || !cell.isConnected) return;
-      const rect = cell.getBoundingClientRect();
-      const isAbove = rect.top >= 36;
-      setHoverTooltip({
-        text,
-        coords: {
-          top: isAbove ? rect.top - 6 : rect.bottom + 6,
-          left: Math.max(12, Math.min(window.innerWidth - 12, rect.left + rect.width / 2)),
-        },
-        placement: isAbove ? "above" : "below",
-      });
-    }, 400);
-  };
-
-  // Strip native title attributes from all elements in DataTable to prevent browser tooltip collision
-  useEffect(() => {
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    let isStripping = false;
-    const stripTitles = () => {
-      if (isStripping) return;
-      isStripping = true;
-      try {
-        const titledElements = el.querySelectorAll("[title]:not([title=''])");
-        titledElements.forEach((node) => {
-          const titleVal = node.getAttribute("title");
-          if (titleVal) {
-            node.setAttribute("data-cell-title", titleVal);
-          }
-          node.setAttribute("title", "");
-        });
-      } finally {
-        isStripping = false;
-      }
-    };
-
-    stripTitles();
-
-    const observer = new MutationObserver(() => {
-      stripTitles();
-    });
-
-    observer.observe(el, {
-      childList: true,
-      subtree: true,
-      attributeFilter: ["title"],
-    });
-
-    const handleCaptureOver = (e: MouseEvent) => {
-      let target = e.target as HTMLElement | null;
-      while (target && target !== el) {
-        if (target.hasAttribute("title") && target.getAttribute("title") !== "") {
-          const titleVal = target.getAttribute("title");
-          if (titleVal) {
-            target.setAttribute("data-cell-title", titleVal);
-          }
-          target.setAttribute("title", "");
-        }
-        target = target.parentElement;
-      }
-    };
-
-    el.addEventListener("mouseover", handleCaptureOver, { capture: true });
-
-    return () => {
-      observer.disconnect();
-      el.removeEventListener("mouseover", handleCaptureOver, { capture: true });
-    };
-  }, [displayData]);
-
-  useEffect(() => {
-    if (!hoverTooltip) return;
-    const handleDismiss = () => clearTooltip();
-    window.addEventListener("scroll", handleDismiss, true);
-    window.addEventListener("resize", handleDismiss);
-    window.addEventListener("mousedown", handleDismiss);
-    window.addEventListener("keydown", handleDismiss);
-    return () => {
-      window.removeEventListener("scroll", handleDismiss, true);
-      window.removeEventListener("resize", handleDismiss);
-      window.removeEventListener("mousedown", handleDismiss);
-      window.removeEventListener("keydown", handleDismiss);
-    };
-  }, [hoverTooltip, clearTooltip]);
-
-  useEffect(() => {
-    return () => {
-      if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    };
-  }, []);
 
   const paginationLabel = `${
     activeTotal === 0
@@ -807,11 +666,7 @@ export function DataTable<T extends { id?: number | string }>({
               })}
             </colgroup>
           )}
-          <thead
-            className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm"
-            onMouseOver={handleCellMouseOver}
-            onMouseLeave={clearTooltip}
-          >
+          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
             <tr>
               {headers.map((header, i) => {
                 const isDraggable = Boolean(
@@ -943,11 +798,7 @@ export function DataTable<T extends { id?: number | string }>({
               })}
             </tr>
           </thead>
-          <tbody
-            className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800"
-            onMouseOver={handleCellMouseOver}
-            onMouseLeave={clearTooltip}
-          >
+          <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
             {isLoading ? (
               <tr>
                 <td
@@ -1098,18 +949,7 @@ export function DataTable<T extends { id?: number | string }>({
         }}
       />
 
-      {hoverTooltip &&
-        createPortal(
-          <div
-            className={`fixed z-[99999] px-2.5 py-1 text-xs font-medium text-white bg-gray-900/95 dark:bg-gray-800/95 rounded-md shadow-lg pointer-events-none transform -translate-x-1/2 ${
-              hoverTooltip.placement === "above" ? "-translate-y-full" : "translate-y-0"
-            } transition-opacity duration-100 border border-gray-700/50 backdrop-blur-sm max-w-md break-words text-center select-none`}
-            style={{ top: hoverTooltip.coords.top, left: hoverTooltip.coords.left }}
-          >
-            {hoverTooltip.text}
-          </div>,
-          document.body
-        )}
+
     </div>
   );
 }

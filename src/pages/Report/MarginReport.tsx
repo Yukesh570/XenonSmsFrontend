@@ -190,16 +190,15 @@ const MarginReport: React.FC = () => {
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
 
     const nextFilters = { ...filterValues };
     delete nextFilters.start_date;
     delete nextFilters.end_date;
     setFilterValues(nextFilters);
 
-    fetchReports(nextFilters, undefined, nextPreset);
+    fetchReports(nextFilters, undefined, presetKey);
   };
 
   const fetchReports = async (

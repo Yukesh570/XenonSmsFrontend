@@ -502,6 +502,7 @@ const AnalyticsReport: React.FC = () => {
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
+    if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {

@@ -464,7 +464,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
               onChange={(v) => handleSelect("currency", v)}
               options={currencies}
               placeholder="Select Currency"
-              disabled={isViewMode}
+              disabled={isViewMode || Boolean(editingCompany)}
               required
             />
             <Select

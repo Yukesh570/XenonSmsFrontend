@@ -19,13 +19,10 @@ const customDatePickerStyles = `
     border-radius: 0.75rem;
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
     background-color: #ffffff;
-    display: inline-flex !important;
+    display: flex !important;
+    flex-direction: column !important;
     position: relative !important;
     overflow: hidden;
-  }
-
-  .react-datepicker.has-time-select {
-    padding-right: 124px !important;
   }
 
   .dark .react-datepicker,
@@ -35,11 +32,17 @@ const customDatePickerStyles = `
     color: #f3f4f6 !important;
   }
 
-  /* --- LEFT CALENDAR CONTAINER --- */
+  /* --- CHILDREN CONTAINER UNWRAPPED VIA DISPLAY: CONTENTS --- */
+  .react-datepicker__children-container {
+    display: contents !important;
+  }
+
+  /* --- CALENDAR MONTH CONTAINER --- */
   .react-datepicker__month-container {
     float: none !important;
     display: flex !important;
     flex-direction: column !important;
+    order: 0 !important;
   }
 
   .react-datepicker__header {
@@ -126,165 +129,24 @@ const customDatePickerStyles = `
     color: #6b7280 !important;
   }
 
-  /* --- TIME COLUMN --- */
+  /* Hide default time container completely */
   .react-datepicker__time-container {
-    position: absolute !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    right: 0 !important;
-    width: 124px !important;
-    border-left: 1px solid #e5e7eb !important;
-    display: flex !important;
-    flex-direction: column !important;
-    float: none !important;
-  }
-  .dark .react-datepicker__time-container,
-  body.dark .react-datepicker__time-container {
-    border-left: 1px solid #374151 !important;
+    display: none !important;
   }
 
-  .react-datepicker__header--time {
-    padding: 0 !important;
-    background-color: transparent !important;
-    border-bottom: none !important;
-  }
-
-  .react-datepicker-time__header {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  
-  .react-datepicker__time-container .react-datepicker__time {
-    background: transparent !important;
-    display: flex !important;
-    flex-direction: column !important;
-    flex: 1 1 0% !important;
-    min-height: 0 !important;
-    height: 100% !important;
-  }
-
-  .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box {
-    width: 100% !important;
-    flex: 1 1 0% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-  }
-
-  /* Slim Modern Scrollbar */
-  .react-datepicker__time-box::-webkit-scrollbar,
+  /* Slim Modern Scrollbar for month/year popovers */
   .custom-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
-  .react-datepicker__time-box::-webkit-scrollbar-track,
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
-  .react-datepicker__time-box::-webkit-scrollbar-thumb,
   .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #e5e7eb;
     border-radius: 4px;
   }
-  .dark .react-datepicker__time-box::-webkit-scrollbar-thumb,
   .dark .custom-scrollbar::-webkit-scrollbar-thumb {
     background: #4b5563;
-  }
-
-  .react-datepicker__time-list {
-    padding: 2px 0 !important;
-  }
-
-  .react-datepicker__time-list-item {
-    color: #374151 !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
-    height: 32px !important;
-    padding: 0 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    transition: background-color 120ms ease;
-  }
-  .dark .react-datepicker__time-list-item,
-  body.dark .react-datepicker__time-list-item {
-    color: #d1d5db !important;
-  }
-  
-  .react-datepicker__time-list-item:hover {
-    background-color: #f3f4f6 !important;
-    color: #111827 !important;
-  }
-  .dark .react-datepicker__time-list-item:hover,
-  body.dark .react-datepicker__time-list-item:hover {
-    background-color: #374151 !important;
-    color: #ffffff !important;
-  }
-  
-  /* Disable default highlight to prevent users from thinking 12:00 AM is forcefully selected */
-  .hide-time-highlight .react-datepicker__time-list-item--selected {
-    background-color: transparent !important;
-    color: #374151 !important;
-    font-weight: 500 !important;
-  }
-  .dark .hide-time-highlight .react-datepicker__time-list-item--selected,
-  body.dark .hide-time-highlight .react-datepicker__time-list-item--selected {
-    color: #d1d5db !important;
-  }
-
-  /* Restore highlight when user explicitly selects a time */
-  .show-time-highlight .react-datepicker__time-list-item--selected {
-    background-color: var(--color-primary) !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-  }
-  .show-time-highlight .react-datepicker__time-list-item--selected:hover {
-    background-color: var(--color-primary) !important;
-    color: #ffffff !important;
-  }
-
-  /* --- MODE TOGGLE (INSIDE POPUP) --- */
-  .react-datepicker.has-mode-toggle {
-    display: flex !important;
-    flex-direction: column !important;
-  }
-
-  .react-datepicker.has-mode-toggle .react-datepicker__children-container {
-    order: -1 !important;
-    width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border-bottom: 1px solid #e5e7eb !important;
-    box-sizing: border-box !important;
-  }
-
-  .dark .react-datepicker.has-mode-toggle .react-datepicker__children-container,
-  body.dark .react-datepicker.has-mode-toggle .react-datepicker__children-container {
-    border-bottom-color: #374151 !important;
-  }
-
-  /* Mode: Whole Day */
-  .react-datepicker.has-mode-toggle.mode-whole-day {
-    padding-right: 0 !important;
-  }
-  .react-datepicker.has-mode-toggle.mode-whole-day .react-datepicker__time-container {
-    display: none !important;
-  }
-  .react-datepicker.has-mode-toggle.mode-whole-day .react-datepicker__children-container {
-    width: 100% !important;
-    margin-right: 0 !important;
-  }
-
-  /* Mode: Specific Time */
-  .react-datepicker.has-mode-toggle.mode-specific-time {
-    padding-right: 124px !important;
-  }
-  .react-datepicker.has-mode-toggle.mode-specific-time .react-datepicker__time-container {
-    display: flex !important;
-    top: 41px !important;
-  }
-  .react-datepicker.has-mode-toggle.mode-specific-time .react-datepicker__children-container {
-    width: calc(100% + 124px) !important;
-    margin-right: -124px !important;
   }
 `;
 
@@ -406,36 +268,35 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
 
   const currentDate = selected || defaultMidnight;
   const rawH = currentDate.getHours();
-  const currentH12 = rawH % 12 === 0 ? 12 : rawH % 12;
   const currentM = currentDate.getMinutes();
-  const currentP: "AM" | "PM" = rawH >= 12 ? "PM" : "AM";
 
-  const [hourStr, setHourStr] = useState(String(currentH12).padStart(2, "0"));
+  const [hourStr, setHourStr] = useState(String(rawH).padStart(2, "0"));
   const [minStr, setMinStr] = useState(String(currentM).padStart(2, "0"));
-  const [period, setPeriod] = useState<"AM" | "PM">(currentP);
+  const [isHourFocused, setIsHourFocused] = useState(false);
+  const [isMinFocused, setIsMinFocused] = useState(false);
 
   useEffect(() => {
     const d = selected || defaultMidnight;
-    const h = d.getHours();
-    setHourStr(String(h % 12 === 0 ? 12 : h % 12).padStart(2, "0"));
-    setMinStr(String(d.getMinutes()).padStart(2, "0"));
-    setPeriod(h >= 12 ? "PM" : "AM");
-  }, [selected, defaultMidnight]);
+    if (!isHourFocused) {
+      setHourStr(String(d.getHours()).padStart(2, "0"));
+    }
+    if (!isMinFocused) {
+      setMinStr(String(d.getMinutes()).padStart(2, "0"));
+    }
+  }, [selected, defaultMidnight, isHourFocused, isMinFocused]);
 
-  const commitTime = (h12: number, m: number, p: "AM" | "PM") => {
+  const commitTime = (h24: number, m: number) => {
     const base = selected ? new Date(selected.getTime()) : new Date(nowInTz.getTime());
-    let h24 = h12 % 12;
-    if (p === "PM") h24 += 12;
     base.setHours(h24, m, 0, 0);
     onChange(base);
   };
 
   const handleHourStep = (delta: number) => {
-    let num = (parseInt(hourStr, 10) || 12) + delta;
-    if (num > 12) num = 1;
-    if (num < 1) num = 12;
+    let num = (parseInt(hourStr, 10) || 0) + delta;
+    if (num > 23) num = 0;
+    if (num < 0) num = 23;
     setHourStr(String(num).padStart(2, "0"));
-    commitTime(num, parseInt(minStr, 10) || 0, period);
+    commitTime(num, parseInt(minStr, 10) || 0);
   };
 
   const handleMinuteStep = (delta: number) => {
@@ -443,25 +304,19 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
     if (num > 59) num = 0;
     if (num < 0) num = 59;
     setMinStr(String(num).padStart(2, "0"));
-    commitTime(parseInt(hourStr, 10) || 12, num, period);
-  };
-
-  const handlePeriodToggle = () => {
-    const nextP = period === "AM" ? "PM" : "AM";
-    setPeriod(nextP);
-    commitTime(parseInt(hourStr, 10) || 12, parseInt(minStr, 10) || 0, nextP);
+    commitTime(parseInt(hourStr, 10) || 0, num);
   };
 
   return (
     <div
-      className="w-full flex flex-col select-none"
+      className="w-full border-t border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/60 px-3 py-2 flex items-center justify-between select-none"
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="h-10 px-2 flex items-center justify-center text-xs font-semibold text-gray-800 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-900/60">
-        Time
-      </div>
+      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+        Time (24h)
+      </span>
 
-      <div className="w-full py-2 px-1.5 bg-gray-50/40 dark:bg-gray-800/40 border-b border-gray-200 dark:border-gray-700 flex items-center justify-center gap-1">
+      <div className="flex items-center gap-1">
         {/* Hours */}
         <div className="flex flex-col items-center">
           <button
@@ -469,6 +324,7 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             tabIndex={-1}
             onClick={() => handleHourStep(1)}
             className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+            title="Increase Hour"
           >
             <ChevronUp size={12} strokeWidth={2.5} />
           </button>
@@ -477,7 +333,10 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             inputMode="numeric"
             maxLength={2}
             value={hourStr}
-            onFocus={(e) => e.target.select()}
+            onFocus={(e) => {
+              setIsHourFocused(true);
+              e.target.select();
+            }}
             onKeyDown={(e) => {
               if (e.key === "ArrowUp") {
                 e.preventDefault();
@@ -485,30 +344,38 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
               } else if (e.key === "ArrowDown") {
                 e.preventDefault();
                 handleHourStep(-1);
+              } else if (e.key === "Enter") {
+                e.currentTarget.blur();
               }
             }}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "");
-              setHourStr(val);
-              const num = parseInt(val, 10);
-              if (!isNaN(num) && num >= 1 && num <= 12) {
-                commitTime(num, parseInt(minStr, 10) || 0, period);
+              if (val.length <= 2) {
+                setHourStr(val);
+                if (val.length === 2) {
+                  const num = parseInt(val, 10);
+                  if (!isNaN(num) && num >= 0 && num <= 23) {
+                    commitTime(num, parseInt(minStr, 10) || 0);
+                  }
+                }
               }
             }}
             onBlur={() => {
+              setIsHourFocused(false);
               let num = parseInt(hourStr, 10);
-              if (isNaN(num) || num < 1) num = 12;
-              if (num > 12) num = 12;
+              if (isNaN(num) || num < 0) num = 0;
+              if (num > 23) num = 23;
               setHourStr(String(num).padStart(2, "0"));
-              commitTime(num, parseInt(minStr, 10) || 0, period);
+              commitTime(num, parseInt(minStr, 10) || 0);
             }}
-            className="w-7 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
+            className="w-8 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
           />
           <button
             type="button"
             tabIndex={-1}
             onClick={() => handleHourStep(-1)}
             className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+            title="Decrease Hour"
           >
             <ChevronDown size={12} strokeWidth={2.5} />
           </button>
@@ -523,6 +390,7 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             tabIndex={-1}
             onClick={() => handleMinuteStep(1)}
             className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+            title="Increase Minute"
           >
             <ChevronUp size={12} strokeWidth={2.5} />
           </button>
@@ -531,7 +399,10 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             inputMode="numeric"
             maxLength={2}
             value={minStr}
-            onFocus={(e) => e.target.select()}
+            onFocus={(e) => {
+              setIsMinFocused(true);
+              e.target.select();
+            }}
             onKeyDown={(e) => {
               if (e.key === "ArrowUp") {
                 e.preventDefault();
@@ -539,57 +410,38 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
               } else if (e.key === "ArrowDown") {
                 e.preventDefault();
                 handleMinuteStep(-1);
+              } else if (e.key === "Enter") {
+                e.currentTarget.blur();
               }
             }}
             onChange={(e) => {
               const val = e.target.value.replace(/\D/g, "");
-              setMinStr(val);
-              const num = parseInt(val, 10);
-              if (!isNaN(num) && num >= 0 && num <= 59) {
-                commitTime(parseInt(hourStr, 10) || 12, num, period);
+              if (val.length <= 2) {
+                setMinStr(val);
+                if (val.length === 2) {
+                  const num = parseInt(val, 10);
+                  if (!isNaN(num) && num >= 0 && num <= 59) {
+                    commitTime(parseInt(hourStr, 10) || 0, num);
+                  }
+                }
               }
             }}
             onBlur={() => {
+              setIsMinFocused(false);
               let num = parseInt(minStr, 10);
               if (isNaN(num) || num < 0) num = 0;
               if (num > 59) num = 59;
               setMinStr(String(num).padStart(2, "0"));
-              commitTime(parseInt(hourStr, 10) || 12, num, period);
+              commitTime(parseInt(hourStr, 10) || 0, num);
             }}
-            className="w-7 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
+            className="w-8 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
           />
           <button
             type="button"
             tabIndex={-1}
             onClick={() => handleMinuteStep(-1)}
             className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
-          >
-            <ChevronDown size={12} strokeWidth={2.5} />
-          </button>
-        </div>
-
-        {/* Period (AM/PM) */}
-        <div className="flex flex-col items-center ml-0.5">
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={handlePeriodToggle}
-            className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
-          >
-            <ChevronUp size={12} strokeWidth={2.5} />
-          </button>
-          <button
-            type="button"
-            onClick={handlePeriodToggle}
-            className="h-6 px-1.5 text-[11px] text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:border-primary hover:text-primary dark:hover:text-primary flex items-center justify-center transition-colors focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs"
-          >
-            {period}
-          </button>
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={handlePeriodToggle}
-            className="p-0.5 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary rounded hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none"
+            title="Decrease Minute"
           >
             <ChevronDown size={12} strokeWidth={2.5} />
           </button>
@@ -903,8 +755,6 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     : (showTimeSelect ? "specific_time" : "whole_day");
 
   const isTimeActive = shouldEnableToggle ? activeMode === "specific_time" : showTimeSelect;
-  const effectiveShowTime = shouldEnableToggle ? true : showTimeSelect;
-  const shouldHighlightTime = isTimeActive;
 
   const handleModeToggle = (newMode: DatePickerMode) => {
     setInternalMode(newMode);
@@ -920,12 +770,25 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     }
   };
 
-  const handleDateChange = (date: Date | null) => {
+  const handleCalendarDateClick = (date: Date | null) => {
     if (disabled) return;
     if (date) {
+      if (isTimeActive) {
+        const h = selectedDate ? selectedDate.getHours() : 0;
+        const m = selectedDate ? selectedDate.getMinutes() : 0;
+        date.setHours(h, m, 0, 0);
+      } else {
+        date.setHours(0, 0, 0, 0);
+      }
       (date as any).dateMode = activeMode;
     }
     onChange(date, activeMode);
+  };
+
+  const handleManualTimeChange = (date: Date) => {
+    if (disabled) return;
+    (date as any).dateMode = "specific_time";
+    onChange(date, "specific_time");
   };
 
   const openToDateValue = useMemo(() => {
@@ -934,26 +797,6 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     d.setHours(0, 0, 0, 0);
     return d;
   }, [selectedDate, nowInTz]);
-
-  useEffect(() => {
-    if (!selectedDate || (selectedDate.getHours() === 0 && selectedDate.getMinutes() === 0)) {
-      const resetScroll = () => {
-        const timeBoxes = document.querySelectorAll<HTMLDivElement>(".react-datepicker__time-box");
-        timeBoxes.forEach((box) => {
-          box.scrollTop = 0;
-        });
-      };
-      resetScroll();
-      const t1 = setTimeout(resetScroll, 10);
-      const t2 = setTimeout(resetScroll, 50);
-      const t3 = setTimeout(resetScroll, 150);
-      return () => {
-        clearTimeout(t1);
-        clearTimeout(t2);
-        clearTimeout(t3);
-      };
-    }
-  }, [selectedDate, activeMode]);
 
   const handleClear = () => {
     if (!disabled) {
@@ -989,20 +832,10 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
         <DatePicker
           selected={selectedDate}
           openToDate={openToDateValue}
-          onChange={handleDateChange}
-          showTimeSelect={effectiveShowTime}
+          onChange={handleCalendarDateClick}
+          showTimeSelect={false}
+          shouldCloseOnSelect={!isTimeActive}
           dateFormat={effectiveDateFormat}
-          timeCaption={
-            effectiveShowTime
-              ? ((
-                  <ManualTimePicker
-                    selected={selectedDate}
-                    nowInTz={nowInTz}
-                    onChange={handleDateChange}
-                  />
-                ) as any)
-              : "Time"
-          }
           placeholderText={
             placeholder ||
             (isTimeActive ? "Select Date & Time" : "Select Date")
@@ -1015,22 +848,13 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
             />
           }
           disabled={disabled}
-          timeIntervals={15}
           minDate={minDate}
           showPopperArrow={false}
           autoComplete="off"
           popperPlacement="bottom-start"
           calendarClassName={`${
             document.documentElement.classList.contains("dark") ? "dark" : ""
-          } ${effectiveShowTime ? "has-time-select" : ""} ${
-            shouldEnableToggle
-              ? `has-mode-toggle ${
-                  activeMode === "whole_day"
-                    ? "mode-whole-day"
-                    : "mode-specific-time"
-                }`
-              : ""
-          } ${shouldHighlightTime ? "show-time-highlight" : "hide-time-highlight"}`}
+          }`}
           popperProps={{
             strategy: "fixed",
           }}
@@ -1038,7 +862,8 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
         >
           {shouldEnableToggle && (
             <div
-              className="w-full h-10 px-2 flex items-center justify-center bg-gray-50/90 dark:bg-gray-900/80 select-none"
+              className="w-full h-10 px-2 flex items-center justify-center bg-gray-50/90 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-700 select-none order-first"
+              style={{ order: -1 }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-full grid grid-cols-2 p-0.5 bg-gray-200/70 dark:bg-gray-800 rounded-lg border border-gray-300/50 dark:border-gray-700">
@@ -1071,6 +896,16 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
                   Specific Time
                 </button>
               </div>
+            </div>
+          )}
+
+          {isTimeActive && (
+            <div className="w-full order-last" style={{ order: 1 }}>
+              <ManualTimePicker
+                selected={selectedDate}
+                nowInTz={nowInTz}
+                onChange={handleManualTimeChange}
+              />
             </div>
           )}
         </DatePicker>

@@ -280,7 +280,8 @@ const DetailedReport: React.FC = () => {
       key: "countryName",
       label: "Country",
       type: "text",
-      isSearchable: false,
+      options: countryOptions,
+      filterKey: "message__country__name",
       render: (log) => {
         const match = countryOptions.find(
           (opt) => opt.label === log.countryName,
@@ -583,9 +584,8 @@ const DetailedReport: React.FC = () => {
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
-    const nextPreset: DatePresetKey =
-      activePreset === presetKey ? "custom" : presetKey;
-    setActivePreset(nextPreset);
+    if (activePreset === presetKey) return;
+    setActivePreset(presetKey);
     let updatedFilters: Record<string, string> = {};
     setFilterValues((prev) => {
       const next = { ...prev };
@@ -594,7 +594,7 @@ const DetailedReport: React.FC = () => {
       updatedFilters = next;
       return next;
     });
-    fetchReports(updatedFilters, 1, false, nextPreset);
+    fetchReports(updatedFilters, 1, false, presetKey);
   };
 
   const fetchReports = async (
