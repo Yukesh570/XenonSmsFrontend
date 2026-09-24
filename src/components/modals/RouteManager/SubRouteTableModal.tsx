@@ -1653,9 +1653,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                         <div className="w-full overflow-x-auto custom-scrollbar">
                           <table className="min-w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
-                            <thead className="bg-gray-100 dark:bg-gray-800 text-text-secondary dark:text-gray-300 shadow-sm">
+                            <thead className="bg-gray-50 dark:bg-gray-900 text-text-secondary dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-700">
                               <tr>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-10">#</th>
+                                <th className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-left border-b border-r border-gray-200 dark:border-gray-700 w-10">#</th>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px] w-56">MNC</th>
                                 <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>

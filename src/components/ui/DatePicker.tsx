@@ -8,8 +8,12 @@ const customDatePickerStyles = `
   .react-datepicker-wrapper {
     width: 100%;
   }
+  #datepicker-portal {
+    position: relative;
+    z-index: 99999 !important;
+  }
   .react-datepicker-popper {
-    z-index: 9999 !important;
+    z-index: 99999 !important;
   }
   
   /* --- MAIN CONTAINER --- */
@@ -177,6 +181,7 @@ export interface DatePickerProps {
   enableModeToggle?: boolean;
   dateMode?: DatePickerMode;
   onDateModeChange?: (mode: DatePickerMode) => void;
+  portalId?: string;
 }
 
 const CustomInput = forwardRef<HTMLInputElement, any>(
@@ -698,6 +703,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   enableModeToggle,
   dateMode: externalDateMode,
   onDateModeChange,
+  portalId = "datepicker-portal",
 }) => {
   const [appTimezone, setAppTimezone] = useState<string>(
     () => localStorage.getItem("app_timezone") || "UTC"
@@ -851,6 +857,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
           minDate={minDate}
           showPopperArrow={false}
           autoComplete="off"
+          portalId={portalId}
           popperPlacement="bottom-start"
           calendarClassName={`${
             document.documentElement.classList.contains("dark") ? "dark" : ""

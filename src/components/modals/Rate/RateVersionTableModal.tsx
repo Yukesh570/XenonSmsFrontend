@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../../ui/Modal";
+import ModalDataTable from "../../ui/ModalDataTable";
 import { Edit, Trash, Info, Eye } from "lucide-react";
 import { StatusBadge } from "../../ui/StatusBadge";
 import { DeleteModal } from "../DeleteModal";
@@ -48,6 +49,12 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
   const [selectedVersion, setSelectedVersion] = useState<any>(null);
 
   const [countryOptions, setCountryOptions] = useState<any[]>([]);
+
+  const DEFAULT_COLUMNS = [
+    "version", "country", "MCC", "MNC", "network", "countryCode", "rate", "remark", "status", "effectiveFrom", "effectiveTo"
+  ];
+  const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
   useEffect(() => {
     const fetchCountries = async () => {
@@ -132,19 +139,53 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
     ...(canDelete ? [{ label: "Delete", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedVersion.id) }] : []),
   ] : [];
 
-  const headers = [
-    "Version",
-    "Country",
-    "MCC",
-    "MNC",
-    "Network",
-    "Country Code",
-    "Rate",
-    "Remark",
-    "Status",
-    "Effective From",
-    "Effective To",
-  ];
+  const COLUMN_LABELS: Record<string, string> = {
+    version: "Version",
+    country: "Country",
+    MCC: "MCC",
+    MNC: "MNC",
+    network: "Network",
+    countryCode: "Country Code",
+    rate: "Rate",
+    remark: "Remark",
+    status: "Status",
+    effectiveFrom: "Effective From",
+    effectiveTo: "Effective To",
+  };
+
+  const handleSort = (idx: number) => {
+    const colKey = columns[idx];
+    if (!colKey) return;
+    setSortConfig((prev) => {
+      if (prev?.key === colKey) {
+        if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+        return null;
+      }
+      return { key: colKey, direction: "asc" };
+    });
+  };
+
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const sortedVersions = React.useMemo(() => {
+    if (!sortConfig) return versions;
+    return [...versions].sort((a, b) => {
+      const aVal = a[sortConfig.key];
+      const bVal = b[sortConfig.key];
+      if (aVal === bVal) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      const res = aVal > bVal ? 1 : -1;
+      return sortConfig.direction === "asc" ? res : -res;
+    });
+  }, [versions, sortConfig]);
 
   const renderCountry = (rate: any) => { 
     const countryNameStr = rate.countryName || countryMap[String(rate.country)] || String(rate.country || "-");
@@ -162,6 +203,44 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
   const versionName = selectedVersion
     ? `v${selectedVersion.version || 0} (${selectedVersion.countryName || countryMap[String(selectedVersion.country)] || selectedVersion.network || ratePlan || "-"})`
     : "";
+
+  const renderCell = (colKey: string, v: any, isLatest: boolean) => {
+    switch (colKey) {
+      case "version":
+        return (
+          <td key={colKey} className="py-2.5 px-3 font-medium text-text-primary dark:text-white whitespace-nowrap">
+            {isLatest && (
+              <span className="mr-2 text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded uppercase font-bold tracking-wider">
+                Latest
+              </span>
+            )}
+            v{v.version || 0}
+          </td>
+        );
+      case "country":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{renderCountry(v)}</td>;
+      case "MCC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>;
+      case "MNC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>;
+      case "network":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.network || "-"}</td>;
+      case "countryCode":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.countryCode || "-"}</td>;
+      case "rate":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>;
+      case "remark":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.remark || "-"}</td>;
+      case "status":
+        return <td key={colKey} className="py-2.5 px-3"><StatusBadge status={v.status} /></td>;
+      case "effectiveFrom":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleString() : "-"}</td>;
+      case "effectiveTo":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveTo ? new Date(v.effectiveTo).toLocaleString() : "-"}</td>;
+      default:
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v[colKey] || "-"}</td>;
+    }
+  };
 
   return (
     <>
@@ -185,66 +264,35 @@ export const RateVersionTableModal: React.FC<RateVersionTableModalProps> = ({
             </div>
           </div>
 
-          <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar w-full min-w-0">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
-                  {headers.map((h, i) => (
-                    <th key={i} className="py-3 px-4 font-medium whitespace-nowrap">{h}</th>
-                  ))}
+          <ModalDataTable
+            data={sortedVersions}
+            headers={columns.map((c) => COLUMN_LABELS[c] || c)}
+            renderRow={(v, i) => {
+              const isLatest = i === 0;
+              return (
+                <tr
+                  key={v.id}
+                  onContextMenu={(e) => handleContextMenu(e, v, isLatest)}
+                  className={`group border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors ${
+                    isLatest
+                      ? "bg-blue-50/50 dark:bg-blue-900/10"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  }`}
+                >
+                  {columns.map((colKey) => renderCell(colKey, v, isLatest))}
                 </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr>
-                    <td colSpan={headers.length} className="text-center py-8 text-gray-500">Loading versions...</td>
-                  </tr>
-                ) : versions.length === 0 ? (
-                  <tr>
-                    <td colSpan={headers.length} className="text-center py-8 text-gray-500">No versions found.</td>
-                  </tr>
-                ) : (
-                  versions.map((v, i) => {
-                    const isLatest = i === 0;
-                    return (
-                      <tr
-                        key={v.id}
-                        onContextMenu={(e) => handleContextMenu(e, v, isLatest)}
-                        className={`group border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors ${
-                          isLatest
-                            ? "bg-blue-50/50 dark:bg-blue-900/10"
-                            : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                        }`}
-                      >
-                        <td className="py-3 px-4 font-medium text-text-primary dark:text-white whitespace-nowrap">
-                          {isLatest && (
-                            <span className="mr-2 text-[10px] bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-0.5 rounded uppercase font-bold tracking-wider">
-                              Latest
-                            </span>
-                          )}
-                          v{v.version || 0}
-                        </td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{renderCountry(v)}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.network || "-"}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.countryCode || "-"}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.remark || "-"}</td>
-                        <td className="py-3 px-4"><StatusBadge status={v.status} /></td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                          {v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleString() : "-"}
-                        </td>
-                        <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                          {v.effectiveTo ? new Date(v.effectiveTo).toLocaleString() : "-"}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
+              );
+            }}
+            isLoading={isLoading}
+            serverSide={false}
+            onReorderColumns={handleReorderColumns}
+            onSort={handleSort}
+            sortColumnIndex={sortConfig ? columns.findIndex((c) => c === sortConfig.key) : null}
+            sortDirection={sortConfig?.direction || null}
+            columnKeys={columns}
+            storageKey="rate_version_modal_table"
+            emptyMessage="No versions found."
+          />
         </div>
 
         <ContextMenu

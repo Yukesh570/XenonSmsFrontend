@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
 import {
@@ -241,7 +242,94 @@ export function DataTable<T extends { id?: number | string }>({
     }
   };
 
+  // Fast hover tooltip for table headers
+  const [headerTooltip, setHeaderTooltip] = useState<{
+    text: string;
+    coords: { top: number; left: number };
+    placement: "above" | "below";
+  } | null>(null);
+  const headerTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeHeaderRef = useRef<HTMLElement | null>(null);
 
+  const clearHeaderTooltip = useCallback(() => {
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+      headerTooltipTimerRef.current = null;
+    }
+    activeHeaderRef.current = null;
+    setHeaderTooltip(null);
+  }, []);
+
+  const handleHeaderMouseOver = (e: React.MouseEvent) => {
+    if (isResizingRef.current || hasDraggedRef.current) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    const th = target.closest("th") as HTMLElement | null;
+    if (!th) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    // Skip column resize handle
+    if (target.closest(".group\\/resizer")) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    if (th === activeHeaderRef.current) return;
+
+    activeHeaderRef.current = th;
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+    }
+
+    const spanEl = th.querySelector("span.truncate") as HTMLElement | null;
+    const rawText = spanEl?.innerText?.trim() || th.innerText?.trim();
+    if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const text = rawText.replace(/\s+/g, " ");
+
+    headerTooltipTimerRef.current = setTimeout(() => {
+      if (!activeHeaderRef.current || !th.isConnected) return;
+      const rect = th.getBoundingClientRect();
+      const isAbove = rect.top >= 36;
+      setHeaderTooltip({
+        text,
+        coords: {
+          top: isAbove ? rect.top - 6 : rect.bottom + 6,
+          left: Math.max(12, Math.min(window.innerWidth - 12, rect.left + rect.width / 2)),
+        },
+        placement: isAbove ? "above" : "below",
+      });
+    }, 350);
+  };
+
+  useEffect(() => {
+    if (!headerTooltip) return;
+    const handleDismiss = () => clearHeaderTooltip();
+    window.addEventListener("scroll", handleDismiss, true);
+    window.addEventListener("resize", handleDismiss);
+    window.addEventListener("mousedown", handleDismiss);
+    window.addEventListener("keydown", handleDismiss);
+    return () => {
+      window.removeEventListener("scroll", handleDismiss, true);
+      window.removeEventListener("resize", handleDismiss);
+      window.removeEventListener("mousedown", handleDismiss);
+      window.removeEventListener("keydown", handleDismiss);
+    };
+  }, [headerTooltip, clearHeaderTooltip]);
+
+  useEffect(() => {
+    return () => {
+      if (headerTooltipTimerRef.current) clearTimeout(headerTooltipTimerRef.current);
+    };
+  }, []);
 
   const paginationLabel = `${
     activeTotal === 0
@@ -666,7 +754,11 @@ export function DataTable<T extends { id?: number | string }>({
               })}
             </colgroup>
           )}
-          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
+          <thead
+            className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm"
+            onMouseOver={handleHeaderMouseOver}
+            onMouseLeave={clearHeaderTooltip}
+          >
             <tr>
               {headers.map((header, i) => {
                 const isDraggable = Boolean(
@@ -950,6 +1042,18 @@ export function DataTable<T extends { id?: number | string }>({
       />
 
 
+      {headerTooltip &&
+        createPortal(
+          <div
+            className={`fixed z-[99999] px-2.5 py-1 text-xs font-medium text-white bg-gray-900/95 dark:bg-gray-800/95 rounded-md shadow-lg pointer-events-none transform -translate-x-1/2 ${
+              headerTooltip.placement === "above" ? "-translate-y-full" : "translate-y-0"
+            } transition-opacity duration-100 border border-gray-700/50 backdrop-blur-sm max-w-md break-words text-center select-none`}
+            style={{ top: headerTooltip.coords.top, left: headerTooltip.coords.left }}
+          >
+            {headerTooltip.text}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

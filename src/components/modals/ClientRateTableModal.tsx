@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
 import Modal from "../ui/Modal";
-import Select from "../ui/Select";
+import ModalDataTable from "../ui/ModalDataTable";
 import Input from "../ui/Input";
 import { toast } from "react-toastify";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { getCustomerRateByClientApi, type ClientRateData } from "../../api/clientApi/clientApi";
 
 interface ClientRateTableModalProps {
@@ -29,10 +28,14 @@ const FilterInput = ({
   </div>
 );
 
-const rowsOptions = [
-  { value: "10", label: "10" }, { value: "25", label: "25" },
-  { value: "50", label: "50" }, { value: "100", label: "100" },
-];
+const DEFAULT_COLUMNS = ["country_name", "MCC", "MNC", "rate"];
+
+const COLUMN_LABELS: Record<string, string> = {
+  country_name: "Country",
+  MCC: "MCC",
+  MNC: "MNC",
+  rate: "Rate",
+};
 
 export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
   isOpen,
@@ -43,12 +46,30 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [apiFilters, setApiFilters] = useState<Record<string, string>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  useEffect(() => { setCurrentPage(1); }, [client]);
+  // FIX: Reset filters and sort whenever modal is closed or client changes
+  useEffect(() => {
+    if (!isOpen) {
+      setColumnFilters({});
+      setApiFilters({});
+      setCurrentPage(1);
+      setSortConfig(null);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    setColumnFilters({});
+    setApiFilters({});
+    setCurrentPage(1);
+    setSortConfig(null);
+  }, [client]);
 
   useEffect(() => {
     if (isOpen && client) {
@@ -57,7 +78,7 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
       setRates([]);
       setTotalItems(0);
     }
-  }, [isOpen, client, currentPage, rowsPerPage, apiFilters]);
+  }, [isOpen, client, currentPage, rowsPerPage, apiFilters, sortConfig]);
 
   const fetchRates = async () => {
     if (!client) return;
@@ -74,11 +95,15 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
         else if (key === "rate") searchParams["rate"] = val;
       });
 
+      if (sortConfig) {
+        searchParams["ordering"] = sortConfig.direction === "desc" ? `-${sortConfig.key}` : sortConfig.key;
+      }
+
       const res = await getCustomerRateByClientApi({
         client_id: client.id,
         page: currentPage,
         page_size: rowsPerPage,
-        ...searchParams
+        ...searchParams,
       });
 
       const list = res.results || (Array.isArray(res) ? res : []);
@@ -104,11 +129,97 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
   const handleResetFilters = () => { setColumnFilters({}); setApiFilters({}); setCurrentPage(1); };
   const hasActiveFilters = Object.values(columnFilters).some((v) => v !== "" && v !== undefined);
 
-  const totalPages = Math.ceil(totalItems / rowsPerPage);
-  const startIndex = (currentPage - 1) * rowsPerPage;
-  const paginationLabel = `${totalItems === 0 ? 0 : startIndex + 1}-${Math.min(startIndex + rates.length, totalItems)} of ${totalItems}`;
+  const handleSort = (idx: number) => {
+    const colKey = columns[idx];
+    if (!colKey) return;
+    const apiKey = colKey === "country_name" ? "country__name" : colKey;
+    setSortConfig((prev) => {
+      if (prev?.key === apiKey) {
+        if (prev.direction === "asc") return { key: apiKey, direction: "desc" };
+        return null;
+      }
+      return { key: apiKey, direction: "asc" };
+    });
+    setCurrentPage(1);
+  };
 
-  const headers = ["Country", "MCC", "MNC", "Rate"];
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const renderFilterCell = (_header: string, index: number) => {
+    const colKey = columns[index];
+    switch (colKey) {
+      case "country_name":
+        return (
+          <FilterInput
+            type="text"
+            fieldKey="country__name"
+            placeholder="Search Country..."
+            value={columnFilters["country__name"] || ""}
+            onChange={handleFilterChange}
+            onEnter={handleFilterApply}
+            minWidth="100px"
+          />
+        );
+      case "MCC":
+        return (
+          <FilterInput
+            fieldKey="MCC"
+            placeholder="Search MCC..."
+            value={columnFilters["MCC"] || ""}
+            onChange={handleFilterChange}
+            onEnter={handleFilterApply}
+            minWidth="90px"
+          />
+        );
+      case "MNC":
+        return (
+          <FilterInput
+            fieldKey="MNC"
+            placeholder="Search MNC..."
+            value={columnFilters["MNC"] || ""}
+            onChange={handleFilterChange}
+            onEnter={handleFilterApply}
+            minWidth="90px"
+          />
+        );
+      case "rate":
+        return (
+          <FilterInput
+            type="number"
+            fieldKey="rate"
+            placeholder="Search Rate..."
+            value={columnFilters["rate"] || ""}
+            onChange={handleFilterChange}
+            onEnter={handleFilterApply}
+            minWidth="90px"
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderCell = (colKey: string, v: any) => {
+    switch (colKey) {
+      case "country_name":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.country_name || "-"}</td>;
+      case "MCC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>;
+      case "MNC":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>;
+      case "rate":
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>;
+      default:
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v[colKey] || "-"}</td>;
+    }
+  };
 
   return (
     <Modal
@@ -128,60 +239,35 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
           </div>
         </div>
 
-        {/* Pagination bar */}
-        <div className="flex items-center mb-3 gap-4 flex-wrap">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">Rows per page:</span>
-            <div className="w-24 shrink-0">
-              <Select value={String(rowsPerPage)} onChange={(val: string) => { setRowsPerPage(Number(val)); setCurrentPage(1); }} options={rowsOptions} clearable={false} placement="bottom" />
-            </div>
-          </div>
-          <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">{paginationLabel}</span>
-          <div className="flex items-center space-x-2 shrink-0">
-            <button className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={20} /></button>
-            <button className="rounded border border-transparent p-1 text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors" onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))} disabled={currentPage >= totalPages || totalItems === 0 || isLoading}><ChevronRight size={20} /></button>
-          </div>
-          {hasActiveFilters && (
-            <button onClick={handleResetFilters} className="text-xs text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-200 dark:border-red-800 rounded px-2 py-1 transition-colors whitespace-nowrap">Reset Filters</button>
+        <ModalDataTable
+          data={rates}
+          headers={columns.map((c) => COLUMN_LABELS[c] || c)}
+          renderFilterCell={renderFilterCell}
+          renderRow={(v, idx) => (
+            <tr
+              key={idx}
+              className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+            >
+              {columns.map((colKey) => renderCell(colKey, v))}
+            </tr>
           )}
-        </div>
-
-        <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg custom-scrollbar">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-b border-gray-200 dark:border-gray-600">
-                {headers.map((h, i) => (
-                  <th key={i} className="py-3 px-4 font-medium whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-              <tr className="bg-gray-50 dark:bg-gray-800/80">
-                <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput type="text" fieldKey="country__name" placeholder="Search Country..." value={columnFilters["country__name"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-                <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="MCC" placeholder="Search MCC..." value={columnFilters["MCC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-                <th className="p-1 border-b border-r dark:border-gray-600 font-normal"><FilterInput fieldKey="MNC" placeholder="Search MNC..." value={columnFilters["MNC"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-                <th className="p-1 border-b dark:border-gray-600 font-normal"><FilterInput type="number" fieldKey="rate" placeholder="Search Rate..." value={columnFilters["rate"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" /></th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={headers.length} className="text-center py-8 text-gray-500">Loading rates...</td></tr>
-              ) : rates.length === 0 ? (
-                <tr><td colSpan={headers.length} className="text-center py-8 text-gray-500">{Object.keys(apiFilters).length > 0 ? "No rates match your search filters." : "No rates found for this client."}</td></tr>
-              ) : (
-                rates.map((v, idx) => (
-                  <tr
-                    key={idx}
-                    className="group border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.country_name || "-"}</td>
-                    <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MCC || "-"}</td>
-                    <td className="py-3 px-4 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.MNC || "-"}</td>
-                    <td className="py-3 px-4 text-text-secondary dark:text-gray-300 font-medium whitespace-nowrap">{v.rate || "-"}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+          isLoading={isLoading}
+          serverSide={true}
+          totalItems={totalItems}
+          currentPage={currentPage}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={(rows) => { setRowsPerPage(rows); setCurrentPage(1); }}
+          onReorderColumns={handleReorderColumns}
+          onSort={handleSort}
+          sortColumnIndex={sortConfig ? columns.findIndex((c) => c === (sortConfig.key === "country__name" ? "country_name" : sortConfig.key)) : null}
+          sortDirection={sortConfig?.direction || null}
+          columnKeys={columns}
+          hasActiveFilters={hasActiveFilters}
+          onResetFilters={handleResetFilters}
+          storageKey="client_rates_modal_table"
+          emptyMessage={Object.keys(apiFilters).length > 0 ? "No rates match your search filters." : "No rates found for this client."}
+        />
       </div>
 
       <style dangerouslySetInnerHTML={{
@@ -197,3 +283,5 @@ export const ClientRateTableModal: React.FC<ClientRateTableModalProps> = ({
     </Modal>
   );
 };
+
+export default ClientRateTableModal;
