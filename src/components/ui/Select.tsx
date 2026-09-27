@@ -224,7 +224,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
         ) : (
           <FastTooltip text={hoverText} disabled={open || isFocused || isTyping || !hasValueSet}>
             <div
-              className={`relative w-full rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
+              className={`relative w-full h-[34px] flex items-center rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
               ${
                 error
                   ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500"
@@ -238,7 +238,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
               dark:border-gray-700`}
             >
               {selectedOption?.icon && !isTyping && (
-                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
                   {selectedOption.icon}
                 </span>
               )}
@@ -254,9 +254,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className={`w-full border-none bg-transparent ${selectedOption?.icon && !isTyping ? "pl-10" : "px-3"} pr-10 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-sm ${
-                  hasLabel ? "py-2.5" : "py-2"
-                } ${
+                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping ? "pl-9" : "px-3"} pr-12 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${
                   disabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
                 }`}
                 displayValue={(val: string) => {
@@ -297,7 +295,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
 
               <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
                 <ChevronDown
-                  size={18}
+                  size={16}
                   className={`${
                     disabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
                   }`}
@@ -308,10 +306,10 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
               {(value || query) && clearable && !disabled && !open && (
                 <span
                   onClick={handleClear}
-                  className="absolute inset-y-0 right-8 flex items-center pr-2 cursor-pointer hover:text-red-500 group z-10"
+                  className="absolute inset-y-0 right-7 flex items-center pr-1 cursor-pointer hover:text-red-500 group z-10"
                   title="Clear selection"
                 >
-                  <X size={16} className="text-gray-400 group-hover:text-red-500" />
+                  <X size={14} className="text-gray-400 group-hover:text-red-500" />
                 </span>
               )}
             </div>

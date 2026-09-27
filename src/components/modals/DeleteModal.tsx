@@ -47,14 +47,14 @@ export const DeleteModal: React.FC<DeleteModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title={title} className="max-w-md">
       <div className="flex flex-col items-center text-center space-y-4">
         <div className="p-3 bg-red-100 rounded-full dark:bg-red-900/30">
-          <AlertTriangle size={40} className="text-red-600 dark:text-red-500" />
+          <AlertTriangle size={36} className="text-red-600 dark:text-red-500" />
         </div>
 
         <p className="text-text-secondary text-sm leading-relaxed dark:text-gray-300">
           {renderMessage(message)}
         </p>
 
-        <div className="flex justify-center space-x-3 w-full pt-4">
+        <div className="flex justify-center space-x-3 w-full pt-3">
           <Button variant="secondary" onClick={onClose} className="w-1/2">
             Cancel
           </Button>

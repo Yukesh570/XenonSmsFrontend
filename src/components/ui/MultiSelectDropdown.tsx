@@ -181,7 +181,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
           updatePosition();
           toggle();
         }}
-        className={`w-full border rounded-lg px-3 py-2.5 flex justify-between items-center shadow-input transition duration-150 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary ${disabled
+        className={`w-full h-[34px] border rounded-lg px-3 py-1 flex justify-between items-center shadow-input transition duration-150 ease-in-out focus:outline-none focus:ring-1 focus:ring-primary ${disabled
             ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
             : "bg-white border-gray-200 dark:bg-gray-800 dark:border-gray-700 cursor-pointer hover:border-primary"
           } ${open ? "ring-1 ring-primary border-primary" : ""}`}
@@ -199,7 +199,7 @@ const MultiSelectDropdownContent: React.FC<MultiSelectDropdownProps & { open: bo
             }
           }}
           onKeyDown={(e) => e.stopPropagation()}
-          className={`flex-1 w-full bg-transparent outline-none truncate text-sm text-text-primary dark:text-white ${
+          className={`flex-1 w-full bg-transparent outline-none truncate text-xs sm:text-sm text-text-primary dark:text-white ${
             selected.length === 0
               ? "placeholder:text-gray-400 dark:placeholder:text-gray-500"
               : "placeholder:text-text-primary dark:placeholder:text-white font-medium"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
 import {
@@ -61,6 +61,97 @@ const defaultRowsOptions = [
   { value: "50", label: "50" },
   { value: "100", label: "100" },
 ];
+
+export const getHeaderWordMinWidth = (header: string, index: number, hasSn: boolean): number => {
+  if (hasSn && index === 0) return 48;
+  const raw = String(header || "").trim();
+  const firstWord = raw.split(/[\s_.-]+/)[0] || raw;
+  const fullTextLen = raw.length;
+  const firstWordLen = firstWord.length;
+
+  const h = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (h === "mcc" || h === "mnc") return 120;
+  if (h === "country" || h === "countryname") return 165;
+  if (h === "countrycode") return 165;
+  if (h === "network" || h === "networkname") return 185;
+  if (h.includes("rate") || h === "exchangerate") return 145;
+  if (h === "version") return 135;
+  if (h === "status") return 130;
+  if (h === "remark" || h === "description" || h === "remarks") return 150;
+  if (
+    h.includes("effective") ||
+    h.includes("date") ||
+    h.includes("time") ||
+    h.includes("created") ||
+    h.includes("updated") ||
+    h.includes("billing")
+  ) {
+    return 195;
+  }
+  if (h === "companyname" || h === "company") return 195;
+  if (h === "shortname") return 160;
+  if (h === "accountmanager" || h === "accountmanagername") return 205;
+  if (h === "companyemail" || h === "email") return 200;
+  if (h === "phone") return 135;
+  if (h === "currency" || h === "currencycode") return 145;
+  if (h.includes("customercredit") || h.includes("custcredit")) return 175;
+  if (h.includes("vendorcredit") || h.includes("vendcredit")) return 175;
+  if (h.includes("balancealert")) return 175;
+  if (h === "customerbalance" || h === "vendorbalance") return 185;
+  if (h === "customer" || h === "vendor" || h === "client") return 165;
+  if (h === "invoicenumber" || h === "invoice") return 165;
+  if (h.includes("credit")) return 165;
+  if (h.includes("amount") || h.includes("segments") || h.includes("tax")) return 145;
+  if (h === "id") return 75;
+  if (h === "action" || h === "actions") return 100;
+
+  // General calculated width: ensure at least first word (with grip + sort + padding) has full room,
+  // and full text is accommodated comfortably.
+  const minRequiredForFirstWord = Math.max(130, Math.ceil(firstWordLen * 11 + 65));
+  const fullTextDesired = Math.max(minRequiredForFirstWord, Math.ceil(fullTextLen * 9.5 + 65));
+
+  return fullTextDesired;
+};
+
+/**
+ * Calculates the maximum limit to which a column can be decreased (minimum allowed width),
+ * ensuring at least the first word of the header is fully visible with all padding and icons.
+ */
+export const getHeaderFirstWordMinWidth = (
+  header: string,
+  index?: number,
+  hasSn?: boolean
+): number => {
+  if (hasSn && index === 0) return 48;
+
+  const raw = String(header || "").trim();
+  if (!raw) return 50;
+
+  const normalized = raw.toUpperCase().replace(/[\s.]/g, "");
+  if (
+    normalized === "SN" ||
+    normalized === "SNO" ||
+    normalized === "SLNO" ||
+    normalized === "SRNO" ||
+    normalized === "SERIALNO" ||
+    normalized === "SERIALNUMBER" ||
+    normalized === "#" ||
+    normalized === "NO"
+  ) {
+    return 48;
+  }
+
+  // Extract the first word (split by whitespace, underscores, hyphens, dots, slashes)
+  const firstWord = raw.split(/[\s_.\-/]+/)[0] || raw;
+  const wordLen = firstWord.length;
+
+  // Header has px-3 padding (24px) + Grip icon (~17px) + Sort icon (~18px)
+  // Font is text-xs uppercase (approx 8.8px per char with tracking-wider)
+  const textWidth = Math.ceil(wordLen * 8.8);
+  const minWidth = textWidth + 56;
+
+  return Math.max(50, minWidth);
+};
 
 export function ModalDataTable<T extends Record<string, any> = any>({
   data,
@@ -130,7 +221,13 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             delete parsed["S.N"];
             delete parsed["SN"];
             delete parsed["#"];
-            return parsed;
+            const clean: Record<string, number> = {};
+            for (const key of Object.keys(parsed)) {
+              if (typeof parsed[key] === "number" && parsed[key] >= 50) {
+                clean[key] = parsed[key];
+              }
+            }
+            return clean;
           }
         }
       } catch (e) {
@@ -333,6 +430,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     (firstHeaderRaw === "SN" ||
       firstHeaderRaw === "SNO" ||
       firstHeaderRaw === "SLNO" ||
+      firstHeaderRaw === "SRNO" ||
+      firstHeaderRaw === "SERIALNO" ||
+      firstHeaderRaw === "SERIALNUMBER" ||
       firstHeaderRaw === "#" ||
       firstHeaderRaw === "NO");
 
@@ -403,6 +503,93 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     }, 200);
   };
 
+  const SN_COL_WIDTH = 48;
+
+  const getColWidth = (header: string, index?: number) => {
+    if (hasSnColumn && index === 0) {
+      return SN_COL_WIDTH;
+    }
+    const minLimit = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
+    if (
+      columnWidths[header] &&
+      typeof columnWidths[header] === "number"
+    ) {
+      return Math.max(minLimit, columnWidths[header]);
+    }
+    return index !== undefined ? getHeaderWordMinWidth(header, index, hasSnColumn) : 110;
+  };
+
+  const defaultTotalWidth = useMemo(() => {
+    return headers.reduce((sum, h, i) => {
+      const w = getColWidth(h, i);
+      return sum + w;
+    }, 0);
+  }, [headers, columnWidths, hasSnColumn]);
+
+  const totalRequestedWidth = defaultTotalWidth;
+
+  const getEffectiveColWidth = (header: string, index: number): number => {
+    if (hasSnColumn && index === 0) {
+      return SN_COL_WIDTH;
+    }
+
+    if (containerWidth && totalRequestedWidth < containerWidth) {
+      const snWidth = hasSnColumn ? SN_COL_WIDTH : 0;
+      const availableSpace = containerWidth - snWidth;
+
+      const unresizedNonSnCols = headers.filter(
+        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h]
+      );
+
+      const isExplicitlyResized = Boolean(columnWidths[header]);
+
+      if (unresizedNonSnCols.length > 0) {
+        if (isExplicitlyResized) {
+          return getColWidth(header, index);
+        }
+        const explicitlyResizedSum = headers.reduce((sum, h, i) => {
+          if (hasSnColumn && i === 0) return sum;
+          if (columnWidths[h]) return sum + getColWidth(h, i);
+          return sum;
+        }, 0);
+        const spaceForUnresized = Math.max(0, availableSpace - explicitlyResizedSum);
+        const unresizedDefaultSum = unresizedNonSnCols.reduce((sum, h) => {
+          const idx = headers.indexOf(h);
+          return sum + getHeaderWordMinWidth(h, idx, hasSnColumn);
+        }, 0);
+        if (unresizedDefaultSum > 0) {
+          const defaultW = getHeaderWordMinWidth(header, index, hasSnColumn);
+          const minLimit = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
+          return Math.max(
+            minLimit,
+            Math.round((defaultW / unresizedDefaultSum) * spaceForUnresized)
+          );
+        }
+      } else {
+        const lastColIdx = headers.length - 1;
+        if (index === lastColIdx) {
+          const otherColsSum = headers.reduce((sum, h, i) => {
+            if (i === lastColIdx) return sum;
+            return sum + (hasSnColumn && i === 0 ? SN_COL_WIDTH : getColWidth(h, i));
+          }, 0);
+          return Math.max(
+            getColWidth(header, index),
+            containerWidth - otherColsSum
+          );
+        }
+        return getColWidth(header, index);
+      }
+    }
+
+    return getColWidth(header, index);
+  };
+
+  const totalTableWidth = useMemo(() => {
+    return headers.reduce((sum, h, i) => {
+      return sum + getEffectiveColWidth(h, i);
+    }, 0);
+  }, [headers, columnWidths, hasSnColumn, containerWidth, totalRequestedWidth]);
+
   // Resize handlers
   const handleResizeStart = (
     e: React.MouseEvent,
@@ -421,25 +608,26 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
     const startX = e.clientX;
     const startWidth = thEl.getBoundingClientRect().width;
-    const minWidth = hasSnColumn && index === 0 ? 40 : 70;
 
-    const baseWidths: Record<string, number> = { ...columnWidths };
+    const baseWidths: Record<string, number> = {};
     headers.forEach((h, idx) => {
-      if (!baseWidths[h]) {
-        if (hasSnColumn && idx === 0) {
-          baseWidths[h] = 40;
-        } else if (thRefs.current[idx]) {
-          baseWidths[h] = Math.max(50, Math.round(thRefs.current[idx]!.getBoundingClientRect().width));
-        }
+      const minLimit = getHeaderFirstWordMinWidth(h, idx, hasSnColumn);
+      if (hasSnColumn && idx === 0) {
+        baseWidths[h] = SN_COL_WIDTH;
+      } else if (columnWidths[h] && columnWidths[h] >= minLimit) {
+        baseWidths[h] = columnWidths[h];
+      } else {
+        baseWidths[h] = getEffectiveColWidth(h, idx);
       }
     });
 
     let lastWidth = startWidth;
+    const minLimitForHeader = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
       const deltaX = moveEvent.clientX - startX;
-      const newWidth = Math.max(minWidth, Math.round(startWidth + deltaX));
+      const newWidth = Math.max(minLimitForHeader, Math.round(startWidth + deltaX));
       lastWidth = newWidth;
 
       setColumnWidths({
@@ -473,23 +661,6 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     document.addEventListener("mouseup", onMouseUp);
   };
 
-  const isFixedLayout = true;
-
-  const getColWidth = (header: string, index?: number) => {
-    if (hasSnColumn && index === 0) {
-      return 48;
-    }
-    if (columnWidths[header]) {
-      return columnWidths[header];
-    }
-    return undefined;
-  };
-
-  const totalTableWidth = headers.reduce((sum, h, i) => {
-    const w = getColWidth(h, i) || (hasSnColumn && i === 0 ? 48 : 120);
-    return sum + w;
-  }, 0);
-
   return (
     <div
       className={`rounded-lg bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex flex-col relative z-0 app-modal-data-table ${
@@ -507,7 +678,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
               <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
                 Rows per page:
               </span>
-              <div className="w-20 shrink-0">
+              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
                 <Select
                   value={String(activeRows)}
                   onChange={(val) => handleRowsChange(Number(val))}
@@ -518,17 +689,17 @@ export function ModalDataTable<T extends Record<string, any> = any>({
               </div>
             </div>
 
-            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
+            <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
 
             {/* Pagination Controls */}
-            <div className="h-[30px] inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-text-secondary dark:text-gray-300 shadow-sm overflow-hidden">
-              <span className="px-2 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px]">
+            <div className="h-[34px] inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-text-secondary dark:text-gray-300 shadow-sm overflow-hidden">
+              <span className="px-2 sm:px-2.5 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px] sm:text-xs">
                 {paginationLabel}
               </span>
 
               <button
                 type="button"
-                className="h-full px-1.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
+                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
                 onClick={handlePrev}
                 disabled={activePage === 1 || isLoading}
                 title="Previous Page"
@@ -536,8 +707,8 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                 <ChevronLeft size={14} />
               </button>
 
-              <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 px-1.5 h-full">
-                <span className="text-[11px] text-text-secondary dark:text-gray-400 select-none">Page</span>
+              <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 px-1.5 sm:px-2 h-full">
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">Page</span>
                 <input
                   type="number"
                   min={1}
@@ -547,9 +718,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                   onWheel={(e) => e.currentTarget.blur()}
                   onBlur={handleJumpBlur}
                   disabled={isLoading || totalPages <= 1}
-                  className="w-8 h-4 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-8 sm:w-10 h-5 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all"
                 />
-                <span className="text-[11px] text-text-secondary dark:text-gray-400 select-none">
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">
                   of {totalPages}
                 </span>
               </form>
@@ -593,23 +764,24 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 table-resizable-active"
           style={{
             tableLayout: "fixed",
-            width: containerWidth
-              ? `${Math.max(totalTableWidth, containerWidth)}px`
-              : "100%",
+            width: totalTableWidth < (containerWidth || 0)
+              ? "100%"
+              : `${totalTableWidth}px`,
+            minWidth: "100%",
           }}
         >
           <colgroup>
             {headers.map((h, i) => {
               const isSn = Boolean(hasSnColumn && i === 0);
-              const w = getColWidth(h, i);
+              const w = getEffectiveColWidth(h, i);
               return (
                 <col
                   key={i}
-                  width={isSn ? 48 : undefined}
+                  width={isSn ? SN_COL_WIDTH : w}
                   style={{
-                    width: isSn ? "48px" : (w ? `${w}px` : undefined),
-                    minWidth: isSn ? "48px" : undefined,
-                    maxWidth: isSn ? "48px" : undefined,
+                    width: isSn ? `${SN_COL_WIDTH}px` : `${w}px`,
+                    minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
+                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                   }}
                 />
               );
@@ -626,7 +798,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                 const isDragOver = dragOverHeaderIdx === i;
                 const isSortable = Boolean(!isSn && (onSort || columnKeys || headers));
                 const isSorted = effectiveSortCol === i;
-                const colWidth = getColWidth(header, i);
+                const colWidth = getEffectiveColWidth(header, i);
                 const isBeingResized = resizingHeaderIdx === i;
 
                 return (
@@ -654,9 +826,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                     }}
                     onDragEnd={handleDragEnd}
                     style={{
-                      width: isSn ? "48px" : (isFixedLayout && colWidth ? `${colWidth}px` : undefined),
-                      minWidth: isSn ? "48px" : (isFixedLayout ? (colWidth ? `${colWidth}px` : "70px") : undefined),
-                      maxWidth: isSn ? "48px" : undefined,
+                      width: isSn ? `${SN_COL_WIDTH}px` : `${colWidth}px`,
+                      minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
+                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                     }}
                     className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-3"} py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       isSorted
@@ -693,10 +865,10 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       }
                     }}
                   >
-                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1.5 min-w-0 pr-2 overflow-hidden"}`}>
+                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1 min-w-0 pr-1 overflow-hidden"}`}>
                       {isDraggable && !isSn && (
                         <GripVertical
-                          size={14}
+                          size={13}
                           className="text-gray-400 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing pointer-events-auto"
                         />
                       )}
@@ -751,15 +923,15 @@ export function ModalDataTable<T extends Record<string, any> = any>({
               <tr className="bg-gray-50/70 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-700">
                 {headers.map((header, i) => {
                   const isSn = Boolean(hasSnColumn && i === 0);
-                  const w = getColWidth(header, i);
+                  const w = getEffectiveColWidth(header, i);
                   return (
                     <th
                       key={`filter-${i}`}
                       className="p-1 font-normal border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700"
                       style={{
-                        width: isSn ? "48px" : (isFixedLayout && w ? `${w}px` : undefined),
-                        minWidth: isSn ? "48px" : (isFixedLayout ? (w ? `${w}px` : "70px") : undefined),
-                        maxWidth: isSn ? "48px" : undefined,
+                        width: isSn ? `${SN_COL_WIDTH}px` : `${w}px`,
+                        minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
+                        maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                       }}
                     >
                       {renderFilterCell(header, i)}
@@ -817,6 +989,101 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         .app-modal-data-table tbody tr:nth-child(even) { background-color: #f9fafb; }
         .dark .app-modal-data-table tbody tr:nth-child(odd) { background-color: #1f2937; }
         .dark .app-modal-data-table tbody tr:nth-child(even) { background-color: rgba(17, 24, 39, 0.45); }
+
+        /* Dynamic adjustable column widths & text truncation with ellipsis */
+        .app-modal-data-table table.table-resizable-active {
+          table-layout: fixed !important;
+        }
+        .app-modal-data-table table.table-resizable-active th {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .app-modal-data-table table.table-resizable-active td {
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+          white-space: nowrap !important;
+          max-width: 0 !important;
+          vertical-align: middle !important;
+        }
+        .app-modal-data-table table.table-resizable-active td[colspan] {
+          white-space: normal !important;
+          max-width: none !important;
+          overflow: visible !important;
+        }
+        .app-modal-data-table table.table-resizable-active td > span:not([class*="badge"]),
+        .app-modal-data-table table.table-resizable-active td > a,
+        .app-modal-data-table table.table-resizable-active td > p,
+        .app-modal-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container) {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap !important;
+          display: inline-block;
+          max-width: 100%;
+          vertical-align: middle;
+        }
+        .app-modal-data-table table.table-resizable-active td svg,
+        .app-modal-data-table table.table-resizable-active td img {
+          display: inline-block !important;
+          vertical-align: -0.15em !important;
+          margin-right: 0.35rem !important;
+          flex-shrink: 0 !important;
+        }
+        .app-modal-data-table table.table-resizable-active td img {
+          vertical-align: middle !important;
+        }
+        .app-modal-data-table table.table-resizable-active td button svg,
+        .app-modal-data-table table.table-resizable-active td [role="button"] svg,
+        .app-modal-data-table table.table-resizable-active td a svg:only-child {
+          margin-right: 0 !important;
+        }
+        .app-modal-data-table table.table-resizable-active td * {
+          white-space: nowrap;
+        }
+        .app-modal-data-table table.table-resizable-active td[colspan] * {
+          white-space: normal;
+        }
+
+        .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
+        .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+
+        .rows-per-page-select {
+          height: 34px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select > div {
+          height: 34px !important;
+          width: 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        }
+        .rows-per-page-select div.relative.w-full {
+          height: 34px !important;
+        }
+        .rows-per-page-select div[class*="rounded-lg"] {
+          height: 34px !important;
+          min-height: 34px !important;
+          max-height: 34px !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select input {
+          height: 32px !important;
+          min-height: 32px !important;
+          max-height: 32px !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          line-height: 32px !important;
+          font-size: 0.8125rem !important;
+        }
+        .rows-per-page-select button {
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+        }
 
         .app-modal-data-table.has-sn-column th:first-child,
         .app-modal-data-table.has-sn-column td:first-child:not([colspan]) {

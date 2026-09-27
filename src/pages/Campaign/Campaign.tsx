@@ -189,7 +189,7 @@ const CampaignList: React.FC = () => {
       filterKey: "objective__icontains",
       render: (c) => (
         <span className="flex items-center gap-2">
-          <Megaphone size={14} /> {c.objective}
+          <Megaphone size={14} className="shrink-0" /> {c.objective}
         </span>
       ),
     },
@@ -218,7 +218,7 @@ const CampaignList: React.FC = () => {
       filterKey: "schedule__icontains",
       render: (c) => (
         <span className="flex items-center gap-2">
-          <Calendar size={14} /> {c.schedule}
+          <Calendar size={14} className="shrink-0" /> {c.schedule}
         </span>
       ),
     },

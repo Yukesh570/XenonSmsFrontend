@@ -17,11 +17,11 @@ const buttonVariants = cva(
         danger: "bg-red-600 text-white shadow-sm hover:bg-red-700",
       },
       size: {
-        default: "px-4 py-2.5",
-        sm: "h-9 px-3",
+        default: "h-[34px] px-3.5 text-xs sm:text-sm",
+        sm: "h-[34px] px-3 text-xs sm:text-sm",
         lg: "h-11 px-8",
-        icon: "h-10 w-10 p-2",
-        xs: "py-1.5 px-2.5 text-xs",
+        icon: "h-[34px] w-[34px] p-1.5",
+        xs: "h-[28px] px-2 text-xs",
       },
     },
     defaultVariants: {

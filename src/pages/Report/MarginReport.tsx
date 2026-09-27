@@ -23,6 +23,7 @@ import MultiSelectDropdown, {
 import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
+import { CountryFlag } from "../../components/ui/CountryFlag";
 import ContextMenu, {
   type ContextMenuItem,
 } from "../../components/ui/ContextMenu";
@@ -77,6 +78,33 @@ const groupByOptions: MultiSelectOption[] = [
   { label: "Destination", value: "destination" },
 ];
 
+const normalizeCountryName = (str: string) =>
+  str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+
+const COUNTRY_ALIASES: Record<string, string> = {
+  cotedivoire: "ci",
+  ivorycoast: "ci",
+  antarctica: "aq",
+  colombia: "co",
+  australia: "au",
+  unitedstates: "us",
+  usa: "us",
+  unitedkingdom: "gb",
+  uk: "gb",
+  greatbritain: "gb",
+  unitedarabemirates: "ae",
+  uae: "ae",
+  russia: "ru",
+  russianfederation: "ru",
+  southkorea: "kr",
+  northkorea: "kp",
+  vietnam: "vn",
+};
+
 const MarginReport: React.FC = () => {
   const [summaryData, setSummaryData] = useState<MarginSummaryData[]>([]);
   const [totals, setTotals] = useState<MarginTotals | null>(null);
@@ -100,7 +128,7 @@ const MarginReport: React.FC = () => {
     { label: string; value: string }[]
   >([]);
   const [countryOptions, setCountryOptions] = useState<
-    { label: string; value: string }[]
+    { label: string; value: string; iso2?: string; icon?: React.ReactNode }[]
   >([]);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -152,11 +180,15 @@ const MarginReport: React.FC = () => {
             label: item.profileName,
             value: item.profileName,
           })) || [];
-        const cntOpts =
-          countriesRes.results?.map((item: any) => ({
-            label: item.name,
-            value: item.name,
-          })) || [];
+        const countryList: any[] =
+          countriesRes?.results ||
+          (Array.isArray(countriesRes) ? countriesRes : (countriesRes as any)?.data || []);
+        const cntOpts = countryList.map((item: any) => ({
+          label: item.name || "Unknown",
+          value: item.name || String(item.id),
+          iso2: item.iso2,
+          icon: item.iso2 ? <CountryFlag iso2={item.iso2} /> : undefined,
+        }));
 
         setClientOptions(cOpts);
         setVendorOptions(vOpts);
@@ -167,6 +199,33 @@ const MarginReport: React.FC = () => {
     };
     fetchOptions();
   }, []);
+
+  const getCountryIso = (countryVal: any, row?: any): string | null => {
+    if (row?.iso2) return row.iso2;
+    if (row?.country_iso) return row.country_iso;
+    if (row?.country_iso2) return row.country_iso2;
+    if (!countryVal || countryVal === "-") return null;
+
+    const valStr = String(countryVal).trim();
+    if (valStr.length === 2 && /^[a-zA-Z]{2}$/.test(valStr)) {
+      return valStr.toLowerCase();
+    }
+
+    const normVal = normalizeCountryName(valStr);
+
+    const match = countryOptions.find((opt) => {
+      if (!opt) return false;
+      if (opt.iso2 && opt.iso2.toLowerCase() === valStr.toLowerCase()) return true;
+      if (opt.label && normalizeCountryName(opt.label) === normVal) return true;
+      if (opt.value && normalizeCountryName(opt.value) === normVal) return true;
+      return false;
+    });
+
+    if (match?.iso2) return match.iso2;
+    if (COUNTRY_ALIASES[normVal]) return COUNTRY_ALIASES[normVal];
+
+    return null;
+  };
 
   const hasLoggedOpening = useRef(false);
   useEffect(() => {
@@ -535,14 +594,27 @@ const MarginReport: React.FC = () => {
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-400 font-medium whitespace-nowrap">
                   {sn}
                 </td>
-                {appliedGroupBy.map((gb) => (
-                  <td
-                    key={gb}
-                    className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
-                  >
-                    {(row as any)[gb] || "-"}
-                  </td>
-                ))}
+                {appliedGroupBy.map((gb) => {
+                  const val = (row as any)[gb] || "-";
+                  const isCountry = gb.toLowerCase() === "country";
+                  const iso2 = isCountry ? getCountryIso(val, row) : null;
+
+                  return (
+                    <td
+                      key={gb}
+                      className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
+                    >
+                      {isCountry && val !== "-" ? (
+                        <div className="flex items-center gap-2">
+                          {iso2 && <CountryFlag iso2={iso2} name={String(val)} />}
+                          <span>{val}</span>
+                        </div>
+                      ) : (
+                        val
+                      )}
+                    </td>
+                  );
+                })}
                 {appliedGroupBy.length === 0 && (
                   <td className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-semibold whitespace-nowrap">
                     Grand Total

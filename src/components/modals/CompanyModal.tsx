@@ -319,7 +319,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Identity & Contacts
           </legend>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start [&_label]:min-h-[32px] [&_label]:flex [&_label]:items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
             <Input
               label="Company Name"
               name="name"
@@ -414,7 +414,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Classification & Location
           </legend>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start [&_label]:min-h-[32px] [&_label]:flex [&_label]:items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
             <Select
               label="Country Name"
               value={formData.country}
@@ -457,7 +457,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Finance & System
           </legend>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start [&_label]:min-h-[32px] [&_label]:flex [&_label]:items-end">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
             <Select
               label="Currency"
               value={formData.currency}

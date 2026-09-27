@@ -84,7 +84,7 @@ const MultiEmailInput: React.FC<MultiEmailInputProps> = ({
           const input = document.getElementById(`${name}-input`) as HTMLInputElement;
           input?.focus();
         }}
-        className={`flex flex-nowrap gap-1.5 items-center px-2.5 h-[42px] border border-gray-300 dark:border-gray-700 rounded-lg focus-within:ring-1 focus-within:ring-primary focus-within:border-primary bg-white dark:bg-gray-800 overflow-x-auto overflow-y-hidden scrollbar-none cursor-text transition-colors ${
+        className={`flex flex-nowrap gap-1.5 items-center px-2.5 h-[34px] border border-gray-300 dark:border-gray-700 rounded-lg focus-within:ring-1 focus-within:ring-primary focus-within:border-primary bg-white dark:bg-gray-800 overflow-x-auto overflow-y-hidden scrollbar-none cursor-text transition-colors ${
           disabled ? "bg-gray-100 dark:bg-gray-900 cursor-not-allowed opacity-70" : ""
         }`}
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}

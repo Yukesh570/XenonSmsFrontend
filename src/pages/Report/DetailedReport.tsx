@@ -101,17 +101,17 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = [
-  "text_message_id",
-  "destination",
-  "countryMCC",
-  "operatorMNC",
-  "senderId",
-  "countryName",
   "company",
-
-  "submitStatus",
   "client",
   "vendor",
+  "countryName",
+  "destination",
+  "text_message_id",
+  "senderId",
+  "countryMCC",
+  "operatorMNC",
+
+  "submitStatus",
   "failure_reason",
   "request_time__gt_lt",
   "effectiveSenderId",
@@ -244,8 +244,47 @@ const DetailedReport: React.FC = () => {
       hasLoggedOpening.current = true;
     }
   }, []);
-
+  
   const allColumns: ColumnConfig[] = [
+    {
+      key: "company",
+      label: "Company",
+      type: "text",
+      options: companyOptions,
+      filterKey: "message__client__company__name__icontains",
+    },
+      {
+      key: "client",
+      label: "Client",
+      type: "text",
+      options: clientOptions,
+      filterKey: "client__icontains",
+    },
+    {
+      key: "vendor",
+      label: "Vendor",
+      type: "text",
+      options: vendorOptions,
+      filterKey: "vendor__icontains",
+    },
+     {
+      key: "countryName",
+      label: "Country",
+      type: "text",
+      options: countryOptions,
+      filterKey: "message__country__name",
+      render: (log) => {
+        const match = countryOptions.find(
+          (opt) => opt.label === log.countryName,
+        );
+        return (
+          <div className="flex items-center gap-1.5 text-sm font-medium text-text-primary dark:text-white">
+            {match?.icon}
+            <span>{log.countryName}</span>
+          </div>
+        );
+      },
+    },
     {
       key: "destination",
       label: "Destination",
@@ -268,31 +307,24 @@ const DetailedReport: React.FC = () => {
         </span>
       ),
     },
+     {
+      key: "vendor_msg_id",
+      label: "Vendor Msg ID",
+      type: "text",
+      filterKey: "vendor_msg_id__icontains",
+    },
+     {
+      key: "senderId",
+      label: "Sender ID",
+      type: "text",
+      filterKey: "senderId__icontains",
+    },
     {
       key: "parent_message_id",
       label: "Parent Message ID",
       type: "text",
       filterKey: "message__message_id__icontains",
       isSearchOnly: true,
-    },
-
-    {
-      key: "countryName",
-      label: "Country",
-      type: "text",
-      options: countryOptions,
-      filterKey: "message__country__name",
-      render: (log) => {
-        const match = countryOptions.find(
-          (opt) => opt.label === log.countryName,
-        );
-        return (
-          <div className="flex items-center gap-1.5 text-sm font-medium text-text-primary dark:text-white">
-            {match?.icon}
-            <span>{log.countryName}</span>
-          </div>
-        );
-      },
     },
     {
       key: "countryMCC",
@@ -305,33 +337,6 @@ const DetailedReport: React.FC = () => {
       label: "Operator MNC",
       type: "text",
       filterKey: "operatorMNC__icontains",
-    },
-    {
-      key: "client",
-      label: "Client",
-      type: "text",
-      options: clientOptions,
-      filterKey: "client__icontains",
-    },
-    {
-      key: "company",
-      label: "Company",
-      type: "text",
-      options: companyOptions,
-      filterKey: "message__client__company__name__icontains",
-    },
-    {
-      key: "vendor",
-      label: "Vendor",
-      type: "text",
-      options: vendorOptions,
-      filterKey: "vendor__icontains",
-    },
-    {
-      key: "senderId",
-      label: "Sender ID",
-      type: "text",
-      filterKey: "senderId__icontains",
     },
     {
       key: "effectiveSenderId",
@@ -350,12 +355,6 @@ const DetailedReport: React.FC = () => {
       label: "Translation Rule ID",
       type: "text",
       filterKey: "senderTranslationRuleId",
-    },
-    {
-      key: "vendor_msg_id",
-      label: "Vendor Msg ID",
-      type: "text",
-      filterKey: "vendor_msg_id__icontains",
     },
     {
       key: "content",
