@@ -20,6 +20,7 @@ export interface SummariseSummaryData {
   submitted: number;
   delivered: number;
   failed: number;
+  rejected?: number;
   revenue: number;
   vendor_cost: number;
   profit_margin: number;
@@ -39,6 +40,7 @@ export interface SummariseTotals {
   submitted: number;
   delivered: number;
   failed: number;
+  rejected?: number;
   revenue: number;
   vendor_cost: number;
   profit_margin: number;

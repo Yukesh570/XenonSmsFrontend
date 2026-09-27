@@ -390,7 +390,6 @@ const SummariseReport: React.FC = () => {
     "Rejected",
     `Revenue (${currencySymbol})`,
     `Vendor Cost (${currencySymbol})`,
-    `Margin (${currencySymbol})`,
     "ASR %",
     "DLR %",
     "Margin %",
@@ -537,7 +536,6 @@ const SummariseReport: React.FC = () => {
             </div>
           }
           renderRow={(row, idx) => {
-            const margin = Number(row.profit_margin || 0);
             const sn = (row as any).sn ?? idx + 1;
             return (
               <tr
@@ -577,7 +575,7 @@ const SummariseReport: React.FC = () => {
                   {Number(row.failed || 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number((row as any).rejected || 0).toLocaleString()}
+                  {Number(row.rejected || 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {currencySymbol}
@@ -587,24 +585,14 @@ const SummariseReport: React.FC = () => {
                   {currencySymbol}
                   {Number(row.vendor_cost || 0).toFixed(4)}
                 </td>
-                <td
-                  className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${
-                    margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  {currencySymbol}
-                  {margin.toFixed(4)}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.margin_percent || 0).toFixed(2)}%
-                </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {Number(row.asr_percent || 0).toFixed(2)}%
                 </td>
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
                   {Number(row.dlr_percent || 0).toFixed(2)}%
+                </td>
+                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+                  {Number(row.margin_percent || 0).toFixed(2)}%
                 </td>
               </tr>
             );
@@ -643,7 +631,7 @@ const SummariseReport: React.FC = () => {
                     {Number(totals.failed).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number((totals as any).rejected || 0).toLocaleString()}
+                    {Number(totals.rejected || 0).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.revenue).toFixed(4)}
@@ -651,21 +639,14 @@ const SummariseReport: React.FC = () => {
                   <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
                   </td>
-                  <td className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${
-                    totals.profit_margin >= 0
-                      ? "text-emerald-600 dark:text-emerald-400"
-                      : "text-red-500 dark:text-red-400"
-                  }`}>
-                    {currencySymbol}{Number(totals.profit_margin).toFixed(4)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.margin_percent).toFixed(2)}%
-                  </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.asr_percent).toFixed(2)}%
                   </td>
                   <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
                     {Number(totals.dlr_percent).toFixed(2)}%
+                  </td>
+                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+                    {Number(totals.margin_percent).toFixed(2)}%
                   </td>
                 </tr>
               )
