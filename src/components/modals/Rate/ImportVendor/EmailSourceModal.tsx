@@ -93,7 +93,7 @@ const MultiTagInput: React.FC<MultiTagInputProps> = ({
 
       <div
         className={[
-          "w-full min-h-[42px] rounded-lg border px-2 py-1.5 text-sm shadow-input transition duration-150 ease-in-out flex flex-wrap gap-1.5 items-center cursor-text",
+          "w-full min-h-[34px] rounded-lg border px-2 py-1 text-xs sm:text-sm shadow-input transition duration-150 ease-in-out flex flex-wrap gap-1.5 items-center cursor-text",
           disabled
             ? "bg-gray-100 border-gray-200 dark:bg-gray-800 dark:border-gray-700 cursor-not-allowed"
             : "bg-white border-gray-300 dark:bg-gray-900 dark:border-gray-600 focus-within:ring-2 focus-within:ring-primary/40",

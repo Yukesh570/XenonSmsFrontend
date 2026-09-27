@@ -90,12 +90,12 @@ const encodingOptions: Option[] = [
 ];
 
 const DEFAULT_SEARCH_COLUMNS = [
-  "message_id",
-  "destination",
-  "source_addr",
-  "countryName",
-  "status",
   "clientName",
+  "countryName",
+  "destination",
+  "message_id",
+  "status",
+  "source_addr",
   "vendorName",
   "segmentNumber",
   "effectiveSenderId",
@@ -251,11 +251,13 @@ const MessageReport: React.FC = () => {
 
   const filterOptionsConfig: ColumnConfig[] = useMemo(
     () => [
-      { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
-      { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
-      { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
-      { key: "senderTranslationAction", label: "Translation Action", type: "text", filterKey: "senderTranslationAction__icontains" },
-      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text", filterKey: "senderTranslationRuleId" },
+      {
+        key: "clientName",
+        label: "Client",
+        type: "text",
+        options: clientOptions,
+        filterKey: "client__name__icontains",
+      },
       {
         key: "countryName",
         label: "Country",
@@ -264,13 +266,12 @@ const MessageReport: React.FC = () => {
         filterKey: "country__name__icontains",
       },
       { key: "destination", label: "Destination", type: "text", filterKey: "destination__icontains" },
-      {
-        key: "clientName",
-        label: "Client",
-        type: "text",
-        options: clientOptions,
-        filterKey: "client__name__icontains",
-      },
+      { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
+      { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
+      { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
+      { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
+      { key: "senderTranslationAction", label: "Translation Action", type: "text", filterKey: "senderTranslationAction__icontains" },
+      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text", filterKey: "senderTranslationRuleId" },
       {
         key: "vendorName",
         label: "Vendor",
@@ -286,7 +287,6 @@ const MessageReport: React.FC = () => {
         filterKey: "smpp__smppHost__icontains",
       },
       { key: "systemId", label: "System ID", type: "text", filterKey: "systemId__icontains" },
-      { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
       { key: "failure_reason", label: "Failure Reason", type: "text", filterKey: "failure_reason__icontains" },
       {
         key: "encoding",

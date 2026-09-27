@@ -678,7 +678,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
               <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
                 Rows per page:
               </span>
-              <div className="w-20 shrink-0">
+              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
                 <Select
                   value={String(activeRows)}
                   onChange={(val) => handleRowsChange(Number(val))}
@@ -689,17 +689,17 @@ export function ModalDataTable<T extends Record<string, any> = any>({
               </div>
             </div>
 
-            <div className="h-4 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
+            <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
 
             {/* Pagination Controls */}
-            <div className="h-[30px] inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-text-secondary dark:text-gray-300 shadow-sm overflow-hidden">
-              <span className="px-2 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px]">
+            <div className="h-[34px] inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-text-secondary dark:text-gray-300 shadow-sm overflow-hidden">
+              <span className="px-2 sm:px-2.5 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px] sm:text-xs">
                 {paginationLabel}
               </span>
 
               <button
                 type="button"
-                className="h-full px-1.5 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
+                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
                 onClick={handlePrev}
                 disabled={activePage === 1 || isLoading}
                 title="Previous Page"
@@ -707,8 +707,8 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                 <ChevronLeft size={14} />
               </button>
 
-              <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 px-1.5 h-full">
-                <span className="text-[11px] text-text-secondary dark:text-gray-400 select-none">Page</span>
+              <form onSubmit={handleJumpSubmit} className="flex items-center gap-1 px-1.5 sm:px-2 h-full">
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">Page</span>
                 <input
                   type="number"
                   min={1}
@@ -718,9 +718,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                   onWheel={(e) => e.currentTarget.blur()}
                   onBlur={handleJumpBlur}
                   disabled={isLoading || totalPages <= 1}
-                  className="w-8 h-4 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="w-8 sm:w-10 h-5 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none transition-all"
                 />
-                <span className="text-[11px] text-text-secondary dark:text-gray-400 select-none">
+                <span className="text-[11px] sm:text-xs text-text-secondary dark:text-gray-400 select-none">
                   of {totalPages}
                 </span>
               </form>
@@ -1046,6 +1046,44 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
         .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+
+        .rows-per-page-select {
+          height: 34px !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select > div {
+          height: 34px !important;
+          width: 100% !important;
+          display: flex !important;
+          flex-direction: column !important;
+          justify-content: center !important;
+        }
+        .rows-per-page-select div.relative.w-full {
+          height: 34px !important;
+        }
+        .rows-per-page-select div[class*="rounded-lg"] {
+          height: 34px !important;
+          min-height: 34px !important;
+          max-height: 34px !important;
+          box-sizing: border-box !important;
+          display: flex !important;
+          align-items: center !important;
+        }
+        .rows-per-page-select input {
+          height: 32px !important;
+          min-height: 32px !important;
+          max-height: 32px !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          line-height: 32px !important;
+          font-size: 0.8125rem !important;
+        }
+        .rows-per-page-select button {
+          height: 100% !important;
+          display: flex !important;
+          align-items: center !important;
+        }
 
         .app-modal-data-table.has-sn-column th:first-child,
         .app-modal-data-table.has-sn-column td:first-child:not([colspan]) {

@@ -1305,7 +1305,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         onClick={handleAddConfig}
                         disabled={isAddingConfig || !newCountry}
                         leftIcon={<Plus size={14} />}
-                        className="mb-[2px] h-[38px] text-sm px-4"
+                        className="h-[34px] text-xs sm:text-sm px-4"
                       >
                         {isAddingConfig ? "Adding…" : "Add Config"}
                       </Button>

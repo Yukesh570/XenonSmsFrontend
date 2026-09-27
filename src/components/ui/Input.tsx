@@ -84,7 +84,7 @@ const Input: React.FC<InputProps> = ({
       <FastTooltip text={hoverTooltip} disabled={isFocused || !hasValue || isPassword}>
         <div className="relative flex items-center w-full">
           {leftIcon && (
-            <div className="absolute left-0 pl-3 flex items-center h-full text-gray-500 pointer-events-none">
+            <div className="absolute left-0 pl-2.5 flex items-center h-full text-gray-500 pointer-events-none">
               {leftIcon}
             </div>
           )}
@@ -108,14 +108,14 @@ const Input: React.FC<InputProps> = ({
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onWheel={handleWheel}
-            className={`w-full rounded-lg border px-3 py-2.5 text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary 
+            className={`w-full h-[34px] rounded-lg border px-3 py-1 text-xs sm:text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary 
             ${
               disabled
                 ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
                 : "bg-white border-gray-200 text-text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-500"
             }
-            ${leftIcon ? "pl-10" : ""}
-            ${rightIcon || showClear ? "pr-10" : ""}
+            ${leftIcon ? "pl-9" : ""}
+            ${rightIcon || showClear ? "pr-9" : ""}
             ${className || ""}`}
           />
           
@@ -123,15 +123,15 @@ const Input: React.FC<InputProps> = ({
             <button
               type="button"
               onClick={handleClear}
-              className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors"
+              className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-red-500 transition-colors"
               title="Clear input"
             >
-              <X size={16} />
+              <X size={15} />
             </button>
           )}
 
           {rightIcon && (
-            <div className={`absolute inset-y-0 right-0 flex items-center pr-3 ${disabled ? "text-gray-400" : "text-gray-500 dark:text-gray-400"}`}>
+            <div className={`absolute inset-y-0 right-0 flex items-center pr-2.5 ${disabled ? "text-gray-400" : "text-gray-500 dark:text-gray-400"}`}>
               {rightIcon}
             </div>
           )}

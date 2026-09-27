@@ -283,8 +283,45 @@ const Modal: React.FC<ModalProps> = ({
         ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
+        <style>{`
+          /* Balanced Modal Form Spacing with Natural Breathing Room */
+          .modal-dialog-panel > .flex.items-center.justify-between {
+            margin-bottom: 1.125rem !important;
+          }
+          .modal-content-body form [class*="space-y-"] > :not([hidden]) ~ :not([hidden]),
+          .modal-content-body form.space-y-6 > :not([hidden]) ~ :not([hidden]),
+          .modal-content-body form.space-y-5 > :not([hidden]) ~ :not([hidden]),
+          .modal-content-body form.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+            margin-top: 1rem !important;
+          }
+          .modal-content-body fieldset {
+            padding: 0.875rem 1rem 1rem 1rem !important;
+            border-radius: 0.625rem !important;
+          }
+          .modal-content-body fieldset legend {
+            font-size: 0.875rem !important;
+            font-weight: 600 !important;
+            padding: 0 0.5rem !important;
+            margin-bottom: 0.25rem !important;
+          }
+          .modal-content-body form .grid {
+            row-gap: 0.875rem !important;
+            column-gap: 1rem !important;
+          }
+          .modal-content-body label {
+            min-height: unset !important;
+            margin-bottom: 0.375rem !important;
+            line-height: 1.25rem !important;
+          }
+          .modal-content-body form .flex.justify-end,
+          .modal-content-body form .flex.justify-center,
+          .modal-content-body form .border-t {
+            margin-top: 1.25rem !important;
+            padding-top: 0.75rem !important;
+          }
+        `}</style>
         {/* Header - pinned to top of modal card, never scrolls off */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6 shrink-0 min-w-0">
+        <div className="flex items-center justify-between mb-4 sm:mb-5 shrink-0 min-w-0">
           {title && (
             <h3 className="text-lg font-semibold leading-6 truncate pr-3">
               {title}

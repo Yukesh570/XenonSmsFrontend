@@ -209,7 +209,7 @@ const AdvancedFilter: React.FC<AdvancedFilterProps> = ({
             ref={buttonRef}
             onClick={updatePosition}
             title={buttonLabel}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs sm:text-sm font-medium rounded-lg border transition-all duration-300 focus:outline-none shadow-sm
+            className={`h-[34px] flex items-center gap-1.5 px-2.5 text-xs sm:text-sm font-medium rounded-lg border transition-all duration-300 focus:outline-none shadow-sm
               ${
                 open || selectedColumns.length > 0
                   ? "border-primary text-primary bg-primary/10 dark:text-primary dark:border-primary"

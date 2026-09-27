@@ -212,7 +212,7 @@ const CustomInput = forwardRef<HTMLInputElement, any>(
               disabled={disabled}
               placeholder={placeholder}
               readOnly
-              className={`w-full rounded-lg border px-3 py-2.5 pl-10 pr-10 text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer
+              className={`w-full h-[34px] rounded-lg border px-3 py-1 pl-9 pr-9 text-xs sm:text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer
               ${
                 disabled
                   ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
@@ -223,13 +223,13 @@ const CustomInput = forwardRef<HTMLInputElement, any>(
 
             {/* Calendar Icon */}
             <div
-              className={`pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 transition-colors ${
+              className={`pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5 transition-colors ${
                 disabled
                   ? "text-gray-400"
                   : "text-gray-500 dark:text-gray-400 group-hover:text-primary"
               }`}
             >
-              <Calendar size={18} />
+              <Calendar size={16} />
             </div>
 
             {/* Clear Button */}
@@ -240,9 +240,9 @@ const CustomInput = forwardRef<HTMLInputElement, any>(
                   e.stopPropagation();
                   onClear();
                 }}
-                className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-red-500 transition-colors"
+                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-gray-400 hover:text-red-500 transition-colors"
               >
-                <X size={16} />
+                <X size={15} />
               </button>
             )}
           </div>
