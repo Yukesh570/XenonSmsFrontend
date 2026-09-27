@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
@@ -11,6 +11,7 @@ import {
   ArrowDown,
   ArrowUpDown,
 } from "lucide-react";
+import { getHeaderWordMinWidth, getHeaderFirstWordMinWidth } from "./ModalDataTable";
 
 interface DataTableProps<T> {
   data: T[];
@@ -127,7 +128,13 @@ export function DataTable<T extends { id?: number | string }>({
             delete parsed["S.N"];
             delete parsed["SN"];
             delete parsed["#"];
-            return parsed;
+            const clean: Record<string, number> = {};
+            for (const key of Object.keys(parsed)) {
+              if (typeof parsed[key] === "number" && parsed[key] >= 50) {
+                clean[key] = parsed[key];
+              }
+            }
+            return clean;
           }
         }
       } catch (e) {
@@ -364,6 +371,9 @@ export function DataTable<T extends { id?: number | string }>({
     (firstHeaderRaw === "SN" ||
       firstHeaderRaw === "SNO" ||
       firstHeaderRaw === "SLNO" ||
+      firstHeaderRaw === "SRNO" ||
+      firstHeaderRaw === "SERIALNO" ||
+      firstHeaderRaw === "SERIALNUMBER" ||
       firstHeaderRaw === "#" ||
       firstHeaderRaw === "NO");
   const columnOffset = hasSnColumn ? 1 : 0;
@@ -457,6 +467,93 @@ export function DataTable<T extends { id?: number | string }>({
     }, 200);
   };
 
+  const SN_COL_WIDTH = 48;
+
+  const getColWidth = (header: string, index: number) => {
+    if (hasSnColumn && index === 0) {
+      return SN_COL_WIDTH;
+    }
+    const minLimit = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
+    if (
+      columnWidths[header] &&
+      typeof columnWidths[header] === "number"
+    ) {
+      return Math.max(minLimit, columnWidths[header]);
+    }
+    return getHeaderWordMinWidth(header, index, hasSnColumn);
+  };
+
+  const defaultTotalWidth = useMemo(() => {
+    return headers.reduce((sum, h, i) => {
+      const w = getColWidth(h, i);
+      return sum + w;
+    }, 0);
+  }, [headers, columnWidths, hasSnColumn]);
+
+  const totalRequestedWidth = defaultTotalWidth;
+
+  const getEffectiveColWidth = (header: string, index: number): number => {
+    if (hasSnColumn && index === 0) {
+      return SN_COL_WIDTH;
+    }
+
+    if (containerWidth && totalRequestedWidth < containerWidth) {
+      const snWidth = hasSnColumn ? SN_COL_WIDTH : 0;
+      const availableSpace = containerWidth - snWidth;
+
+      const unresizedNonSnCols = headers.filter(
+        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h]
+      );
+
+      const isExplicitlyResized = Boolean(columnWidths[header]);
+
+      if (unresizedNonSnCols.length > 0) {
+        if (isExplicitlyResized) {
+          return getColWidth(header, index);
+        }
+        const explicitlyResizedSum = headers.reduce((sum, h, i) => {
+          if (hasSnColumn && i === 0) return sum;
+          if (columnWidths[h]) return sum + getColWidth(h, i);
+          return sum;
+        }, 0);
+        const spaceForUnresized = Math.max(0, availableSpace - explicitlyResizedSum);
+        const unresizedDefaultSum = unresizedNonSnCols.reduce((sum, h) => {
+          const idx = headers.indexOf(h);
+          return sum + getHeaderWordMinWidth(h, idx, hasSnColumn);
+        }, 0);
+        if (unresizedDefaultSum > 0) {
+          const defaultW = getHeaderWordMinWidth(header, index, hasSnColumn);
+          const minLimit = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
+          return Math.max(
+            minLimit,
+            Math.round((defaultW / unresizedDefaultSum) * spaceForUnresized)
+          );
+        }
+      } else {
+        const lastColIdx = headers.length - 1;
+        if (index === lastColIdx) {
+          const otherColsSum = headers.reduce((sum, h, i) => {
+            if (i === lastColIdx) return sum;
+            return sum + (hasSnColumn && i === 0 ? SN_COL_WIDTH : getColWidth(h, i));
+          }, 0);
+          return Math.max(
+            getColWidth(header, index),
+            containerWidth - otherColsSum
+          );
+        }
+        return getColWidth(header, index);
+      }
+    }
+
+    return getColWidth(header, index);
+  };
+
+  const totalTableWidth = useMemo(() => {
+    return headers.reduce((sum, h, i) => {
+      return sum + getEffectiveColWidth(h, i);
+    }, 0);
+  }, [headers, columnWidths, hasSnColumn, containerWidth, totalRequestedWidth]);
+
   // --- Dynamic Column Resizing Handlers ---
   const handleResizeStart = (
     e: React.MouseEvent,
@@ -475,26 +572,27 @@ export function DataTable<T extends { id?: number | string }>({
 
     const startX = e.clientX;
     const startWidth = thEl.getBoundingClientRect().width;
-    const minWidth = hasSnColumn && index === 0 ? 40 : 80;
 
-    // Snapshot currently rendered widths for any unset columns so they stay steady
-    const baseWidths: Record<string, number> = { ...columnWidths };
+    // Snapshot currently rendered widths for all columns so they stay steady
+    const baseWidths: Record<string, number> = {};
     headers.forEach((h, idx) => {
-      if (!baseWidths[h]) {
-        if (hasSnColumn && idx === 0) {
-          baseWidths[h] = 40;
-        } else if (thRefs.current[idx]) {
-          baseWidths[h] = Math.max(50, Math.round(thRefs.current[idx]!.getBoundingClientRect().width));
-        }
+      const minLimit = getHeaderFirstWordMinWidth(h, idx, hasSnColumn);
+      if (hasSnColumn && idx === 0) {
+        baseWidths[h] = SN_COL_WIDTH;
+      } else if (columnWidths[h] && columnWidths[h] >= minLimit) {
+        baseWidths[h] = columnWidths[h];
+      } else {
+        baseWidths[h] = getEffectiveColWidth(h, idx);
       }
     });
 
     let lastWidth = startWidth;
+    const minLimitForHeader = getHeaderFirstWordMinWidth(header, index, hasSnColumn);
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       moveEvent.preventDefault();
       const deltaX = moveEvent.clientX - startX;
-      const newWidth = Math.max(minWidth, Math.round(startWidth + deltaX));
+      const newWidth = Math.max(minLimitForHeader, Math.round(startWidth + deltaX));
       lastWidth = newWidth;
 
       setColumnWidths({
@@ -527,23 +625,6 @@ export function DataTable<T extends { id?: number | string }>({
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   };
-
-  const isFixedLayout = true;
-
-  const getColWidth = (header: string, index: number) => {
-    if (hasSnColumn && index === 0) {
-      return 48;
-    }
-    if (columnWidths[header]) {
-      return columnWidths[header];
-    }
-    return undefined;
-  };
-
-  const totalTableWidth = headers.reduce((sum, h, i) => {
-    const w = getColWidth(h, i) || (hasSnColumn && i === 0 ? 48 : 140);
-    return sum + w;
-  }, 0);
 
   return (
     <div
@@ -664,23 +745,24 @@ export function DataTable<T extends { id?: number | string }>({
           className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0 table-resizable-active"
           style={{
             tableLayout: "fixed",
-            width: containerWidth
-              ? `${Math.max(totalTableWidth, containerWidth)}px`
-              : "100%",
+            width: totalTableWidth < (containerWidth || 0)
+              ? "100%"
+              : `${totalTableWidth}px`,
+            minWidth: "100%",
           }}
         >
           <colgroup>
             {headers.map((h, i) => {
               const isSn = Boolean(hasSnColumn && i === 0);
-              const w = getColWidth(h, i);
+              const w = getEffectiveColWidth(h, i);
               return (
                 <col
                   key={i}
-                  width={isSn ? 48 : undefined}
+                  width={isSn ? SN_COL_WIDTH : w}
                   style={{
-                    width: isSn ? "48px" : (w ? `${w}px` : undefined),
-                    minWidth: isSn ? "48px" : undefined,
-                    maxWidth: isSn ? "48px" : undefined,
+                    width: isSn ? `${SN_COL_WIDTH}px` : `${w}px`,
+                    minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
+                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                   }}
                 />
               );
@@ -702,7 +784,7 @@ export function DataTable<T extends { id?: number | string }>({
                   onSort && (!hasSnColumn || i > 0)
                 );
                 const isSorted = sortColumnIndex === i;
-                const colWidth = getColWidth(header, i);
+                const colWidth = getEffectiveColWidth(header, i);
                 const isBeingResized = resizingHeaderIdx === i;
 
                 const isSn = Boolean(hasSnColumn && i === 0);
@@ -732,11 +814,11 @@ export function DataTable<T extends { id?: number | string }>({
                     }}
                     onDragEnd={handleDragEnd}
                     style={{
-                      width: isSn ? "48px" : (isFixedLayout && colWidth ? `${colWidth}px` : undefined),
-                      minWidth: isSn ? "48px" : (isFixedLayout ? (colWidth ? `${colWidth}px` : "50px") : undefined),
-                      maxWidth: isSn ? "48px" : undefined,
+                      width: isSn ? `${SN_COL_WIDTH}px` : `${colWidth}px`,
+                      minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
+                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                     }}
-                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-4"} py-3 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-3"} py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       !colWidth && !isSn ? "min-w-[80px]" : ""
                     } ${
                       isSorted
@@ -762,10 +844,10 @@ export function DataTable<T extends { id?: number | string }>({
                       }
                     }}
                   >
-                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1.5 min-w-0 pr-2 overflow-hidden"}`}>
+                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1 min-w-0 pr-1 overflow-hidden"}`}>
                       {isDraggable && !isSn && (
                         <GripVertical
-                          size={14}
+                          size={13}
                           className="text-gray-400 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing pointer-events-auto"
                         />
                       )}
@@ -902,6 +984,7 @@ export function DataTable<T extends { id?: number | string }>({
           text-overflow: ellipsis !important;
           white-space: nowrap !important;
           max-width: 0 !important;
+          vertical-align: middle !important;
         }
         .app-data-table table.table-resizable-active td[colspan] {
           white-space: normal !important;
@@ -914,16 +997,35 @@ export function DataTable<T extends { id?: number | string }>({
         .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container) {
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
+          white-space: nowrap !important;
           display: inline-block;
           max-width: 100%;
           vertical-align: middle;
         }
+        .app-data-table table.table-resizable-active td svg,
+        .app-data-table table.table-resizable-active td img {
+          display: inline-block !important;
+          vertical-align: -0.15em !important;
+          margin-right: 0.35rem !important;
+          flex-shrink: 0 !important;
+        }
+        .app-data-table table.table-resizable-active td img {
+          vertical-align: middle !important;
+        }
+        .app-data-table table.table-resizable-active td button svg,
+        .app-data-table table.table-resizable-active td [role="button"] svg,
+        .app-data-table table.table-resizable-active td a svg:only-child {
+          margin-right: 0 !important;
+        }
+        .app-data-table table.table-resizable-active td * {
+          white-space: nowrap;
+        }
+        .app-data-table table.table-resizable-active td[colspan] * {
+          white-space: normal;
+        }
 
         .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-        .table-density-compact th:first-child,
-        .table-density-compact td:first-child:not([colspan]) { min-width: 48px !important; width: 48px !important; max-width: 48px !important; }
 
         .app-data-table.has-sn-column th:first-child,
         .app-data-table.has-sn-column td:first-child:not([colspan]) {

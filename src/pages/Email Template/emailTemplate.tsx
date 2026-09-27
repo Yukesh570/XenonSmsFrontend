@@ -156,22 +156,17 @@ const EmailTemplatePage: React.FC = () => {
       label: "Content",
       type: "text",
       isSearchable: false,
-      render: (template) => (
-        <div
-          className="block w-full max-w-xs overflow-hidden truncate"
-          style={{
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "normal",
-            maxHeight: "2.5rem",
-          }}
-        >
-          {stripHtml(template.content)}
-        </div>
-      ),
+      render: (template) => {
+        const text = stripHtml(template.content);
+        return (
+          <span
+            className="truncate block max-w-full"
+            title={text}
+          >
+            {text}
+          </span>
+        );
+      },
     },
     {
       key: "createdBy",

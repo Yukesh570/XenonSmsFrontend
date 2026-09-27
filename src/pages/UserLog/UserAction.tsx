@@ -139,7 +139,7 @@ const UserAction: React.FC = () => {
       filterKey: "createdAt",
       render: (log) => (
         <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-gray-300 whitespace-nowrap">
-          <History size={14} className="text-orange-400" />
+          <History size={14} className="text-orange-400 shrink-0" />
           {formatDate(log.createdAt)}
         </div>
       ),

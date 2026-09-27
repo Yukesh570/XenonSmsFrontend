@@ -85,7 +85,7 @@ const UserLog: React.FC = () => {
       label: "Browser",
       render: (log) => (
         <div className="flex items-center gap-2">
-          <Globe size={14} className="text-blue-400" />
+          <Globe size={14} className="text-blue-400 shrink-0" />
           {log.browser || "-"}
         </div>
       ),
@@ -96,9 +96,9 @@ const UserLog: React.FC = () => {
       render: (log) => (
         <div className="flex items-center gap-2">
           {log.device === "Desktop" ? (
-            <Monitor size={14} className="text-gray-500" />
+            <Monitor size={14} className="text-gray-500 shrink-0" />
           ) : (
-            <Smartphone size={14} className="text-gray-500" />
+            <Smartphone size={14} className="text-gray-500 shrink-0" />
           )}
           {log.device || "-"}
         </div>
@@ -109,7 +109,7 @@ const UserLog: React.FC = () => {
       label: "Logged At",
       render: (log) => (
         <div className="flex items-center gap-2">
-          <History size={14} className="text-orange-400" />
+          <History size={14} className="text-orange-400 shrink-0" />
           {formatDate(log.loggedAt)}
         </div>
       ),

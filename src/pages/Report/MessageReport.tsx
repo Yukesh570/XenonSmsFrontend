@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Home, Eye, Route, Download } from "lucide-react";
+import { Home, Eye, Route } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -40,7 +40,6 @@ import { MessageReportModal } from "../../components/modals/Report/MessageReport
 import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { usePagePermissions } from "../../hooks/usePagePermissions";
-import { handleCsvExport } from "../../helper/csvExport";
 
 interface Option {
   label: string;
@@ -172,7 +171,7 @@ const MessageReport: React.FC = () => {
     }
   });
 
-  const [currentSearchParams, setCurrentSearchParams] = useState<Record<string, any>>({});
+  const [_currentSearchParams, setCurrentSearchParams] = useState<Record<string, any>>({});
 
   useEffect(() => {
     localStorage.setItem(
@@ -766,13 +765,6 @@ const MessageReport: React.FC = () => {
         onClick: () => handleOpenRouteModal(selectedRowLog),
       },
     ] : []),
-    {
-      label: "Download CSV Report",
-      icon: <Download size={16} />,
-      onClick: () => {
-        handleCsvExport(moduleName, currentSearchParams);
-      },
-    },
   ] : [];
 
   const hasLoggedOpening = useRef(false);
