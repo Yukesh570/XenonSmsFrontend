@@ -42,6 +42,38 @@ interface Option {
   icon?: React.ReactNode;
 }
 
+const EXPORT_FIELD_MAPPING: Record<string, string> = {
+  destination: "destination",
+  text_message_id: "text_message_id",
+  countryName: "message__country__name",
+  countryMCC: "countryMCC",
+  operatorMNC: "formatted_mnc",
+  client: "client",
+  company: "message__client__company__name",
+  vendor: "vendor",
+  senderId: "senderId",
+  effectiveSenderId: "message__effectiveSenderId",
+  senderTranslationAction: "message__senderTranslationAction",
+  vendor_msg_id: "vendor_msg_id",
+  content: "text",
+  submitStatus: "submitStatus",
+  base_client_charge: "base_client_charge",
+  base_vendor_charge: "base_vendor_charge",
+  clientRate: "clientRate",
+  client_charge: "client_charge",
+  vendorRate: "vendorRate",
+  vendor_charge: "vendor_charge",
+  part_total: "part_total",
+  request_time: "request_time",
+  delivery_time: "delivery_time",
+  encoding: "message__encoding",
+  characterCount: "message__characterCount",
+  failure_reason: "message__failure_reason",
+  message_queued_at: "message__queued_at",
+  message_delivered_at: "message__delivered_at",
+  message_failed_at: "message__failed_at",
+};
+
 type FilterColumnType =
   | "number"
   | "boolean"
@@ -783,7 +815,17 @@ const DetailedReport: React.FC = () => {
         label: "Download CSV Report",
         icon: <Download size={16} />,
         onClick: () => {
-          handleCsvExportWithApi(downloadDetailedReportCsvApi, currentSearchParamsRef.current);
+          const hiddenTableFields = allColumns.filter(col => !col.isSearchOnly && !tableColumns.includes(col.key));
+          const allExportTableFields = [...visibleTableFields, ...hiddenTableFields];
+
+          const exportFields = ["id", ...allExportTableFields.map(f => EXPORT_FIELD_MAPPING[f.key] || f.key)].join(",");
+          const exportHeaders = ["S.N.", ...allExportTableFields.map(f => f.tableLabel || f.label)].join(",");
+          
+          handleCsvExportWithApi(downloadDetailedReportCsvApi, {
+            ...currentSearchParamsRef.current,
+            export_fields: exportFields,
+            export_headers: exportHeaders
+          });
         },
       },
     ]

@@ -655,11 +655,7 @@ const Dashboard: React.FC = () => {
 
     connectDashboardWebSocket();
 
-    const tpsPollInterval = setInterval(() => {
-      if (isMetricsLiveRef.current || isAnalyticsLiveRef.current) {
-        fetchTpsNotifications(activeRangeRef.current);
-      }
-    }, 15000);
+
 
     return () => {
       isMounted = false;
@@ -667,7 +663,7 @@ const Dashboard: React.FC = () => {
       if (reconnectDashboardTimeout) clearTimeout(reconnectDashboardTimeout);
       if (ws) ws.close();
       if (wsDashboard) wsDashboard.close();
-      clearInterval(tpsPollInterval);
+
     };
   }, []);
 

@@ -87,6 +87,7 @@ const Client: React.FC = () => {
   const [routeGroup, setrouteGroup] = useState<Option[]>([]);
   const [routeGroupFilter, setRouteGroupFilter] = useState<Option[]>([]);
   const [customerRateGroupOptions, setCustomerRateGroupOptions] = useState<Option[]>([]);
+  const [customerRateGroupFilter, setCustomerRateGroupFilter] = useState<Option[]>([]);
 
   // --- Modal States ---
   const [isClientModalOpen, setIsClientModalOpen] = useState(false);
@@ -219,6 +220,12 @@ const Client: React.FC = () => {
             value: String(rg.id),
           }))
         );
+        setCustomerRateGroupFilter(
+          crgList.map((rg: any) => ({
+            label: rg.name,
+            value: rg.name,
+          }))
+        );
       } catch (err: any) {
         console.warn("Customer Rate Group Dropdown load skipped (likely permissions):", err);
       }
@@ -299,7 +306,7 @@ const Client: React.FC = () => {
     { key: "name", label: "Client Name", type: "text", options: clientOptions, filterKey: "name__icontains" },
     { key: "companyName", label: "Company", type: "text", options: companies, filterKey: "company__name" },
     { key: "routeGroup", label: "RouteGroup", type: "text", options: routeGroupFilter, filterKey: "routeGroup__name" },
-    { key: "customerRateGroup", label: "Customer Rate Group", type: "text", options: customerRateGroupOptions, filterKey: "customerRateGroup__name" },
+    { key: "customerRateGroup", label: "Customer Rate Group", type: "text", options: customerRateGroupFilter, filterKey: "customerRateGroup__name" },
     {
       key: "status",
       label: "Status",

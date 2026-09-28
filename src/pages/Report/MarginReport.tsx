@@ -69,6 +69,7 @@ const statusOptions = [
 
 const groupByOptions: MultiSelectOption[] = [
   { label: "Client", value: "client" },
+  { label: "Company", value: "client_company" },
   { label: "Vendor", value: "vendor" },
   { label: "Country", value: "country" },
   { label: "MCC", value: "countryMCC" },
@@ -595,7 +596,15 @@ const MarginReport: React.FC = () => {
                   {sn}
                 </td>
                 {appliedGroupBy.map((gb) => {
-                  const val = (row as any)[gb] || "-";
+                  let val = (row as any)[gb];
+                  if (gb === "client_company" && val === undefined) {
+                    val = (row as any)["company"];
+                  }
+                  if (val === "Unknown") {
+                    val = "-";
+                  } else {
+                    val = val || "-";
+                  }
                   const isCountry = gb.toLowerCase() === "country";
                   const iso2 = isCountry ? getCountryIso(val, row) : null;
 
