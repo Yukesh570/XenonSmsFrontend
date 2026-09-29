@@ -65,7 +65,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ position, items, onClose }) =
     <div
       ref={menuRef}
       // REMOVED: animate-in fade-in zoom-in-95 duration-75
-      className="fixed z-[9999] min-w-[180px] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 overflow-hidden"
+      className="fixed z-[99999] min-w-[180px] bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 py-1 overflow-hidden"
       style={{ 
         top: coords?.y ?? position.y, 
         left: coords?.x ?? position.x,

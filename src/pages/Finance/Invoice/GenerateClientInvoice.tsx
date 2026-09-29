@@ -21,7 +21,8 @@ interface Option {
   value: string;
 }
 
-const formatLocalDate = (date: Date) => {
+const formatLocalDate = (date: Date | null) => {
+  if (!date) return "";
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
@@ -152,12 +153,16 @@ const GenerateClientInvoice: React.FC = () => {
 
     setIsPreviewing(true);
     try {
-      const resBlob = await generateClientInvoiceApi(payload, "PREVIEW");
-      const fileUrl = window.URL.createObjectURL(new Blob([resBlob], { type: 'application/pdf' }));
+      const res = await generateClientInvoiceApi(payload, "PREVIEW");
 
-      setPreviewPdfUrl(fileUrl);
-      setIsPreviewModalOpen(true);
-      toast.success("Preview generated!");
+      if (res instanceof Blob) {
+        const fileUrl = window.URL.createObjectURL(new Blob([res], { type: 'application/pdf' }));
+        setPreviewPdfUrl(fileUrl);
+        setIsPreviewModalOpen(true);
+        toast.success("PDF preview generated!");
+      } else {
+        toast.error("Could not generate PDF preview.");
+      }
 
     } catch (error: any) {
       if (error.response?.data instanceof Blob) {
@@ -169,7 +174,9 @@ const GenerateClientInvoice: React.FC = () => {
           toast.error("Preview calculation failed.");
         }
       } else {
-        toast.error("Preview calculation failed.");
+        const errorData = error.response?.data;
+        const errorMsg = errorData?.detail || errorData?.error || "Preview calculation failed.";
+        toast.error(errorMsg);
       }
     } finally {
       setIsPreviewing(false);
@@ -300,9 +307,8 @@ const GenerateClientInvoice: React.FC = () => {
       <InvoicePreviewModal
         isOpen={isPreviewModalOpen}
         onClose={handleCloseModal}
-        onGenerate={handleGenerate}
         pdfUrl={previewPdfUrl}
-        isGenerating={isSubmitting}
+        title="Client Invoice Preview"
       />
     </div>
   );
