@@ -128,6 +128,12 @@ export function DataTable<T extends { id?: number | string }>({
             delete parsed["S.N"];
             delete parsed["SN"];
             delete parsed["#"];
+            delete parsed["ID"];
+            delete parsed["Id"];
+            delete parsed["id"];
+            delete parsed["SEQ"];
+            delete parsed["Seq"];
+            delete parsed["seq"];
             const clean: Record<string, number> = {};
             for (const key of Object.keys(parsed)) {
               if (typeof parsed[key] === "number" && parsed[key] >= 50) {
@@ -152,6 +158,12 @@ export function DataTable<T extends { id?: number | string }>({
         delete cleaned["S.N"];
         delete cleaned["SN"];
         delete cleaned["#"];
+        delete cleaned["ID"];
+        delete cleaned["Id"];
+        delete cleaned["id"];
+        delete cleaned["SEQ"];
+        delete cleaned["Seq"];
+        delete cleaned["seq"];
         localStorage.setItem(effectiveStorageKey, JSON.stringify(cleaned));
       } catch (e) {
         console.error("Error saving column widths to localStorage", e);
@@ -375,7 +387,9 @@ export function DataTable<T extends { id?: number | string }>({
       firstHeaderRaw === "SERIALNO" ||
       firstHeaderRaw === "SERIALNUMBER" ||
       firstHeaderRaw === "#" ||
-      firstHeaderRaw === "NO");
+      firstHeaderRaw === "NO" ||
+      firstHeaderRaw === "ID" ||
+      firstHeaderRaw === "SEQ");
   const columnOffset = hasSnColumn ? 1 : 0;
 
   // Drag Handlers
@@ -818,7 +832,7 @@ export function DataTable<T extends { id?: number | string }>({
                       minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
                       maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                     }}
-                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-3"} py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 border-r" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       !colWidth && !isSn ? "min-w-[80px]" : ""
                     } ${
                       isSorted
@@ -844,7 +858,7 @@ export function DataTable<T extends { id?: number | string }>({
                       }
                     }}
                   >
-                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1 min-w-0 pr-1 overflow-hidden"}`}>
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -852,7 +866,7 @@ export function DataTable<T extends { id?: number | string }>({
                         />
                       )}
                       <span
-                        className={`truncate pointer-events-none ${
+                        className={`truncate text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -978,6 +992,7 @@ export function DataTable<T extends { id?: number | string }>({
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          text-align: center !important;
         }
         .app-data-table table.table-resizable-active td {
           overflow: hidden !important;

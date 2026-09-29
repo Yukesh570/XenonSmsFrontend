@@ -136,7 +136,9 @@ export const getHeaderFirstWordMinWidth = (
     normalized === "SERIALNO" ||
     normalized === "SERIALNUMBER" ||
     normalized === "#" ||
-    normalized === "NO"
+    normalized === "NO" ||
+    normalized === "ID" ||
+    normalized === "SEQ"
   ) {
     return 48;
   }
@@ -221,6 +223,12 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             delete parsed["S.N"];
             delete parsed["SN"];
             delete parsed["#"];
+            delete parsed["ID"];
+            delete parsed["Id"];
+            delete parsed["id"];
+            delete parsed["SEQ"];
+            delete parsed["Seq"];
+            delete parsed["seq"];
             const clean: Record<string, number> = {};
             for (const key of Object.keys(parsed)) {
               if (typeof parsed[key] === "number" && parsed[key] >= 50) {
@@ -245,6 +253,12 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         delete cleaned["S.N"];
         delete cleaned["SN"];
         delete cleaned["#"];
+        delete cleaned["ID"];
+        delete cleaned["Id"];
+        delete cleaned["id"];
+        delete cleaned["SEQ"];
+        delete cleaned["Seq"];
+        delete cleaned["seq"];
         localStorage.setItem(effectiveStorageKey, JSON.stringify(cleaned));
       } catch (e) {
         console.error("Error saving column widths to localStorage", e);
@@ -434,7 +448,9 @@ export function ModalDataTable<T extends Record<string, any> = any>({
       firstHeaderRaw === "SERIALNO" ||
       firstHeaderRaw === "SERIALNUMBER" ||
       firstHeaderRaw === "#" ||
-      firstHeaderRaw === "NO");
+      firstHeaderRaw === "NO" ||
+      firstHeaderRaw === "ID" ||
+      firstHeaderRaw === "SEQ");
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
@@ -830,7 +846,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
                       maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
                     }}
-                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 text-center" : "px-3"} py-2.5 text-left text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       isSorted
                         ? "text-primary dark:text-primary bg-primary/[0.04] dark:bg-primary/[0.08]"
                         : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
@@ -865,7 +881,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       }
                     }}
                   >
-                    <div className={`flex items-center ${isSn ? "justify-center" : "gap-1 min-w-0 pr-1 overflow-hidden"}`}>
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -873,7 +889,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         />
                       )}
                       <span
-                        className={`truncate pointer-events-none ${
+                        className={`truncate text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -913,6 +929,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         />
                       </div>
                     )}
+
                   </th>
                 );
               })}
@@ -998,6 +1015,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          text-align: center !important;
         }
         .app-modal-data-table table.table-resizable-active td {
           overflow: hidden !important;

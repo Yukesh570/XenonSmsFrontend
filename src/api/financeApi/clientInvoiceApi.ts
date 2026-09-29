@@ -76,6 +76,47 @@ export const generateClientCompanyInvoiceApi = async (
   const config = action === "PREVIEW" ? { responseType: 'blob' as const } : {};
 
   const response = await api.post(`/finance/generate-clientCompanyInvoice/`, payload, config);
+
+  if (action === "PREVIEW" && response.data instanceof Blob) {
+    if (response.data.type?.includes("pdf")) {
+      return response.data;
+    }
+    try {
+      const text = await response.data.text();
+      const parsed = JSON.parse(text);
+
+      if (parsed?.id || parsed?.invoiceNumber) {
+        let invoiceId = parsed.id;
+        let downloadUrl = parsed.downloadUrl;
+
+        if (!invoiceId && parsed.invoiceNumber) {
+          const listRes = await api.get(`/clientCompanyInvoice/`, {
+            params: { page: 1, page_size: 5, invoiceNumber__icontains: parsed.invoiceNumber }
+          });
+          const match =
+            listRes.data?.results?.find((item: any) => item.invoiceNumber === parsed.invoiceNumber) ||
+            listRes.data?.results?.[0];
+          if (match) {
+            invoiceId = match.id;
+            downloadUrl = match.downloadUrl;
+          }
+        }
+
+        if (invoiceId || downloadUrl) {
+          const cleanUrl = downloadUrl
+            ? downloadUrl.replace(/^None\/?/, "/").replace(/(?<!:)\/\//g, "/")
+            : `/api/finance/company-client-invoice/${invoiceId}/download/`;
+
+          const pdfRes = await api.get(cleanUrl, { responseType: "blob" });
+          return pdfRes.data;
+        }
+      }
+      return parsed;
+    } catch {
+      return response.data;
+    }
+  }
+
   return response.data;
 };
 

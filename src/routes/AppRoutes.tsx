@@ -71,6 +71,8 @@ import SenderIdTranslationModule from "../pages/SenderIdTranslation/SenderIdTran
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import SummariseReport from "../pages/Report/SummariseReport";
 import MarginReport from "../pages/Report/MarginReport";
+import ReplacementListModule from "../pages/SenderIdTranslation/ReplacementListModule";
+import SenderPoolModule from "../pages/SenderIdTranslation/SenderPoolModule";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -143,6 +145,8 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   senderIdTranslation: SenderIdTranslationModule,
   summariseReport: SummariseReport,
   marginReport: MarginReport,
+  replacementList: ReplacementListModule,
+  senderPool: SenderPoolModule,
 };
 
 export const getComponentByPath = (pathname: string): React.ComponentType<any> => {

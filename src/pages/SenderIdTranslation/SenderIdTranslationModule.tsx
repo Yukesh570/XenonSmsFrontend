@@ -1,17 +1,24 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { NavLink } from "react-router-dom";
-import { Home, Plus, Shield, X, Info, RotateCcw } from "lucide-react";
+import { Home, Plus, Shield, X, Info, RotateCcw, Edit, Trash } from "lucide-react";
+import { toast } from "react-toastify";
 
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import DataTable from "../../components/ui/DataTable";
 import Modal from "../../components/ui/Modal";
+import { DeleteModal } from "../../components/modals/DeleteModal";
+import ContextMenu from "../../components/ui/ContextMenu";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+
+import { getReplacementListsApi, type ReplacementList } from "../../api/authorizationApi/replacementListApi";
+import { getSenderPoolsApi, type SenderPool } from "../../api/authorizationApi/senderPoolApi";
+
 
 import type {
   SenderIdTranslationPolicy,
@@ -37,12 +44,17 @@ const SenderIdTranslationModule: React.FC = () => {
   const [rules, setRules] = useState<SenderIdTranslationRule[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lists, setLists] = useState<ReplacementList[]>([]);
+  const [pools, setPools] = useState<SenderPool[]>([]);
 
   // Rule form
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
+  const [isSubmittingRule, setIsSubmittingRule] = useState(false);
   const [newRule, setNewRule] = useState<Partial<SenderIdTranslationRule>>({
     action: "FIXED_REPLACE",
+    matchType: "EXACT",
+    stopProcessing: true,
     isActive: true,
   });
 
@@ -58,15 +70,15 @@ const SenderIdTranslationModule: React.FC = () => {
     { key: "sourceSenderId", label: "Original", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
     { key: "action", label: "Action", className: "px-4 py-3" },
     { key: "outputParam", label: "Output Param", className: "px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs" },
-    { key: "actions", label: "Actions", className: "px-4 py-3" },
   ];
 
   const [ruleColumns, setRuleColumns] = useState<RuleColumnDef[]>(() => {
     try {
       const saved = localStorage.getItem("sender_id_rule_columns");
       if (saved) {
-        const parsedKeys: string[] = JSON.parse(saved);
-        if (Array.isArray(parsedKeys) && parsedKeys.length > 0) {
+        const rawKeys: string[] = JSON.parse(saved);
+        if (Array.isArray(rawKeys) && rawKeys.length > 0) {
+          const parsedKeys = rawKeys.filter((k) => k !== "actions");
           const reordered = parsedKeys
             .map((k) => DEFAULT_RULE_COLUMNS.find((c) => c.key === k))
             .filter((c): c is RuleColumnDef => Boolean(c));
@@ -79,6 +91,12 @@ const SenderIdTranslationModule: React.FC = () => {
     }
     return DEFAULT_RULE_COLUMNS;
   });
+
+  // Context Menu & Delete Modal State
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedRowRule, setSelectedRowRule] = useState<SenderIdTranslationRule | null>(null);
+  const [deleteRuleId, setDeleteRuleId] = useState<number | null>(null);
+  const [isDeletingRule, setIsDeletingRule] = useState(false);
 
   useEffect(() => {
     try {
@@ -126,8 +144,8 @@ const SenderIdTranslationModule: React.FC = () => {
         aVal = countries.find((c) => c.id === a.country)?.name || a.country || "";
         bVal = countries.find((c) => c.id === b.country)?.name || b.country || "";
       } else if (sortConfig.key === "outputParam") {
-        aVal = a.action === "FIXED_REPLACE" ? a.replacementSenderId : a.truncateLength;
-        bVal = b.action === "FIXED_REPLACE" ? b.replacementSenderId : b.truncateLength;
+        aVal = a.action === "FIXED_REPLACE" ? a.replacementSenderId : a.action === "TRUNCATE" ? a.truncateLength : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(a.action) ? a.replacementList : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(a.action) ? a.senderPool : "";
+        bVal = b.action === "FIXED_REPLACE" ? b.replacementSenderId : b.action === "TRUNCATE" ? b.truncateLength : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(b.action) ? b.replacementList : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(b.action) ? b.senderPool : "";
       } else {
         aVal = (a as any)[sortConfig.key];
         bVal = (b as any)[sortConfig.key];
@@ -160,12 +178,28 @@ const SenderIdTranslationModule: React.FC = () => {
   useEffect(() => {
     if (selectedClientId) {
       loadData(selectedClientId);
+      loadListsAndPools(selectedClientId);
     } else {
       setPolicy(null);
       setRules([]);
       setTestResult(null);
+      setLists([]);
+      setPools([]);
     }
   }, [selectedClientId]);
+
+  const loadListsAndPools = async (clientId: number) => {
+    try {
+      const [ls, ps] = await Promise.all([
+        getReplacementListsApi(clientId),
+        getSenderPoolsApi(clientId),
+      ]);
+      setLists(ls);
+      setPools(ps);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const loadClients = async () => {
     try {
@@ -207,26 +241,70 @@ const SenderIdTranslationModule: React.FC = () => {
     try {
       const res = await updateSenderTranslationPolicyApi(selectedClientId, newStatus);
       setPolicy(res);
+      toast.success(`Translation policy ${newStatus ? "enabled" : "disabled"}`);
     } catch (e) {
       console.error(e);
+      toast.error("Failed to update translation policy");
     }
   };
 
-  const handleAddRule = async () => {
-    if (!newRule.sourceSenderId || !newRule.action || !selectedClientId) return;
+  const handleAddRule = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedClientId) {
+      toast.error("Please select a client first");
+      return;
+    }
+    if (newRule.matchType === "REGEX") {
+      if (!newRule.senderPattern?.trim()) {
+        toast.error("Sender Pattern (Regex) is required");
+        return;
+      }
+    } else {
+      if (!newRule.sourceSenderId?.trim()) {
+        toast.error("Source Sender ID is required");
+        return;
+      }
+    }
+    if (!newRule.action) {
+      toast.error("Action is required");
+      return;
+    }
+    if ((newRule.action === "FIXED_REPLACE" || newRule.action === "REGEX_REPLACE") && !newRule.replacementSenderId?.trim()) {
+      toast.error("Replacement Value is required");
+      return;
+    }
+    if (newRule.action === "TRUNCATE" && !newRule.truncateLength) {
+      toast.error("Truncate Length is required");
+      return;
+    }
+    if ((newRule.action === "LIST_SEQUENTIAL" || newRule.action === "LIST_RANDOM") && !newRule.replacementList) {
+      toast.error("Replacement List is required");
+      return;
+    }
+    if ((newRule.action === "POOL_SEQUENTIAL" || newRule.action === "POOL_RANDOM") && !newRule.senderPool) {
+      toast.error("Sender Pool is required");
+      return;
+    }
+
+    setIsSubmittingRule(true);
     try {
       if (editingRuleId) {
         await updateSenderTranslationRuleApi(editingRuleId, newRule);
+        toast.success("Translation rule updated successfully");
       } else {
         await createSenderTranslationRuleApi(selectedClientId, newRule as SenderIdTranslationRule);
+        toast.success("Translation rule added successfully");
       }
       setShowAddForm(false);
       setEditingRuleId(null);
-      setNewRule({ action: "FIXED_REPLACE", isActive: true });
+      setNewRule({ action: "FIXED_REPLACE", matchType: "EXACT", stopProcessing: true, isActive: true });
       loadData(selectedClientId);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert(editingRuleId ? "Failed to update rule" : "Failed to add rule");
+      const errMsg = e?.response?.data?.detail || (editingRuleId ? "Failed to update rule" : "Failed to add rule");
+      toast.error(errMsg);
+    } finally {
+      setIsSubmittingRule(false);
     }
   };
 
@@ -236,14 +314,26 @@ const SenderIdTranslationModule: React.FC = () => {
     setShowAddForm(true);
   };
 
-  const handleDeleteRule = async (ruleId: number) => {
-    if (!selectedClientId) return;
-    if (!confirm("Delete rule?")) return;
+  const handleContextMenu = (e: React.MouseEvent, rule: SenderIdTranslationRule) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setSelectedRowRule(rule);
+  };
+
+  const handleConfirmDeleteRule = async () => {
+    if (!selectedClientId || !deleteRuleId) return;
+    setIsDeletingRule(true);
     try {
-      await deleteSenderTranslationRuleApi(ruleId);
+      await deleteSenderTranslationRuleApi(deleteRuleId);
+      toast.success("Translation rule deleted successfully");
       loadData(selectedClientId);
+      setDeleteRuleId(null);
+      setSelectedRowRule(null);
     } catch (e) {
       console.error(e);
+      toast.error("Failed to delete translation rule");
+    } finally {
+      setIsDeletingRule(false);
     }
   };
 
@@ -269,7 +359,7 @@ const SenderIdTranslationModule: React.FC = () => {
   };
 
   return (
-    <div className="w-full pb-8">
+    <div className="w-full pb-8" onClick={() => setContextMenuPos(null)}>
       {/* Header - Matches Find Route */}
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
@@ -415,7 +505,7 @@ const SenderIdTranslationModule: React.FC = () => {
                       className="max-w-lg"
                       title={editingRuleId ? "Update Translation Rule" : "Add Translation Rule"}
                     >
-                      <div className="space-y-4">
+                      <form onSubmit={handleAddRule} className="space-y-4">
                         <Select
                           label="Target Country"
                           value={newRule.country ? String(newRule.country) : ""}
@@ -431,13 +521,34 @@ const SenderIdTranslationModule: React.FC = () => {
                           placeholder="Select Country"
                         />
 
-                        <Input
-                          label="Source Sender ID (Exact Match)"
-                          value={newRule.sourceSenderId || ""}
-                          onChange={(e) => setNewRule({ ...newRule, sourceSenderId: e.target.value })}
-                          placeholder="e.g. SENDER_ABC"
-                          required
+                        <Select
+                          label="Match Type"
+                          value={newRule.matchType || "EXACT"}
+                          onChange={(val) => setNewRule({ ...newRule, matchType: val as any })}
+                          options={[
+                            { value: "EXACT", label: "Exact Match" },
+                            { value: "REGEX", label: "Regex Match" },
+                          ]}
+                          clearable={false}
                         />
+
+                        {newRule.matchType === "REGEX" ? (
+                          <Input
+                            label="Sender Pattern (Regex)"
+                            value={newRule.senderPattern || ""}
+                            onChange={(e) => setNewRule({ ...newRule, senderPattern: e.target.value })}
+                            placeholder="e.g. ^SENDER_.*$"
+                            required
+                          />
+                        ) : (
+                          <Input
+                            label="Source Sender ID (Exact Match)"
+                            value={newRule.sourceSenderId || ""}
+                            onChange={(e) => setNewRule({ ...newRule, sourceSenderId: e.target.value })}
+                            placeholder="e.g. SENDER_ABC"
+                            required
+                          />
+                        )}
 
                         <Select
                           label="Action"
@@ -447,11 +558,16 @@ const SenderIdTranslationModule: React.FC = () => {
                             { value: "FIXED_REPLACE", label: "Fixed Replace" },
                             { value: "STRIP", label: "Strip" },
                             { value: "TRUNCATE", label: "Truncate" },
+                            { value: "REGEX_REPLACE", label: "Regex Replace" },
+                            { value: "LIST_SEQUENTIAL", label: "List Sequential" },
+                            { value: "LIST_RANDOM", label: "List Random" },
+                            { value: "POOL_SEQUENTIAL", label: "Pool Sequential" },
+                            { value: "POOL_RANDOM", label: "Pool Random" },
                           ]}
                           clearable={false}
                         />
 
-                        {newRule.action === "FIXED_REPLACE" && (
+                        {(newRule.action === "FIXED_REPLACE" || newRule.action === "REGEX_REPLACE") && (
                           <Input
                             label="Replacement Value"
                             value={newRule.replacementSenderId || ""}
@@ -460,6 +576,44 @@ const SenderIdTranslationModule: React.FC = () => {
                             required
                           />
                         )}
+
+                        {(newRule.action === "LIST_SEQUENTIAL" || newRule.action === "LIST_RANDOM") && (
+                          <Select
+                            label="Replacement List"
+                            value={newRule.replacementList ? String(newRule.replacementList) : ""}
+                            onChange={(val) => setNewRule({ ...newRule, replacementList: val ? Number(val) : null })}
+                            options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
+                            placeholder="Select List"
+                          />
+                        )}
+
+                        {(newRule.action === "POOL_SEQUENTIAL" || newRule.action === "POOL_RANDOM") && (
+                          <Select
+                            label="Sender Pool"
+                            value={newRule.senderPool ? String(newRule.senderPool) : ""}
+                            onChange={(val) => setNewRule({ ...newRule, senderPool: val ? Number(val) : null })}
+                            options={pools.map((p) => ({ value: String(p.id), label: p.name }))}
+                            placeholder="Select Pool"
+                          />
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Priority"
+                            type="number"
+                            value={newRule.priority || ""}
+                            onChange={(e) => setNewRule({ ...newRule, priority: Number(e.target.value) })}
+                            placeholder="e.g. 1"
+                          />
+                          <Select
+                            label="Stop Processing"
+                            value={newRule.stopProcessing !== false ? "true" : "false"}
+                            onChange={(val) => setNewRule({ ...newRule, stopProcessing: val === "true" })}
+                            options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]}
+                            clearable={false}
+                          />
+                        </div>
+
 
                         {newRule.action === "TRUNCATE" && (
                           <Input
@@ -478,11 +632,10 @@ const SenderIdTranslationModule: React.FC = () => {
                           </div>
                         )}
 
-                        <div className="flex justify-end gap-2 pt-2">
+                        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700">
                           <Button
                             type="button"
                             variant="secondary"
-                            size="sm"
                             onClick={() => {
                               setShowAddForm(false);
                               setEditingRuleId(null);
@@ -491,15 +644,14 @@ const SenderIdTranslationModule: React.FC = () => {
                             Cancel
                           </Button>
                           <Button
-                            type="button"
+                            type="submit"
                             variant="primary"
-                            size="sm"
-                            onClick={handleAddRule}
+                            disabled={isSubmittingRule}
                           >
-                            {editingRuleId ? "Update Rule" : "Save Rule"}
+                            {isSubmittingRule ? "Saving..." : editingRuleId ? "Save Changes" : "Add Rule"}
                           </Button>
                         </div>
-                      </div>
+                      </form>
                     </Modal>
 
                     <DataTable
@@ -518,7 +670,7 @@ const SenderIdTranslationModule: React.FC = () => {
                           size="sm"
                           onClick={() => {
                             setEditingRuleId(null);
-                            setNewRule({ action: "FIXED_REPLACE", isActive: true });
+                            setNewRule({ action: "FIXED_REPLACE", matchType: "EXACT", stopProcessing: true, isActive: true });
                             setShowAddForm(true);
                           }}
                           leftIcon={<Plus size={16} />}
@@ -529,7 +681,8 @@ const SenderIdTranslationModule: React.FC = () => {
                       renderRow={(rule: SenderIdTranslationRule, index: number) => (
                         <tr
                           key={rule.id || index}
-                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors"
+                          onContextMenu={(e) => handleContextMenu(e, rule)}
+                          className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                         >
                           {ruleColumns.map((col) => {
                             if (col.key === "country") {
@@ -555,7 +708,7 @@ const SenderIdTranslationModule: React.FC = () => {
                             if (col.key === "sourceSenderId") {
                               return (
                                 <td key={col.key} className={col.className}>
-                                  {rule.sourceSenderId}
+                                  {rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}
                                 </td>
                               );
                             }
@@ -573,31 +726,7 @@ const SenderIdTranslationModule: React.FC = () => {
                                 <td key={col.key} className={col.className}>
                                   {rule.action === "FIXED_REPLACE"
                                     ? rule.replacementSenderId
-                                    : rule.action === "TRUNCATE"
-                                    ? `Max len: ${rule.truncateLength}`
-                                    : "-"}
-                                </td>
-                              );
-                            }
-                            if (col.key === "actions") {
-                              return (
-                                <td key={col.key} className={col.className}>
-                                  <div className="flex items-center gap-3">
-                                    <button
-                                      type="button"
-                                      onClick={() => handleEditRule(rule)}
-                                      className="text-primary hover:text-primary-dark font-medium text-xs sm:text-sm transition-colors"
-                                    >
-                                      Edit
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteRule(rule.id!)}
-                                      className="text-red-500 hover:text-red-700 font-medium text-xs sm:text-sm transition-colors"
-                                    >
-                                      Delete
-                                    </button>
-                                  </div>
+                                    : rule.action === "TRUNCATE" ? `Max len: ${rule.truncateLength}` : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(rule.action) ? `List: ${rule.replacementList}` : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(rule.action) ? `Pool: ${rule.senderPool}` : "-"}
                                 </td>
                               );
                             }
@@ -605,6 +734,42 @@ const SenderIdTranslationModule: React.FC = () => {
                           })}
                         </tr>
                       )}
+                    />
+
+                    {/* Context Menu for Rules */}
+                    <ContextMenu
+                      position={contextMenuPos}
+                      items={
+                        selectedRowRule
+                          ? [
+                              {
+                                label: "Edit Translation Rule",
+                                icon: <Edit size={16} />,
+                                onClick: () => handleEditRule(selectedRowRule),
+                              },
+                              {
+                                label: "Delete Translation Rule",
+                                icon: <Trash size={16} />,
+                                variant: "danger",
+                                onClick: () => setDeleteRuleId(selectedRowRule.id!),
+                              },
+                            ]
+                          : []
+                      }
+                      onClose={() => setContextMenuPos(null)}
+                    />
+
+                    {/* Delete Rule Modal */}
+                    <DeleteModal
+                      isOpen={!!deleteRuleId}
+                      onClose={() => {
+                        setDeleteRuleId(null);
+                        setSelectedRowRule(null);
+                      }}
+                      onConfirm={handleConfirmDeleteRule}
+                      title="Delete Translation Rule"
+                      message={`Are you sure you want to delete this translation rule for "${selectedRowRule?.sourceSenderId || selectedRowRule?.senderPattern || "selected sender"}"? This action cannot be undone.`}
+                      isDeleting={isDeletingRule}
                     />
                   </div>
                 )}

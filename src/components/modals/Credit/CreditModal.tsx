@@ -23,6 +23,7 @@ export const CreditModal: React.FC<CreditModalProps> = ({
   const [formData, setFormData] = useState({
     companyId: "",
     creditLimit: "",
+    remarks: "",
   });
 
   const [companyOptions, setCompanyOptions] = useState<Option[]>([]);
@@ -52,9 +53,10 @@ export const CreditModal: React.FC<CreditModalProps> = ({
       setFormData({
         companyId: String(editingCompany.id),
         creditLimit: existingLimit ? String(existingLimit) : "",
+        remarks: "",
       });
     } else if (isOpen) {
-      setFormData({ companyId: "", creditLimit: "" });
+      setFormData({ companyId: "", creditLimit: "", remarks: "" });
     }
   }, [isOpen, editingCompany, isCustomer]);
 
@@ -74,6 +76,7 @@ export const CreditModal: React.FC<CreditModalProps> = ({
       company: Number(formData.companyId),
       creditType: isCustomer ? "CLIENT" : "VENDOR",
       creditAmount: Number(formData.creditLimit),
+      remarks: formData.remarks,
     };
 
     try {
@@ -116,6 +119,14 @@ export const CreditModal: React.FC<CreditModalProps> = ({
             onChange={handleChange}
             placeholder="e.g. 5000.00"
             required
+          />
+          <Input
+            label="Remarks (Optional)"
+            name="remarks"
+            type="text"
+            value={formData.remarks}
+            onChange={handleChange}
+            placeholder="Add a short note..."
           />
         </div>
 

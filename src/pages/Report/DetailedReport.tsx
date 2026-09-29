@@ -42,6 +42,38 @@ interface Option {
   icon?: React.ReactNode;
 }
 
+const EXPORT_FIELD_MAPPING: Record<string, string> = {
+  destination: "destination",
+  text_message_id: "text_message_id",
+  countryName: "message__country__name",
+  countryMCC: "countryMCC",
+  operatorMNC: "formatted_mnc",
+  client: "client",
+  company: "message__client__company__name",
+  vendor: "vendor",
+  senderId: "senderId",
+  effectiveSenderId: "message__effectiveSenderId",
+  senderTranslationAction: "message__senderTranslationAction",
+  vendor_msg_id: "vendor_msg_id",
+  content: "text",
+  submitStatus: "submitStatus",
+  base_client_charge: "base_client_charge",
+  base_vendor_charge: "base_vendor_charge",
+  clientRate: "clientRate",
+  client_charge: "client_charge",
+  vendorRate: "vendorRate",
+  vendor_charge: "vendor_charge",
+  part_total: "part_total",
+  request_time: "request_time",
+  delivery_time: "delivery_time",
+  encoding: "message__encoding",
+  characterCount: "message__characterCount",
+  failure_reason: "message__failure_reason",
+  message_queued_at: "message__queued_at",
+  message_delivered_at: "message__delivered_at",
+  message_failed_at: "message__failed_at",
+};
+
 type FilterColumnType =
   | "number"
   | "boolean"
@@ -357,6 +389,36 @@ const DetailedReport: React.FC = () => {
       filterKey: "senderTranslationRuleId",
     },
     {
+      key: "senderTranslationRuleDescription",
+      label: "Translation Rule Description",
+      type: "text",
+      filterKey: "senderTranslationRuleDescription",
+    },
+    {
+      key: "replacementListDescription",
+      label: "Replacement List Description",
+      type: "text",
+      filterKey: "replacementListDescription",
+    },
+    {
+      key: "replacementItemDescription",
+      label: "Replacement Item Description",
+      type: "text",
+      filterKey: "replacementItemDescription",
+    },
+    {
+      key: "senderPoolDescription",
+      label: "Sender Pool Description",
+      type: "text",
+      filterKey: "senderPoolDescription",
+    },
+    {
+      key: "senderPoolItemDescription",
+      label: "Sender Pool Item Description",
+      type: "text",
+      filterKey: "senderPoolItemDescription",
+    },
+    {
       key: "content",
       label: "Content",
       type: "text",
@@ -473,6 +535,96 @@ const DetailedReport: React.FC = () => {
       key: "senderTranslationRuleId",
       label: "Translation Rule ID",
       type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "senderTranslationRuleDescription",
+      label: "Translation Rule Description",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "replacementListDescription",
+      label: "Replacement List Description",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "replacementItemDescription",
+      label: "Replacement Item Description",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "senderPoolDescription",
+      label: "Sender Pool Description",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "senderPoolItemDescription",
+      label: "Sender Pool Item Description",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "original_sender_id",
+      label: "Original Sender ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "translation_type",
+      label: "Translation Type",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "replacement_list_id",
+      label: "Replacement List ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "replacement_item_id",
+      label: "Replacement Item ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "sender_pool_id",
+      label: "Sender Pool ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "sender_pool_item_id",
+      label: "Sender Pool Item ID",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "translation_reason_code",
+      label: "Translation Reason Code",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "translation_source",
+      label: "Translation Source",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "processing_latency_us",
+      label: "Processing Latency (us)",
+      type: "number",
+      isSearchable: false,
+    },
+    {
+      key: "config_generation",
+      label: "Config Generation",
+      type: "number",
       isSearchable: false,
     },
     {
@@ -783,7 +935,17 @@ const DetailedReport: React.FC = () => {
         label: "Download CSV Report",
         icon: <Download size={16} />,
         onClick: () => {
-          handleCsvExportWithApi(downloadDetailedReportCsvApi, currentSearchParamsRef.current);
+          const hiddenTableFields = allColumns.filter(col => !col.isSearchOnly && !tableColumns.includes(col.key));
+          const allExportTableFields = [...visibleTableFields, ...hiddenTableFields];
+
+          const exportFields = ["id", ...allExportTableFields.map(f => EXPORT_FIELD_MAPPING[f.key] || f.key)].join(",");
+          const exportHeaders = ["S.N.", ...allExportTableFields.map(f => f.tableLabel || f.label)].join(",");
+          
+          handleCsvExportWithApi(downloadDetailedReportCsvApi, {
+            ...currentSearchParamsRef.current,
+            export_fields: exportFields,
+            export_headers: exportHeaders
+          });
         },
       },
     ]
