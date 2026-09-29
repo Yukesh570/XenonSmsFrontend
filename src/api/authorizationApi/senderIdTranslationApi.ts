@@ -13,9 +13,15 @@ export interface SenderIdTranslationRule {
   client?: number;
   country: number | null;
   sourceSenderId: string;
-  action: "FIXED_REPLACE" | "STRIP" | "TRUNCATE";
+  action: "FIXED_REPLACE" | "STRIP" | "TRUNCATE" | "REGEX_REPLACE" | "LIST_SEQUENTIAL" | "LIST_RANDOM" | "POOL_SEQUENTIAL" | "POOL_RANDOM";
   replacementSenderId?: string;
   truncateLength?: number | null;
+  matchType?: "EXACT" | "REGEX";
+  senderPattern?: string;
+  replacementList?: number | null;
+  senderPool?: number | null;
+  priority?: number;
+  stopProcessing?: boolean;
   isActive: boolean;
   validFrom: string | null;
   validTo: string | null;

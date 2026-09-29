@@ -13,6 +13,10 @@ import LoadingSpinner from "../../components/ui/LoadingSpinner";
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
+import { getReplacementListsApi, type ReplacementList } from "../../api/authorizationApi/replacementListApi";
+import { getSenderPoolsApi, type SenderPool } from "../../api/authorizationApi/senderPoolApi";
+
+
 import type {
   SenderIdTranslationPolicy,
   SenderIdTranslationRule,
@@ -37,12 +41,16 @@ const SenderIdTranslationModule: React.FC = () => {
   const [rules, setRules] = useState<SenderIdTranslationRule[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [lists, setLists] = useState<ReplacementList[]>([]);
+  const [pools, setPools] = useState<SenderPool[]>([]);
 
   // Rule form
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [newRule, setNewRule] = useState<Partial<SenderIdTranslationRule>>({
     action: "FIXED_REPLACE",
+    matchType: "EXACT",
+    stopProcessing: true,
     isActive: true,
   });
 
@@ -126,8 +134,8 @@ const SenderIdTranslationModule: React.FC = () => {
         aVal = countries.find((c) => c.id === a.country)?.name || a.country || "";
         bVal = countries.find((c) => c.id === b.country)?.name || b.country || "";
       } else if (sortConfig.key === "outputParam") {
-        aVal = a.action === "FIXED_REPLACE" ? a.replacementSenderId : a.truncateLength;
-        bVal = b.action === "FIXED_REPLACE" ? b.replacementSenderId : b.truncateLength;
+        aVal = a.action === "FIXED_REPLACE" ? a.replacementSenderId : a.action === "TRUNCATE" ? a.truncateLength : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(a.action) ? a.replacementList : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(a.action) ? a.senderPool : "";
+        bVal = b.action === "FIXED_REPLACE" ? b.replacementSenderId : b.action === "TRUNCATE" ? b.truncateLength : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(b.action) ? b.replacementList : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(b.action) ? b.senderPool : "";
       } else {
         aVal = (a as any)[sortConfig.key];
         bVal = (b as any)[sortConfig.key];
@@ -160,12 +168,28 @@ const SenderIdTranslationModule: React.FC = () => {
   useEffect(() => {
     if (selectedClientId) {
       loadData(selectedClientId);
+      loadListsAndPools(selectedClientId);
     } else {
       setPolicy(null);
       setRules([]);
       setTestResult(null);
+      setLists([]);
+      setPools([]);
     }
   }, [selectedClientId]);
+
+  const loadListsAndPools = async (clientId: number) => {
+    try {
+      const [ls, ps] = await Promise.all([
+        getReplacementListsApi(clientId),
+        getSenderPoolsApi(clientId),
+      ]);
+      setLists(ls);
+      setPools(ps);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const loadClients = async () => {
     try {
@@ -222,7 +246,7 @@ const SenderIdTranslationModule: React.FC = () => {
       }
       setShowAddForm(false);
       setEditingRuleId(null);
-      setNewRule({ action: "FIXED_REPLACE", isActive: true });
+      setNewRule({ action: "FIXED_REPLACE", matchType: "EXACT", stopProcessing: true, isActive: true });
       loadData(selectedClientId);
     } catch (e) {
       console.error(e);
@@ -431,13 +455,34 @@ const SenderIdTranslationModule: React.FC = () => {
                           placeholder="Select Country"
                         />
 
-                        <Input
-                          label="Source Sender ID (Exact Match)"
-                          value={newRule.sourceSenderId || ""}
-                          onChange={(e) => setNewRule({ ...newRule, sourceSenderId: e.target.value })}
-                          placeholder="e.g. SENDER_ABC"
-                          required
+                        <Select
+                          label="Match Type"
+                          value={newRule.matchType || "EXACT"}
+                          onChange={(val) => setNewRule({ ...newRule, matchType: val as any })}
+                          options={[
+                            { value: "EXACT", label: "Exact Match" },
+                            { value: "REGEX", label: "Regex Match" },
+                          ]}
+                          clearable={false}
                         />
+
+                        {newRule.matchType === "REGEX" ? (
+                          <Input
+                            label="Sender Pattern (Regex)"
+                            value={newRule.senderPattern || ""}
+                            onChange={(e) => setNewRule({ ...newRule, senderPattern: e.target.value })}
+                            placeholder="e.g. ^SENDER_.*$"
+                            required
+                          />
+                        ) : (
+                          <Input
+                            label="Source Sender ID (Exact Match)"
+                            value={newRule.sourceSenderId || ""}
+                            onChange={(e) => setNewRule({ ...newRule, sourceSenderId: e.target.value })}
+                            placeholder="e.g. SENDER_ABC"
+                            required
+                          />
+                        )}
 
                         <Select
                           label="Action"
@@ -447,11 +492,16 @@ const SenderIdTranslationModule: React.FC = () => {
                             { value: "FIXED_REPLACE", label: "Fixed Replace" },
                             { value: "STRIP", label: "Strip" },
                             { value: "TRUNCATE", label: "Truncate" },
+                            { value: "REGEX_REPLACE", label: "Regex Replace" },
+                            { value: "LIST_SEQUENTIAL", label: "List Sequential" },
+                            { value: "LIST_RANDOM", label: "List Random" },
+                            { value: "POOL_SEQUENTIAL", label: "Pool Sequential" },
+                            { value: "POOL_RANDOM", label: "Pool Random" },
                           ]}
                           clearable={false}
                         />
 
-                        {newRule.action === "FIXED_REPLACE" && (
+                        {(newRule.action === "FIXED_REPLACE" || newRule.action === "REGEX_REPLACE") && (
                           <Input
                             label="Replacement Value"
                             value={newRule.replacementSenderId || ""}
@@ -460,6 +510,44 @@ const SenderIdTranslationModule: React.FC = () => {
                             required
                           />
                         )}
+
+                        {(newRule.action === "LIST_SEQUENTIAL" || newRule.action === "LIST_RANDOM") && (
+                          <Select
+                            label="Replacement List"
+                            value={newRule.replacementList ? String(newRule.replacementList) : ""}
+                            onChange={(val) => setNewRule({ ...newRule, replacementList: val ? Number(val) : null })}
+                            options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
+                            placeholder="Select List"
+                          />
+                        )}
+
+                        {(newRule.action === "POOL_SEQUENTIAL" || newRule.action === "POOL_RANDOM") && (
+                          <Select
+                            label="Sender Pool"
+                            value={newRule.senderPool ? String(newRule.senderPool) : ""}
+                            onChange={(val) => setNewRule({ ...newRule, senderPool: val ? Number(val) : null })}
+                            options={pools.map((p) => ({ value: String(p.id), label: p.name }))}
+                            placeholder="Select Pool"
+                          />
+                        )}
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <Input
+                            label="Priority"
+                            type="number"
+                            value={newRule.priority || ""}
+                            onChange={(e) => setNewRule({ ...newRule, priority: Number(e.target.value) })}
+                            placeholder="e.g. 1"
+                          />
+                          <Select
+                            label="Stop Processing"
+                            value={newRule.stopProcessing !== false ? "true" : "false"}
+                            onChange={(val) => setNewRule({ ...newRule, stopProcessing: val === "true" })}
+                            options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]}
+                            clearable={false}
+                          />
+                        </div>
+
 
                         {newRule.action === "TRUNCATE" && (
                           <Input
@@ -518,7 +606,7 @@ const SenderIdTranslationModule: React.FC = () => {
                           size="sm"
                           onClick={() => {
                             setEditingRuleId(null);
-                            setNewRule({ action: "FIXED_REPLACE", isActive: true });
+                            setNewRule({ action: "FIXED_REPLACE", matchType: "EXACT", stopProcessing: true, isActive: true });
                             setShowAddForm(true);
                           }}
                           leftIcon={<Plus size={16} />}
@@ -555,7 +643,7 @@ const SenderIdTranslationModule: React.FC = () => {
                             if (col.key === "sourceSenderId") {
                               return (
                                 <td key={col.key} className={col.className}>
-                                  {rule.sourceSenderId}
+                                  {rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}
                                 </td>
                               );
                             }
@@ -573,9 +661,7 @@ const SenderIdTranslationModule: React.FC = () => {
                                 <td key={col.key} className={col.className}>
                                   {rule.action === "FIXED_REPLACE"
                                     ? rule.replacementSenderId
-                                    : rule.action === "TRUNCATE"
-                                    ? `Max len: ${rule.truncateLength}`
-                                    : "-"}
+                                    : rule.action === "TRUNCATE" ? `Max len: ${rule.truncateLength}` : ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(rule.action) ? `List: ${rule.replacementList}` : ["POOL_SEQUENTIAL", "POOL_RANDOM"].includes(rule.action) ? `Pool: ${rule.senderPool}` : "-"}
                                 </td>
                               );
                             }
