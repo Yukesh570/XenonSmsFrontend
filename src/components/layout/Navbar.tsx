@@ -300,10 +300,10 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
         <div className="flex items-center space-x-2">
           {/* Live Clock using state appTimezone */}
-          <div className="text-sm text-gray-900 dark:text-white font-medium hidden md:block">
+          <div className="text-sm text-gray-900 dark:text-white font-medium whitespace-nowrap shrink-0 hidden md:block">
             {new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: appTimezone }).format(currentTime)} | {new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", timeZone: appTimezone }).format(currentTime)}
           </div>
-          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2 hidden md:block" />
+          <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2 hidden md:block shrink-0" />
 
           {/* Expandable Module Search Bar */}
           {!isSearchExpanded ? (

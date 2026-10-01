@@ -58,7 +58,11 @@ const Layout: React.FC = () => {
 
   // Normalize initial path so /dashboard is always marked as visited from start
   const [visitedTabs, setVisitedTabs] = useState<Record<string, boolean>>(() => {
-    const currentPath = window.location.pathname === "/" ? "/dashboard" : window.location.pathname;
+    const rawPath = window.location.pathname;
+    const currentPath =
+      rawPath === "/" || rawPath === "/dashboard/dashboard"
+        ? "/dashboard"
+        : rawPath;
     return {
       "/dashboard": true,
       [currentPath]: true,
@@ -67,7 +71,11 @@ const Layout: React.FC = () => {
 
   // Mark the active tab as visited when navigating
   useEffect(() => {
-    const activePath = location.pathname === "/" ? "/dashboard" : location.pathname;
+    const rawPath = location.pathname;
+    const activePath =
+      rawPath === "/" || rawPath === "/dashboard/dashboard"
+        ? "/dashboard"
+        : rawPath;
     if (!visitedTabs[activePath]) {
       setVisitedTabs((prev) => ({ ...prev, [activePath]: true }));
     }
@@ -98,16 +106,28 @@ const Layout: React.FC = () => {
       try {
         const response = await getGeneralSettingsApi("generalSettings");
         if (response) {
-          if (response.defaultTimezone) {
+          const prevTz = localStorage.getItem("app_timezone");
+          const prevDf = localStorage.getItem("app_date_format");
+          const prevDtf = localStorage.getItem("app_datetime_format");
+
+          let hasChanges = false;
+          if (response.defaultTimezone && response.defaultTimezone !== prevTz) {
             localStorage.setItem("app_timezone", response.defaultTimezone);
+            hasChanges = true;
           }
-          if (response.dateFormat) {
+          if (response.dateFormat && response.dateFormat !== prevDf) {
             localStorage.setItem("app_date_format", response.dateFormat);
+            hasChanges = true;
           }
-          if (response.datetimeFormat) {
+          if (response.datetimeFormat && response.datetimeFormat !== prevDtf) {
             localStorage.setItem("app_datetime_format", response.datetimeFormat);
+            hasChanges = true;
           }
-          window.dispatchEvent(new Event("timezoneChanged"));
+
+          // Only notify application listeners if timezone or format actually changed
+          if (hasChanges) {
+            window.dispatchEvent(new Event("timezoneChanged"));
+          }
         }
       } catch (error) {
         console.error("Failed to fetch initial timezone settings:", error);
@@ -159,7 +179,10 @@ const Layout: React.FC = () => {
     document.title = title;
   }, [location, navItems]);
 
-  const activeNormalizedPath = location.pathname === "/" ? "/dashboard" : location.pathname;
+  const activeNormalizedPath =
+    location.pathname === "/" || location.pathname === "/dashboard/dashboard"
+      ? "/dashboard"
+      : location.pathname;
 
   return (
     <div className="flex h-screen bg-white dark:bg-gray-900 overflow-hidden">

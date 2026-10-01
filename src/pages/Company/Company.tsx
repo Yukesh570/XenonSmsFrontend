@@ -491,10 +491,26 @@ const CompanyList: React.FC = () => {
         attempts += 1;
         try {
           const res = await downloadStatus(routeName, taskId);
-          if (res && res.ready) {
+          const statusStr = String(res?.status || res?.state || "").toUpperCase();
+          const downloadUrl = res?.download_url || res?.result?.download_url;
+
+          if (
+            statusStr === "FAILURE" ||
+            statusStr === "FAILED" ||
+            statusStr === "ERROR" ||
+            res?.failed === true ||
+            res?.successful === false ||
+            Boolean(res?.ready && !downloadUrl)
+          ) {
             clearInterval(checkStatus);
-            if (res.download_url) {
-              window.location.href = res.download_url;
+            toast.error(res?.error || res?.message || "Export failed on the server.");
+            return;
+          }
+
+          if ((res && res.ready) || statusStr === "SUCCESS") {
+            clearInterval(checkStatus);
+            if (downloadUrl) {
+              window.location.href = downloadUrl;
               toast.success("Export successful!");
             } else {
               toast.error("Export generated but URL is missing.");
@@ -503,10 +519,12 @@ const CompanyList: React.FC = () => {
             clearInterval(checkStatus);
             toast.error("Export timed out.");
           }
-        } catch (error) {
-          if (attempts >= maxAttempts) {
+        } catch (error: any) {
+          if (error?.response || attempts >= maxAttempts) {
             clearInterval(checkStatus);
-            toast.error("Failed to check status.");
+            const data = error?.response?.data;
+            const msg = (typeof data === "string" ? data : null) || data?.error || data?.message || "Failed to check status.";
+            toast.error(msg);
           }
         }
       }, 2000);

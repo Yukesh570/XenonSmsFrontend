@@ -453,6 +453,8 @@ const Dashboard: React.FC = () => {
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
+  const refreshTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const refreshData = () => {
       fetchFailureBreakdown(activeRange);
@@ -468,10 +470,18 @@ const Dashboard: React.FC = () => {
       setSelectedFailureCategory(null);
     };
 
+    const handleTimezoneChange = () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = setTimeout(() => {
+        refreshData();
+      }, 150);
+    };
+
     refreshData();
-    window.addEventListener("timezoneChanged", refreshData);
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
     return () => {
-      window.removeEventListener("timezoneChanged", refreshData);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
   }, [activeRange]);
 
@@ -486,7 +496,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClientSessionSummary();
     fetchOnlineVendors();
-    fetchTpsNotifications();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
     if (!wsBase) {
       console.error("WebSocket Error: VITE_WS_BASE_URL is missing in your .env file!");

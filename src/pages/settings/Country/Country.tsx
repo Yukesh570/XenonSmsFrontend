@@ -272,12 +272,27 @@ const Country: React.FC = () => {
 
         try {
           const res = await downloadStatus(routeName, taskId);
+          const statusStr = String(res?.status || res?.state || "").toUpperCase();
+          const downloadUrl = res?.download_url || res?.result?.download_url;
 
-          if (res && res.ready) {
+          if (
+            statusStr === "FAILURE" ||
+            statusStr === "FAILED" ||
+            statusStr === "ERROR" ||
+            res?.failed === true ||
+            res?.successful === false ||
+            Boolean(res?.ready && !downloadUrl)
+          ) {
+            clearInterval(checkStatus);
+            toast.error(res?.error || res?.message || "Export failed on the server.");
+            return;
+          }
+
+          if ((res && res.ready) || statusStr === "SUCCESS") {
             clearInterval(checkStatus);
 
-            if (res.download_url) {
-              window.location.href = res.download_url;
+            if (downloadUrl) {
+              window.location.href = downloadUrl;
               toast.success("Export successful!");
             } else {
               console.error("Download URL is missing from response:", res);
@@ -289,11 +304,13 @@ const Country: React.FC = () => {
               "Export timed out after 5 attempts. Please try again later."
             );
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error checking CSV status:", error);
-          if (attempts >= maxAttempts) {
+          if (error?.response || attempts >= maxAttempts) {
             clearInterval(checkStatus);
-            toast.error("Failed to check export status.");
+            const data = error?.response?.data;
+            const msg = (typeof data === "string" ? data : null) || data?.error || data?.message || "Failed to check export status.";
+            toast.error(msg);
           }
         }
       }, 2000);

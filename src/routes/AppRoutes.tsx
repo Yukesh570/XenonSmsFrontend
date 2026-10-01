@@ -236,6 +236,7 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/login" element={<Navigate to="/dashboard" replace />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard/dashboard" element={<Navigate to="/dashboard" replace />} />
       <Route path="/*" element={<Layout />} />
     </Routes>
   );

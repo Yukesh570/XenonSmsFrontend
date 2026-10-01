@@ -44,7 +44,17 @@ const Sidebar = ({ isCollapsed, isMobileOpen, closeMobileSidebar }: SidebarProps
     if (navItems.results) {
       navItems.results.forEach((parent) => {
         if (parent.children) {
-          const hasActiveChild = parent.children.some((child) => location.pathname.startsWith(`/${child.url}`));
+          const hasActiveChild = parent.children.some((child) => {
+            const childPath =
+              child.url === "dashboard" || child.url === "dashboard/dashboard"
+                ? "/dashboard"
+                : `/${child.url}`;
+            return (
+              location.pathname === childPath ||
+              (childPath !== "/dashboard" &&
+                location.pathname.startsWith(`${childPath}/`))
+            );
+          });
           if (hasActiveChild && parent.id) {
             setOpenItems((prev) => ({ ...prev, [parent.id!]: true }));
           }
@@ -96,9 +106,14 @@ const Sidebar = ({ isCollapsed, isMobileOpen, closeMobileSidebar }: SidebarProps
 
       const hasChildren = item.children && item.children.length > 0;
       const isOpen = item.id ? openItems[item.id] : false;
-      const itemPath = `/${item.url}`;
+      const isDashboardItem =
+        item.url === "dashboard" || item.url === "dashboard/dashboard";
+      const itemPath = isDashboardItem ? "/dashboard" : `/${item.url}`;
 
-      const isActive = location.pathname === itemPath || location.pathname.startsWith(`${itemPath}/`);
+      const isActive =
+        location.pathname === itemPath ||
+        (itemPath !== "/dashboard" &&
+          location.pathname.startsWith(`${itemPath}/`));
       const baseClasses = "group flex items-center rounded-lg transition-all duration-200 mb-1 relative cursor-pointer select-none";
       const isActuallyCollapsed = isCollapsed && window.innerWidth >= 768;
       const layoutClasses = isActuallyCollapsed ? "justify-center py-3 px-0 w-full" : `justify-between py-2.5 px-3`;
