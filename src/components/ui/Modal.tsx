@@ -239,6 +239,13 @@ const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // If an open dropdown/combobox or popover is currently active, let it close first instead of closing the modal
+        const hasOpenDropdown = document.querySelector(
+          '[role="listbox"], [role="combobox"][aria-expanded="true"]'
+        );
+        if (hasOpenDropdown) {
+          return;
+        }
         onClose();
       }
     };
@@ -319,6 +326,9 @@ const Modal: React.FC<ModalProps> = ({
             margin-top: 1.25rem !important;
             padding-top: 0.75rem !important;
           }
+          .modal-content-body {
+            overflow-x: hidden !important;
+          }
         `}</style>
         {/* Header - pinned to top of modal card, never scrolls off */}
         <div className="flex items-center justify-between mb-4 sm:mb-5 shrink-0 min-w-0">
@@ -338,7 +348,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body - scrolls cleanly with overscroll containment */}
-        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
+        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-0.5 custom-scrollbar">
           {children}
         </div>
       </div>

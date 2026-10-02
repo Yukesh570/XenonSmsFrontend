@@ -209,15 +209,11 @@ const MessageAttempt: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.started_at;
-      delete next.started_at__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchAttempts(updatedFilters, 1, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.started_at;
+    delete nextFilters.started_at__gt_lt;
+    setFilterValues(nextFilters);
+    fetchAttempts(nextFilters, 1, false, presetKey);
   };
 
   const fetchAttempts = async (

@@ -186,6 +186,7 @@ const MessageReport: React.FC = () => {
   });
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
 
   // Message Log Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -498,7 +499,7 @@ const MessageReport: React.FC = () => {
 
     try {
       const currentSearchParams: Record<string, any> = {};
-      const sourceFilters = overrideParams || filterValues;
+      const sourceFilters = overrideParams !== undefined ? overrideParams : appliedFilters;
 
       searchColumns.forEach((key) => {
         const value = sourceFilters[key];
@@ -613,19 +614,21 @@ const MessageReport: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (activePreset !== "today") return;
+
     const liveUpdateTimer = setInterval(() => {
-      const isFiltering = Object.values(filterValues).some((val) => val !== "");
+      const isFiltering = Object.values(appliedFilters).some((val) => Boolean(val && val.trim() !== ""));
 
       const currentGlobalPath = window.location.pathname === "/" ? "/dashboard" : window.location.pathname;
       const isTabActive = currentGlobalPath === location.pathname || currentGlobalPath.startsWith(`${location.pathname}/`);
 
       if (isAtTopRef.current && !isFiltering && isTabActive) {
-        fetchLogs(undefined, 1, false, true);
+        fetchLogs(appliedFilters, 1, false, true);
       }
     }, 5000);
 
     return () => clearInterval(liveUpdateTimer);
-  }, [filterValues, isLoading, isFetchingMore, location.pathname]);
+  }, [appliedFilters, isLoading, isFetchingMore, location.pathname, activePreset]);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
@@ -639,13 +642,13 @@ const MessageReport: React.FC = () => {
       if (isLoading || isFetchingMore || !hasMore) return;
       const { scrollTop, scrollHeight, clientHeight } = scrollEl;
       if (scrollHeight - scrollTop - clientHeight < LOAD_MORE_THRESHOLD_PX) {
-        fetchLogs(filterValues, loadedPage + 1, true);
+        fetchLogs(appliedFilters, loadedPage + 1, true);
       }
     };
 
     scrollEl.addEventListener("scroll", handleScroll);
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, logs.length]);
+  }, [isLoading, isFetchingMore, hasMore, loadedPage, appliedFilters, logs.length]);
 
   const handleFilterChange = (key: string, value: string) => {
     if (key === "createdAt" || key === "createdAt__gt_lt") {
@@ -657,24 +660,23 @@ const MessageReport: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.createdAt;
-      delete next.createdAt__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchLogs(updatedFilters, 1, false, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.createdAt;
+    delete nextFilters.createdAt__gt_lt;
+    setFilterValues(nextFilters);
+    setAppliedFilters(nextFilters);
+    fetchLogs(nextFilters, 1, false, false, presetKey);
   };
 
   const handleSearch = () => {
-    fetchLogs(undefined, 1, false);
+    setAppliedFilters(filterValues);
+    fetchLogs(filterValues, 1, false);
   };
 
   const handleClearFilters = () => {
     setActivePreset("today");
     setFilterValues({});
+    setAppliedFilters({});
     fetchLogs({}, 1, false, false, "today");
   };
 

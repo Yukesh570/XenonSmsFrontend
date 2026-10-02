@@ -186,6 +186,7 @@ div[class*="justify-between"][class*="flex-col"][class*="sm:flex-row"] {
 
 .modal-content-body {
   overscroll-behavior: contain;
+  overflow-x: hidden !important;
 }
 
 /* Suppress browser native tooltip on truncated text elements */

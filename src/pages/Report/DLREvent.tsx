@@ -188,15 +188,11 @@ const DLREvent: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.received_at;
-      delete next.received_at__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchEvents(updatedFilters, 1, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.received_at;
+    delete nextFilters.received_at__gt_lt;
+    setFilterValues(nextFilters);
+    fetchEvents(nextFilters, 1, false, presetKey);
   };
 
   const fetchEvents = async (

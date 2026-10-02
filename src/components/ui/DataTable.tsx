@@ -316,7 +316,7 @@ export function DataTable<T extends { id?: number | string }>({
       clearTimeout(headerTooltipTimerRef.current);
     }
 
-    const spanEl = th.querySelector("span.truncate") as HTMLElement | null;
+    const spanEl = (th.querySelector("span[data-header-label]") || th.querySelector("span")) as HTMLElement | null;
     const rawText = spanEl?.innerText?.trim() || th.innerText?.trim();
     if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
       clearHeaderTooltip();
@@ -858,7 +858,7 @@ export function DataTable<T extends { id?: number | string }>({
                       }
                     }}
                   >
-                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -866,7 +866,8 @@ export function DataTable<T extends { id?: number | string }>({
                         />
                       )}
                       <span
-                        className={`truncate text-center pointer-events-none select-none ${
+                        data-header-label="true"
+                        className={`whitespace-nowrap text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -989,8 +990,7 @@ export function DataTable<T extends { id?: number | string }>({
           table-layout: fixed !important;
         }
         .app-data-table table.table-resizable-active th {
-          overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: visible;
           white-space: nowrap;
           text-align: center !important;
         }

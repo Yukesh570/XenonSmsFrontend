@@ -737,15 +737,11 @@ const DetailedReport: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.request_time;
-      delete next.request_time__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchReports(updatedFilters, 1, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.request_time;
+    delete nextFilters.request_time__gt_lt;
+    setFilterValues(nextFilters);
+    fetchReports(nextFilters, 1, false, presetKey);
   };
 
   const fetchReports = async (

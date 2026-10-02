@@ -62,62 +62,11 @@ const defaultRowsOptions = [
   { value: "100", label: "100" },
 ];
 
-export const getHeaderWordMinWidth = (header: string, index: number, hasSn: boolean): number => {
-  if (hasSn && index === 0) return 48;
-  const raw = String(header || "").trim();
-  const firstWord = raw.split(/[\s_.-]+/)[0] || raw;
-  const fullTextLen = raw.length;
-  const firstWordLen = firstWord.length;
-
-  const h = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (h === "mcc" || h === "mnc") return 120;
-  if (h === "country" || h === "countryname") return 165;
-  if (h === "countrycode") return 165;
-  if (h === "network" || h === "networkname") return 185;
-  if (h.includes("rate") || h === "exchangerate") return 145;
-  if (h === "version") return 135;
-  if (h === "status") return 130;
-  if (h === "remark" || h === "description" || h === "remarks") return 150;
-  if (
-    h.includes("effective") ||
-    h.includes("date") ||
-    h.includes("time") ||
-    h.includes("created") ||
-    h.includes("updated") ||
-    h.includes("billing")
-  ) {
-    return 195;
-  }
-  if (h === "companyname" || h === "company") return 195;
-  if (h === "shortname") return 160;
-  if (h === "accountmanager" || h === "accountmanagername") return 205;
-  if (h === "companyemail" || h === "email") return 200;
-  if (h === "phone") return 135;
-  if (h === "currency" || h === "currencycode") return 145;
-  if (h.includes("customercredit") || h.includes("custcredit")) return 175;
-  if (h.includes("vendorcredit") || h.includes("vendcredit")) return 175;
-  if (h.includes("balancealert")) return 175;
-  if (h === "customerbalance" || h === "vendorbalance") return 185;
-  if (h === "customer" || h === "vendor" || h === "client") return 165;
-  if (h === "invoicenumber" || h === "invoice") return 165;
-  if (h.includes("credit")) return 165;
-  if (h.includes("amount") || h.includes("segments") || h.includes("tax")) return 145;
-  if (h === "id") return 75;
-  if (h === "action" || h === "actions") return 100;
-
-  // General calculated width: ensure at least first word (with grip + sort + padding) has full room,
-  // and full text is accommodated comfortably.
-  const minRequiredForFirstWord = Math.max(130, Math.ceil(firstWordLen * 11 + 65));
-  const fullTextDesired = Math.max(minRequiredForFirstWord, Math.ceil(fullTextLen * 9.5 + 65));
-
-  return fullTextDesired;
-};
-
 /**
- * Calculates the maximum limit to which a column can be decreased (minimum allowed width),
- * ensuring at least the first word of the header is fully visible with all padding and icons.
+ * Calculates the exact width needed to display the full header name on a single line,
+ * including padding, drag handle, and sort icons with no extra arbitrary padding.
  */
-export const getHeaderFirstWordMinWidth = (
+export const getHeaderFullWidth = (
   header: string,
   index?: number,
   hasSn?: boolean
@@ -137,22 +86,50 @@ export const getHeaderFirstWordMinWidth = (
     normalized === "SERIALNUMBER" ||
     normalized === "#" ||
     normalized === "NO" ||
-    normalized === "ID" ||
     normalized === "SEQ"
   ) {
     return 48;
   }
 
-  // Extract the first word (split by whitespace, underscores, hyphens, dots, slashes)
-  const firstWord = raw.split(/[\s_.\-/]+/)[0] || raw;
-  const wordLen = firstWord.length;
+  // Exact character width calculation for text-xs font-medium uppercase tracking-wider
+  let textWidth = 0;
+  for (const char of raw.toUpperCase()) {
+    if (char === " " || char === "-" || char === "_") {
+      textWidth += 4.5;
+    } else if ("IJLT1()[]|:;,'.".includes(char)) {
+      textWidth += 6.5;
+    } else if ("MWDQ@%&".includes(char)) {
+      textWidth += 11.0;
+    } else {
+      textWidth += 8.8;
+    }
+  }
 
-  // Header has px-3 padding (24px) + Grip icon (~17px) + Sort icon (~18px)
-  // Font is text-xs uppercase (approx 8.8px per char with tracking-wider)
-  const textWidth = Math.ceil(wordLen * 8.8);
-  const minWidth = textWidth + 56;
+  // Header chrome: px-3 th padding (24px) + inner px-1 (8px) + GripVertical icon (~17px) + Sort icon (~15px) + 4px safety buffer = 68px
+  const chrome = 68;
+  const calculatedWidth = Math.ceil(textWidth + chrome);
 
-  return Math.max(50, minWidth);
+  return Math.max(50, calculatedWidth);
+};
+
+export const getHeaderWordMinWidth = (
+  header: string,
+  index?: number,
+  hasSn?: boolean
+): number => {
+  return getHeaderFullWidth(header, index, hasSn);
+};
+
+/**
+ * Calculates the minimum allowed width for a column, ensuring the full header name
+ * is completely visible with all padding and icons on a single line without truncation.
+ */
+export const getHeaderFirstWordMinWidth = (
+  header: string,
+  index?: number,
+  hasSn?: boolean
+): number => {
+  return getHeaderFullWidth(header, index, hasSn);
 };
 
 export function ModalDataTable<T extends Record<string, any> = any>({
@@ -881,7 +858,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       }
                     }}
                   >
-                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -889,7 +866,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         />
                       )}
                       <span
-                        className={`truncate text-center pointer-events-none select-none ${
+                        className={`whitespace-nowrap text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -1012,8 +989,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           table-layout: fixed !important;
         }
         .app-modal-data-table table.table-resizable-active th {
-          overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: visible;
           white-space: nowrap;
           text-align: center !important;
         }

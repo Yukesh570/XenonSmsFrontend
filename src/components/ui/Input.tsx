@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
-import { X } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import FastTooltip from "./FastTooltip";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -9,6 +9,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   rightIcon?: ReactNode;
   isClearable?: boolean;
   labelClassName?: string;
+  isLoading?: boolean;
 }
 
 const Input: React.FC<InputProps> = ({ 
@@ -23,6 +24,7 @@ const Input: React.FC<InputProps> = ({
   autoComplete = "off",
   labelClassName,
   className,
+  isLoading = false,
   ...props 
 }) => {
   const inputId = id || label.replace(/\s+/g, "-").toLowerCase();
@@ -67,9 +69,11 @@ const Input: React.FC<InputProps> = ({
   };
 
   const isPassword = props.type === "password";
+  const isEffectivelyDisabled = disabled || isLoading;
   const hasValue = value !== undefined && value !== null && String(value).trim() !== "";
-  const showClear = isClearable && !disabled && !props.readOnly && hasValue && !rightIcon;
-  const hoverTooltip = hasValue && !isPassword ? String(value) : "";
+  const showClear = isClearable && !isEffectivelyDisabled && !props.readOnly && hasValue && !rightIcon && !isLoading;
+  const hoverTooltip = isLoading ? "Loading..." : hasValue && !isPassword ? String(value) : "";
+  const displayPlaceholder = isLoading ? "Loading..." : props.placeholder;
 
   return (
     <div className="flex flex-col w-full">
@@ -81,7 +85,7 @@ const Input: React.FC<InputProps> = ({
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      <FastTooltip text={hoverTooltip} disabled={isFocused || !hasValue || isPassword}>
+      <FastTooltip text={hoverTooltip} disabled={isFocused || !hasValue || isPassword || isLoading}>
         <div className="relative flex items-center w-full">
           {leftIcon && (
             <div className="absolute left-0 pl-2.5 flex items-center h-full text-gray-500 pointer-events-none">
@@ -91,10 +95,11 @@ const Input: React.FC<InputProps> = ({
           <input
             {...props}
             ref={inputRef}
+            placeholder={displayPlaceholder}
             autoComplete={autoComplete}
             id={inputId}
             value={value}
-            disabled={disabled}
+            disabled={isEffectivelyDisabled}
             required={required}
             min={props.type === "number" && props.min === undefined ? 0 : props.min}
             onFocus={(e) => {
@@ -108,17 +113,23 @@ const Input: React.FC<InputProps> = ({
             onInput={handleInput}
             onKeyDown={handleKeyDown}
             onWheel={handleWheel}
-            className={`w-full h-[34px] rounded-lg border px-3 py-1 text-xs sm:text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary 
+            className={`w-full h-[34px] rounded-lg border px-3 py-1 text-xs sm:text-sm shadow-input transition duration-150 ease-in-out focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary dark:focus:border-primary dark:focus:ring-primary 
             ${
-              disabled
+              isEffectivelyDisabled
                 ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
                 : "bg-white border-gray-200 text-text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-500"
             }
             ${leftIcon ? "pl-9" : ""}
-            ${rightIcon || showClear ? "pr-9" : ""}
+            ${rightIcon || showClear || isLoading ? "pr-9" : ""}
             ${className || ""}`}
           />
           
+          {isLoading && (
+            <div className="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none">
+              <Loader2 size={15} className="animate-spin text-primary" />
+            </div>
+          )}
+
           {showClear && (
             <button
               type="button"
@@ -130,8 +141,8 @@ const Input: React.FC<InputProps> = ({
             </button>
           )}
 
-          {rightIcon && (
-            <div className={`absolute inset-y-0 right-0 flex items-center pr-2.5 ${disabled ? "text-gray-400" : "text-gray-500 dark:text-gray-400"}`}>
+          {rightIcon && !isLoading && (
+            <div className={`absolute inset-y-0 right-0 flex items-center pr-2.5 ${isEffectivelyDisabled ? "text-gray-400" : "text-gray-500 dark:text-gray-400"}`}>
               {rightIcon}
             </div>
           )}

@@ -405,15 +405,11 @@ const SmsMessagePart: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.created_at;
-      delete next.created_at__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchSegments(updatedFilters, 1, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.created_at;
+    delete nextFilters.created_at__gt_lt;
+    setFilterValues(nextFilters);
+    fetchSegments(nextFilters, 1, false, presetKey);
   };
 
   const fetchSegments = async (

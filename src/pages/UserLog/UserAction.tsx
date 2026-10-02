@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, History, Eye } from "lucide-react";
+import { Home, Eye } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 import { getUserInformationApi } from "../../api/userLogApi/userLogApi";
@@ -46,9 +46,6 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const formatDate = (dateString?: string) => {
-  return formatDateTime(dateString);
-};
 
 const DEFAULT_SEARCH_COLUMNS = ["username", "title", "action"];
 const DEFAULT_TABLE_COLUMNS = ["username", "title", "action", "createdAt"];
@@ -137,12 +134,7 @@ const UserAction: React.FC = () => {
       tableLabel: "Time",
       type: "date",
       filterKey: "createdAt",
-      render: (log) => (
-        <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-gray-300 whitespace-nowrap">
-          <History size={14} className="text-orange-400 shrink-0" />
-          {formatDate(log.createdAt)}
-        </div>
-      ),
+      render: (log) => (log.createdAt ? formatDateTime(log.createdAt) : "-"),
     },
     {
       key: "createdAt__gt_lt",

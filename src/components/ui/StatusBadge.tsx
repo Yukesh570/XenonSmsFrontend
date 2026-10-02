@@ -20,6 +20,9 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
   ACTIVE: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Active" },
   ONLINE: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Online" },
   CONNECTED: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Connected" },
+  HEALTHY: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Healthy" },
+  WARMING: { bg: "#FEF9C3", text: "#854D0E", border: "#EAB308", label: "Warming" },
+  CRITICAL: { bg: "#FEE2E2", text: "#991B1B", border: "#DC2626", label: "Critical" },
   
   TRIAL: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Trial" },
   BOUND: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Bound" },

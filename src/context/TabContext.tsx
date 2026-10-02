@@ -106,16 +106,13 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ) {
         if (navItems?.results) {
           for (const item of navItems.results) {
-            if (item.url === "dashboard" || item.url === "dashboard/dashboard") {
-              return { title: item.label, icon: item.icon || "LayoutGrid" };
-            }
             if (item.children) {
               const child = item.children.find(
                 (c) => c.url === "dashboard" || c.url === "dashboard/dashboard"
               );
               if (child) {
                 return {
-                  title: child.label,
+                  title: child.label || "Overview",
                   icon: child.icon || item.icon || "LayoutGrid",
                 };
               }
