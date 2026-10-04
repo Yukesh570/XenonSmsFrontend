@@ -183,6 +183,41 @@ const Dashboard: React.FC = () => {
     activeRangeRef.current = activeRange;
   }, [activeRange]);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const rangeDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!rangeOpen) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (rangeDropdownRef.current && !rangeDropdownRef.current.contains(e.target as Node)) {
+        setRangeOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setRangeOpen(false);
+      }
+    };
+
+    const handleDismiss = () => {
+      setRangeOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("popstate", handleDismiss);
+    document.addEventListener("visibilitychange", handleDismiss);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("popstate", handleDismiss);
+      document.removeEventListener("visibilitychange", handleDismiss);
+    };
+  }, [rangeOpen]);
 
   const buildParams = (range: RangeKey): Record<string, any> => {
     if (range === "all") return {};
@@ -820,7 +855,7 @@ const Dashboard: React.FC = () => {
           />
 
           {/* Range dropdown */}
-          <div className="relative">
+          <div className="relative" ref={rangeDropdownRef}>
             <button
               onClick={() => setRangeOpen((o) => !o)}
               className="h-[34px] flex items-center gap-1.5 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs sm:text-sm font-medium text-text-primary dark:text-white shadow-sm hover:border-primary hover:text-primary transition-colors"
