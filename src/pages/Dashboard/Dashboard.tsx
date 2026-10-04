@@ -159,7 +159,7 @@ const Dashboard: React.FC = () => {
 
   // ─── Date range ──────────────────────────────────────────────────────────────
 
-  type RangeKey = "5m" | "15m" | "1h" | "2h" | "4h" | "today" | "7d" | "30d" | "90d" | "365d" | "all";
+  type RangeKey = "5m" | "15m" | "1h" | "2h" | "4h" | "today" | "yesterday" | "3d" | "7d" | "30d" | "90d" | "365d" | "all";
 
   const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
     { key: "5m", label: "Last 5 Minutes" },
@@ -168,6 +168,8 @@ const Dashboard: React.FC = () => {
     { key: "2h", label: "Last 2 Hour" },
     { key: "4h", label: "Last 4 Hour" },
     { key: "today", label: "Today" },
+    { key: "yesterday", label: "Yesterday" },
+    { key: "3d", label: "Last 3 Days" },
     { key: "7d", label: "Last 7 Days" },
     { key: "30d", label: "Last 30 Days" },
     { key: "90d", label: "Last 90 Days" },
@@ -188,6 +190,10 @@ const Dashboard: React.FC = () => {
       const today = getDaysAgoInAppTimezone(0);
       return { today: true, startDate: today, endDate: today };
     }
+    if (range === "yesterday") {
+      const yesterday = getDaysAgoInAppTimezone(1);
+      return { startDate: yesterday, endDate: yesterday };
+    }
     const end = new Date();
     const start = new Date();
 
@@ -197,7 +203,7 @@ const Dashboard: React.FC = () => {
     else if (range === "2h") start.setHours(start.getHours() - 2);
     else if (range === "4h") start.setHours(start.getHours() - 4);
     else {
-      const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+      const days = range === "3d" ? 3 : range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
       return {
         startDate: getDaysAgoInAppTimezone(days - 1),
         endDate: getDaysAgoInAppTimezone(0),
@@ -221,6 +227,13 @@ const Dashboard: React.FC = () => {
       return params;
     }
 
+    if (range === "yesterday") {
+      const yesterday = getDaysAgoInAppTimezone(1);
+      params.createdAt__gte = `${yesterday}T00:00:00`;
+      params.createdAt__lte = `${yesterday}T23:59:59`;
+      return params;
+    }
+
     if (range === "5m" || range === "15m" || range === "1h" || range === "2h" || range === "4h") {
       const end = new Date();
       const start = new Date();
@@ -239,7 +252,7 @@ const Dashboard: React.FC = () => {
       return params;
     }
 
-    const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+    const days = range === "3d" ? 3 : range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
     const start = getDaysAgoInAppTimezone(days - 1);
     const end = getDaysAgoInAppTimezone(0);
     params.createdAt__gte = `${start}T00:00:00`;
@@ -251,7 +264,7 @@ const Dashboard: React.FC = () => {
   const fetchTrafficTraffic = async (range: RangeKey) => {
     setIsTrafficLoading(true);
     try {
-      if (range === "today") {
+      if (range === "today" || range === "yesterday") {
         const data = await getSmsHourlyApi(buildParams(range));
         setTrafficData(data);
       } else {
@@ -688,10 +701,9 @@ const Dashboard: React.FC = () => {
 
   const activeRangeLabel = RANGE_OPTIONS.find((r) => r.key === activeRange)?.label ?? "";
 
-  // ─── Traffic Volume chart granularity helpers ───────────────────────────────
-  const isHourly = activeRange === "today";
   const firstItem = trafficData[0] as any;
   const xAxisKey = firstItem && ("date" in firstItem) ? "date" : firstItem && ("day" in firstItem) ? "day" : "hour";
+  const isHourly = (activeRange === "today" || activeRange === "yesterday") && xAxisKey === "hour";
 
   const formatXAxisTick = (value: any) => {
     if (isHourly) return `${value}:00`;
@@ -718,9 +730,9 @@ const Dashboard: React.FC = () => {
   let chartMinWidth = "100%";
   let needsScroll = false;
 
-  if (activeRange === "today") {
+  if (activeRange === "today" || activeRange === "yesterday") {
     tickInterval = 3;
-  } else if (activeRange === "7d") {
+  } else if (activeRange === "3d" || activeRange === "7d") {
     tickInterval = 0;
   } else if (activeRange === "30d") {
     tickInterval = 0;
@@ -821,7 +833,7 @@ const Dashboard: React.FC = () => {
               />
             </button>
             {rangeOpen && (
-              <div className="absolute right-0 mt-1 w-40 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 overflow-hidden">
+              <div className="absolute right-0 mt-1 w-40 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
                 {RANGE_OPTIONS.map((opt) => (
                   <button
                     key={opt.key}

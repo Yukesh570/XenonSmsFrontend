@@ -320,9 +320,9 @@ const Modal: React.FC<ModalProps> = ({
             margin-bottom: 0.375rem !important;
             line-height: 1.25rem !important;
           }
-          .modal-content-body form .flex.justify-end,
-          .modal-content-body form .flex.justify-center,
-          .modal-content-body form .border-t {
+          .modal-content-body form > .flex.justify-end,
+          .modal-content-body form > .flex.justify-center,
+          .modal-content-body form > .border-t {
             margin-top: 1.25rem !important;
             padding-top: 0.75rem !important;
           }
