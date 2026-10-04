@@ -6,6 +6,7 @@ export interface EmailTemplateData {
   subject: string;
   content: string;
   emailServer?: number | null; // Optional Foreign Key to SMTP Server
+  emailServerName?: string;
 }
 
 export interface PaginatedResponse<T> {

@@ -117,6 +117,9 @@ const MarginReport: React.FC = () => {
   const [filterValues, setFilterValues] = useState<MarginReportFilters>({});
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortColumnIndex, setSortColumnIndex] = useState<number | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;
     y: number;
@@ -265,6 +268,7 @@ const MarginReport: React.FC = () => {
     overrideFilters?: MarginReportFilters,
     overrideGroupBy?: string[],
     presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null,
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -299,9 +303,12 @@ const MarginReport: React.FC = () => {
         finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
       }
 
+      const finalSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
+
       const payload = {
         filters: finalFilters,
         group_by: overrideGroupBy || groupBy,
+        ...(finalSortBy ? { sort_by: finalSortBy } : {}),
       };
 
       const summaryResponse = await getMarginSummaryApi(payload);
@@ -420,6 +427,49 @@ const MarginReport: React.FC = () => {
     },
   ];
 
+  const getBackendSortKey = (colIndex: number, currentGroupBy: string[]): string | null => {
+    if (colIndex === 0) return null; // S.N.
+
+    const groupByCount = currentGroupBy.length > 0 ? currentGroupBy.length : 1;
+
+    if (colIndex <= groupByCount) {
+      if (currentGroupBy.length === 0) return null; // "Total" column
+      return currentGroupBy[colIndex - 1];
+    }
+
+    const metricIndex = colIndex - groupByCount - 1;
+    const metrics = [
+      "revenue",
+      "vendor_cost",
+      "profit_margin",
+      "margin_percent"
+    ];
+
+    return metrics[metricIndex] || null;
+  };
+
+  const handleSort = (colIndex: number) => {
+    let newDirection: "asc" | "desc" | null = "desc";
+    if (sortColumnIndex === colIndex) {
+      if (sortDirection === "desc") newDirection = "asc";
+      else if (sortDirection === "asc") newDirection = null;
+    }
+
+    setSortColumnIndex(newDirection ? colIndex : null);
+    setSortDirection(newDirection);
+
+    const backendKey = getBackendSortKey(colIndex, appliedGroupBy);
+    if (!newDirection || !backendKey) {
+      setSortBy(null);
+      fetchReports(filterValues, appliedGroupBy, undefined, null);
+    } else {
+      const prefix = newDirection === "desc" ? "-" : "";
+      const newSortBy = `${prefix}${backendKey}`;
+      setSortBy(newSortBy);
+      fetchReports(filterValues, appliedGroupBy, undefined, newSortBy);
+    }
+  };
+
   const handleSearch = () => {
     fetchReports();
   };
@@ -433,7 +483,7 @@ const MarginReport: React.FC = () => {
 
   // Dynamic Column Setup for Reordering, Resizing & Sorting
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [sortConfig, setSortConfig] = useState<{
+  const [sortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
@@ -487,19 +537,7 @@ const MarginReport: React.FC = () => {
     });
   };
 
-  const handleSort = (columnIndex: number) => {
-    const colIndex = columnIndex - 1; // S.N. is at index 0
-    if (colIndex >= 0 && colIndex < columnOrder.length) {
-      const colKey = columnOrder[colIndex];
-      setSortConfig((prev) => {
-        if (prev?.key === colKey) {
-          if (prev.direction === "asc") return { key: colKey, direction: "desc" };
-          return null;
-        }
-        return { key: colKey, direction: "asc" };
-      });
-    }
-  };
+
 
   const getRowVal = (row: any, key: string) => {
     if (key.startsWith("gb_")) {

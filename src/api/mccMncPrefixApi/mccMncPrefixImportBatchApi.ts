@@ -64,3 +64,18 @@ export const getMccMncPrefixImportStatusApi = async (batchId: number): Promise<a
   const response = await api.get(`/mccmncstatus/${batchId}/`);
   return response.data;
 };
+
+export const getMccMncPrefixImportErrorsApi = async (
+  batchId: number,
+  page: number = 1,
+  pageSize: number = 10
+): Promise<any> => {
+  const response = await api.get(`/mccMncPrefixImportError/`, {
+    params: {
+      batch: batchId,
+      page,
+      page_size: pageSize,
+    }
+  });
+  return response.data;
+};

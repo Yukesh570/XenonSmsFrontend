@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Home, Download } from "lucide-react";
+import { Home, Download, AlertCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
   getSummariseSummaryApi,
   downloadSummariseReportCsvApi,
+  getFailureReasonsApi,
   type SummariseSummaryData,
   type SummariseTotals,
   type SummariseReportFilters,
@@ -35,6 +36,8 @@ import {
 } from "../../helper/dateFormatter";
 
 
+
+import Modal from "../../components/ui/Modal";
 
 type DatePresetKey =
   | "today"
@@ -121,10 +124,18 @@ const SummariseReport: React.FC = () => {
   const [filterValues, setFilterValues] = useState<SummariseReportFilters>({});
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortColumnIndex, setSortColumnIndex] = useState<number | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;
     y: number;
   } | null>(null);
+  const [contextMenuRow, setContextMenuRow] = useState<any>(null);
+
+  const [showFailureModal, setShowFailureModal] = useState(false);
+  const [failureData, setFailureData] = useState<{ failure_reason: string; count: number }[]>([]);
+  const [isLoadingFailure, setIsLoadingFailure] = useState(false);
 
   const [clientOptions, setClientOptions] = useState<
     { label: string; value: string }[]
@@ -269,6 +280,7 @@ const SummariseReport: React.FC = () => {
     overrideFilters?: SummariseReportFilters,
     overrideGroupBy?: string[],
     presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null,
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -303,9 +315,12 @@ const SummariseReport: React.FC = () => {
         finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
       }
 
+      const finalSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
+
       const payload = {
         filters: finalFilters,
         group_by: overrideGroupBy || groupBy,
+        ...(finalSortBy ? { sort_by: finalSortBy } : {}),
       };
 
       const summaryResponse = await getSummariseSummaryApi(payload);
@@ -408,9 +423,49 @@ const SummariseReport: React.FC = () => {
     }
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = (e: React.MouseEvent, row?: any) => {
     e.preventDefault();
     setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuRow(row || null);
+  };
+
+  const handleViewFailureBreakdown = async () => {
+    if (!contextMenuRow) return;
+    setShowFailureModal(true);
+    setIsLoadingFailure(true);
+
+    const activeFilters: SummariseReportFilters = { ...filterValues };
+    if ((!activeFilters.start_date || !activeFilters.end_date) && activePreset && activePreset !== "custom") {
+      const range = getPresetDateRange(activePreset);
+      if (range) {
+        if (!activeFilters.start_date) activeFilters.start_date = range.start;
+        if (!activeFilters.end_date) activeFilters.end_date = range.end;
+      }
+    }
+
+    const rowFilters: any = { ...activeFilters };
+    if (rowFilters.start_date && !rowFilters.start_date.includes("T")) {
+      rowFilters.start_date = `${rowFilters.start_date}T00:00:00`;
+    }
+    if (rowFilters.end_date && !rowFilters.end_date.includes("T")) {
+      rowFilters.end_date = `${rowFilters.end_date}T23:59:59`;
+    }
+
+    appliedGroupBy.forEach((gb) => {
+      if (contextMenuRow[gb] !== undefined && contextMenuRow[gb] !== "-" && contextMenuRow[gb] !== "Unknown") {
+        rowFilters[gb] = contextMenuRow[gb];
+      }
+    });
+
+    try {
+      const res = await getFailureReasonsApi({ filters: rowFilters });
+      setFailureData(res.data || []);
+    } catch (e) {
+      toast.error("Failed to load failure breakdown.");
+      setFailureData([]);
+    } finally {
+      setIsLoadingFailure(false);
+    }
   };
 
   const menuItems: ContextMenuItem[] = [
@@ -422,7 +477,67 @@ const SummariseReport: React.FC = () => {
         setContextMenuPos(null);
       },
     },
+    ...(contextMenuRow ? [
+      {
+        label: "Failure Breakdown",
+        icon: <AlertCircle size={16} />,
+        onClick: () => {
+          handleViewFailureBreakdown();
+          setContextMenuPos(null);
+        },
+      }
+    ] : [])
   ];
+
+  const getBackendSortKey = (colIndex: number, currentGroupBy: string[]): string | null => {
+    if (colIndex === 0) return null; // S.N.
+
+    const groupByCount = currentGroupBy.length > 0 ? currentGroupBy.length : 1;
+
+    if (colIndex <= groupByCount) {
+      if (currentGroupBy.length === 0) return null; // "Total" column
+      return currentGroupBy[colIndex - 1];
+    }
+
+    const metricIndex = colIndex - groupByCount - 1;
+    const metrics = [
+      "attempts",
+      "successful",
+      "submitted",
+      "delivered",
+      "failed",
+      "rejected",
+      "revenue",
+      "vendor_cost",
+      "asr_percent",
+      "dlr_percent",
+      "margin_percent"
+    ];
+
+    return metrics[metricIndex] || null;
+  };
+
+  const handleSort = (colIndex: number) => {
+    let newDirection: "asc" | "desc" | null = "desc";
+    if (sortColumnIndex === colIndex) {
+      if (sortDirection === "desc") newDirection = "asc";
+      else if (sortDirection === "asc") newDirection = null;
+    }
+
+    setSortColumnIndex(newDirection ? colIndex : null);
+    setSortDirection(newDirection);
+
+    const backendKey = getBackendSortKey(colIndex, appliedGroupBy);
+    if (!newDirection || !backendKey) {
+      setSortBy(null);
+      fetchReports(filterValues, appliedGroupBy, undefined, null);
+    } else {
+      const prefix = newDirection === "desc" ? "-" : "";
+      const newSortBy = `${prefix}${backendKey}`;
+      setSortBy(newSortBy);
+      fetchReports(filterValues, appliedGroupBy, undefined, newSortBy);
+    }
+  };
 
   const handleSearch = () => {
     fetchReports();
@@ -437,7 +552,7 @@ const SummariseReport: React.FC = () => {
 
   // Dynamic Column Setup for Reordering, Resizing & Sorting
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [sortConfig, setSortConfig] = useState<{
+  const [sortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
@@ -505,19 +620,6 @@ const SummariseReport: React.FC = () => {
     });
   };
 
-  const handleSort = (columnIndex: number) => {
-    const colIndex = columnIndex - 1; // S.N. is at index 0
-    if (colIndex >= 0 && colIndex < columnOrder.length) {
-      const colKey = columnOrder[colIndex];
-      setSortConfig((prev) => {
-        if (prev?.key === colKey) {
-          if (prev.direction === "asc") return { key: colKey, direction: "desc" };
-          return null;
-        }
-        return { key: colKey, direction: "asc" };
-      });
-    }
-  };
 
   const getRowVal = (row: any, key: string) => {
     if (key.startsWith("gb_")) {
@@ -915,7 +1017,7 @@ const SummariseReport: React.FC = () => {
               <tr
                 key={idx}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                onContextMenu={handleContextMenu}
+                onContextMenu={(e) => handleContextMenu(e, row)}
               >
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-400 font-medium whitespace-nowrap">
                   {sn}
@@ -945,6 +1047,51 @@ const SummariseReport: React.FC = () => {
         onClose={() => setContextMenuPos(null)}
         items={menuItems}
       />
+
+      <Modal
+        isOpen={showFailureModal}
+        onClose={() => setShowFailureModal(false)}
+        title="Failure Breakdown"
+      >
+        <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+          {isLoadingFailure ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : failureData.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              No failure data found for this selection.
+            </div>
+          ) : (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-gray-800">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Failure Reason
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      Count
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                  {failureData.map((item, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 break-words max-w-[300px]">
+                        {item.failure_reason || "Unknown"}
+                      </td>
+                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">
+                        {item.count.toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

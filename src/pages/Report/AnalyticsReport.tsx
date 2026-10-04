@@ -264,6 +264,12 @@ const AnalyticsReport: React.FC = () => {
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
 
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: AnalyticsColKey;
+    direction: "asc" | "desc";
+  } | null>(null);
+
   const [expandedAms, setExpandedAms] = useState<Record<string, boolean>>({});
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
   const [expandedCountries, setExpandedCountries] = useState<Record<string, boolean>>({});
@@ -320,7 +326,8 @@ const AnalyticsReport: React.FC = () => {
 
   const getActiveFilterParams = (
     customFilters?: Record<string, string>,
-    presetOverride?: DatePresetKey
+    presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null
   ) => {
     const params: Record<string, any> = {};
     const activeFilters = customFilters || filterValues;
@@ -362,8 +369,13 @@ const AnalyticsReport: React.FC = () => {
       params.start_date = range.start;
       params.end_date = range.end;
       if (currentPreset === "today") {
-          params.today = "true";
+        params.today = "true";
       }
+    }
+
+    const finalSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
+    if (finalSortBy) {
+      params.sort_by = finalSortBy;
     }
 
     return params;
@@ -373,7 +385,8 @@ const AnalyticsReport: React.FC = () => {
     page: number = 1,
     append: boolean = false,
     customFilters?: Record<string, string>,
-    presetOverride?: DatePresetKey
+    presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -383,7 +396,7 @@ const AnalyticsReport: React.FC = () => {
     else setIsLoading(true);
 
     try {
-      const filterParams = getActiveFilterParams(customFilters, presetOverride);
+      const filterParams = getActiveFilterParams(customFilters, presetOverride, overrideSortBy);
       const searchParams: Record<string, any> = {
         group_by: "account_manager",
         page: page,
@@ -586,6 +599,48 @@ const AnalyticsReport: React.FC = () => {
     fetchCompanyData(1, false, {}, "today");
   };
 
+  const getBackendSortKey = (colKey: AnalyticsColKey): string | null => {
+    const map: Record<AnalyticsColKey, string> = {
+      entity: "account_manager",
+      attempts: "attempts",
+      successful: "successful",
+      submitted: "submitted",
+      asrPct: "asr_percent",
+      dlrPct: "dlr_percent",
+      delivered: "delivered",
+      failed: "failed",
+      rejected: "rejected",
+      revenue: "revenue",
+      vendorCost: "vendor_cost",
+      marginUsd: "margin_usd",
+      marginPct: "margin_percent",
+    };
+    return map[colKey] || null;
+  };
+
+  const handleSort = (colKey: AnalyticsColKey) => {
+    let newDirection: "asc" | "desc" | null = "desc";
+    if (sortConfig?.key === colKey) {
+      if (sortConfig.direction === "desc") newDirection = "asc";
+      else if (sortConfig.direction === "asc") newDirection = null;
+    }
+
+    setSortConfig(newDirection ? { key: colKey, direction: newDirection } : null);
+
+    const backendKey = getBackendSortKey(colKey);
+    if (!newDirection || !backendKey) {
+      setSortBy(null);
+      resetTreeState();
+      fetchCompanyData(1, false, undefined, undefined, null);
+    } else {
+      const prefix = newDirection === "desc" ? "-" : "";
+      const newSortBy = `${prefix}${backendKey}`;
+      setSortBy(newSortBy);
+      resetTreeState();
+      fetchCompanyData(1, false, undefined, undefined, newSortBy);
+    }
+  };
+
   const paginationLabel = `${totalItems === 0 ? 0 : 1}-${Math.min(companyRows.length, totalItems)} of ${totalItems}`;
 
   const maxAttempts = Math.max(...companyRows.map((d) => d.attempts || 1), 100);
@@ -676,7 +731,7 @@ const AnalyticsReport: React.FC = () => {
       setColumnWidths((prev) => {
         try {
           localStorage.setItem("table_col_widths_analytics_report", JSON.stringify(prev));
-        } catch (err) {}
+        } catch (err) { }
         return prev;
       });
 
@@ -702,7 +757,7 @@ const AnalyticsReport: React.FC = () => {
             return ["entity", ...withoutEntity];
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     return DEFAULT_ANALYTICS_COLUMNS;
   });
@@ -758,7 +813,7 @@ const AnalyticsReport: React.FC = () => {
           next.splice(toIdx, 0, moved);
           try {
             localStorage.setItem("table_col_order_analytics_report", JSON.stringify(next));
-          } catch (err) {}
+          } catch (err) { }
           return next;
         });
       }
@@ -774,21 +829,7 @@ const AnalyticsReport: React.FC = () => {
     setDropSide(null);
   };
 
-  const [sortConfig, setSortConfig] = useState<{
-    key: AnalyticsColKey;
-    direction: "asc" | "desc";
-  } | null>(null);
-
-  const handleSort = (key: AnalyticsColKey) => {
-    if (isResizingRef.current || resizingColKey) return;
-    setSortConfig((prev) => {
-      if (prev?.key === key) {
-        if (prev.direction === "asc") return { key, direction: "desc" };
-        return null;
-      }
-      return { key, direction: "asc" };
-    });
-  };
+  // sortConfig moved to top
 
   const getColValue = (row: any, key: AnalyticsColKey): number | string => {
     if (key === "entity") {
@@ -1208,23 +1249,19 @@ const AnalyticsReport: React.FC = () => {
                         minWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : `${getColMinWidth(colKey)}px`,
                         maxWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : undefined,
                       }}
-                      className={`relative px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap select-none transition-colors group cursor-pointer h-9 ${
-                        isEntity
-                          ? "w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
-                          : ""
-                      } ${
-                        isSorted
+                      className={`relative px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap select-none transition-colors group cursor-pointer h-9 ${isEntity
+                        ? "w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                        : ""
+                        } ${isSorted
                           ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
                           : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
-                      } hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                        isBeingDragged ? "opacity-40 bg-gray-200 dark:bg-gray-700" : ""
-                      } ${
-                        isDragOver
+                        } hover:bg-gray-100 dark:hover:bg-gray-800 ${isBeingDragged ? "opacity-40 bg-gray-200 dark:bg-gray-700" : ""
+                        } ${isDragOver
                           ? dropSide === "left"
                             ? "border-l-2 border-primary"
                             : "border-r-2 border-primary"
                           : ""
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-1.5 min-w-0 h-full">
                         <div className="flex items-center gap-1.5 min-w-0">
@@ -1264,11 +1301,10 @@ const AnalyticsReport: React.FC = () => {
                           className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-20 flex items-center justify-end group/resizer select-none"
                         >
                           <div
-                            className={`w-px h-full transition-all ${
-                              isBeingResized
-                                ? "bg-primary w-[2px]"
-                                : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
-                            }`}
+                            className={`w-px h-full transition-all ${isBeingResized
+                              ? "bg-primary w-[2px]"
+                              : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
+                              }`}
                           />
                         </div>
                       )}

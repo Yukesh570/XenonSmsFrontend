@@ -27,7 +27,7 @@ interface ColumnConfig extends FilterColumn {
 }
 
 const DEFAULT_SEARCH_COLUMNS = ["name"];
-const DEFAULT_TABLE_COLUMNS = ["name", "customerCreditLimit", "totalCustomerCredit", "usedCustomerCredit", "latestClientRemark", "vendorCreditLimit", "totalVendorCredit", "usedVendorCredit", "latestVendorRemark", "calculatedUsedCustomerCredit", "calculatedUsedVendorCredit"];
+const DEFAULT_TABLE_COLUMNS = ["name", "customerCreditLimit", "totalCustomerCredit", "usedCustomerCredit", "latestClientRemark", "vendorCreditLimit", "totalVendorCredit", "usedVendorCredit", "latestVendorRemark"];
 
 const AddCredit: React.FC = () => {
   const { canUpdate } = usePagePermissions();
@@ -77,17 +77,16 @@ const AddCredit: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     { key: "name", label: "Company Name", type: "text", filterKey: "name__icontains" },
-    { key: "customerCreditLimit", label: "Customer Limit", type: "number", filterKey: "customerCreditLimit" },
+    { key: "customerCreditLimit", label: "Remaining Customer Credit", type: "number", filterKey: "customerCreditLimit" },
     { key: "totalCustomerCredit", label: "Total Customer Credit", type: "number", filterKey: "totalCustomerCredit" },
     { key: "usedCustomerCredit", label: "Used Customer Credit", type: "number", filterKey: "usedCustomerCredit" },
     { key: "latestClientRemark", label: "Client Remark", type: "text", filterKey: "latestClientRemark" },
 
-    { key: "vendorCreditLimit", label: "Vendor Limit", type: "number", filterKey: "vendorCreditLimit" },
+    { key: "vendorCreditLimit", label: "Remaining Vendor Credit", type: "number", filterKey: "vendorCreditLimit" },
     { key: "totalVendorCredit", label: "Total Vendor Credit", type: "number", filterKey: "totalVendorCredit" },
     { key: "usedVendorCredit", label: "Used Vendor Credit", type: "number", filterKey: "usedVendorCredit" },
     { key: "latestVendorRemark", label: "Vendor Remark", type: "text", filterKey: "latestVendorRemark" },
-    { key: "calculatedUsedCustomerCredit", label: "calculatedUsedCustomerCredit", type: "number", filterKey: "calculatedUsedCustomerCredit" },
-    { key: "calculatedUsedVendorCredit", label: "calculatedUsedVendorCredit", type: "number", filterKey: "calculatedUsedVendorCredit" },
+
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -129,7 +128,7 @@ const AddCredit: React.FC = () => {
         currentSearchParams["ordering"] = sortConfig.direction === "desc" ? `-${sortKey}` : sortKey;
       }
 
-      currentSearchParams["fields"] = "id,name,customerCreditLimit,totalCustomerCredit,usedCustomerCredit,latestClientRemark,vendorCreditLimit,totalVendorCredit,usedVendorCredit,latestVendorRemark,calculatedUsedCustomerCredit,calculatedUsedVendorCredit";
+      currentSearchParams["fields"] = "id,name,customerCreditLimit,totalCustomerCredit,usedCustomerCredit,latestClientRemark,vendorCreditLimit,totalVendorCredit,usedVendorCredit,latestVendorRemark";
 
       const response: any = await getCompaniesApi(routeName, currentPage, rowsPerPage, currentSearchParams);
 

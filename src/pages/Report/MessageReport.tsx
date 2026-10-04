@@ -156,15 +156,15 @@ const MessageReport: React.FC = () => {
       const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
       return Array.isArray(parsed)
         ? parsed.filter(
-            (col: string) =>
-              ![
-                "createdAt__gt_lt",
-                "queued_at__gt_lt",
-                "submitted_at__gt_lt",
-                "delivered_at__gt_lt",
-                "failed_at__gt_lt",
-              ].includes(col),
-          )
+          (col: string) =>
+            ![
+              "createdAt__gt_lt",
+              "queued_at__gt_lt",
+              "submitted_at__gt_lt",
+              "delivered_at__gt_lt",
+              "failed_at__gt_lt",
+            ].includes(col),
+        )
         : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
@@ -271,8 +271,6 @@ const MessageReport: React.FC = () => {
       { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
       { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
       { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
-      { key: "senderTranslationAction", label: "Translation Action", type: "text", filterKey: "senderTranslationAction__icontains" },
-      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text", filterKey: "senderTranslationRuleId" },
       {
         key: "vendorName",
         label: "Vendor",
@@ -336,26 +334,8 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
-      {
-        key: "senderTranslationAction",
-        label: "Translation Action",
-        type: "text",
-        render: (log: any) => (
-          <span className="text-sm">
-            {log.senderTranslationAction || "-"}
-          </span>
-        ),
-      },
-      {
-        key: "senderTranslationRuleId",
-        label: "Translation Rule ID",
-        type: "text",
-        render: (log: any) => (
-          <span className="text-sm">
-            {log.senderTranslationRuleId || "-"}
-          </span>
-        ),
-      },
+
+
       {
         key: "countryName",
         label: "Country",
@@ -944,11 +924,10 @@ const MessageReport: React.FC = () => {
                     key={preset.key}
                     type="button"
                     onClick={() => handlePresetClick(preset.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
-                      isActive
-                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
-                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
                   >
                     {preset.label}
                   </button>

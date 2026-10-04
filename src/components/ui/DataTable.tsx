@@ -670,7 +670,7 @@ export function DataTable<T extends { id?: number | string }>({
               <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap min-[540px]:hidden">
                 Rows:
               </span>
-              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
+              <div className="w-20 sm:w-24 shrink-0 rows-per-page-select">
                 <Select
                   value={String(activeRows)}
                   onChange={(val) => handleRowsChange(Number(val))}
@@ -693,7 +693,7 @@ export function DataTable<T extends { id?: number | string }>({
               {/* Previous Button */}
               <button
                 type="button"
-                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
+                className="shrink-0 h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
                 onClick={handlePrev}
                 disabled={activePage === 1 || isLoading}
                 title="Previous Page"
@@ -723,7 +723,7 @@ export function DataTable<T extends { id?: number | string }>({
               {/* Next Button */}
               <button
                 type="button"
-                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
+                className="shrink-0 h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
                 onClick={handleNext}
                 disabled={
                   activePage >= totalPages || activeTotal === 0 || isLoading

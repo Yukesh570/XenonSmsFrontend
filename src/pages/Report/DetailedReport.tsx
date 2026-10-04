@@ -53,7 +53,6 @@ const EXPORT_FIELD_MAPPING: Record<string, string> = {
   vendor: "vendor",
   senderId: "senderId",
   effectiveSenderId: "message__effectiveSenderId",
-  senderTranslationAction: "message__senderTranslationAction",
   vendor_msg_id: "vendor_msg_id",
   content: "text",
   submitStatus: "submitStatus",
@@ -142,7 +141,6 @@ const DEFAULT_SEARCH_COLUMNS = [
   "senderId",
   "countryMCC",
   "operatorMNC",
-
   "submitStatus",
   "failure_reason",
   "request_time__gt_lt",
@@ -211,7 +209,7 @@ const DetailedReport: React.FC = () => {
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentSearchParamsRef = useRef<Record<string, string>>({});
-  
+
   const [countryOptions, setCountryOptions] = useState<Option[]>([]);
   const [clientOptions, setClientOptions] = useState<Option[]>([]);
   const [companyOptions, setCompanyOptions] = useState<Option[]>([]);
@@ -241,9 +239,9 @@ const DetailedReport: React.FC = () => {
         );
         setClientOptions(formatOptions(clientsRes));
         setCompanyOptions(formatOptions(companiesRes));
-        setVendorOptions(formatOptions(vendorsRes, (item) => ({ 
-          label: item.profileName || item.company_name || "Unknown", 
-          value: item.profileName || String(item.id) 
+        setVendorOptions(formatOptions(vendorsRes, (item) => ({
+          label: item.profileName || item.company_name || "Unknown",
+          value: item.profileName || String(item.id)
         })));
       } catch (error) {
         console.error("Failed to fetch dropdown options", error);
@@ -276,7 +274,7 @@ const DetailedReport: React.FC = () => {
       hasLoggedOpening.current = true;
     }
   }, []);
-  
+
   const allColumns: ColumnConfig[] = [
     {
       key: "company",
@@ -285,7 +283,7 @@ const DetailedReport: React.FC = () => {
       options: companyOptions,
       filterKey: "message__client__company__name__icontains",
     },
-      {
+    {
       key: "client",
       label: "Client",
       type: "text",
@@ -299,7 +297,7 @@ const DetailedReport: React.FC = () => {
       options: vendorOptions,
       filterKey: "vendor__icontains",
     },
-     {
+    {
       key: "countryName",
       label: "Country",
       type: "text",
@@ -339,13 +337,13 @@ const DetailedReport: React.FC = () => {
         </span>
       ),
     },
-     {
+    {
       key: "vendor_msg_id",
       label: "Vendor Msg ID",
       type: "text",
       filterKey: "vendor_msg_id__icontains",
     },
-     {
+    {
       key: "senderId",
       label: "Sender ID",
       type: "text",
@@ -376,17 +374,20 @@ const DetailedReport: React.FC = () => {
       type: "text",
       filterKey: "effectiveSenderId__icontains",
     },
+
+
     {
-      key: "senderTranslationAction",
-      label: "Translation Action",
+      key: "translation_type",
+      label: "Translation Type",
       type: "text",
-      filterKey: "senderTranslationAction",
+      filterKey: "translation_type",
     },
+
     {
-      key: "senderTranslationRuleId",
-      label: "Translation Rule ID",
+      key: "translation_reason_code",
+      label: "Translation Reason Code",
       type: "text",
-      filterKey: "senderTranslationRuleId",
+      filterKey: "translation_reason_code",
     },
     {
       key: "senderTranslationRuleDescription",
@@ -401,23 +402,24 @@ const DetailedReport: React.FC = () => {
       filterKey: "replacementListDescription",
     },
     {
-      key: "replacementItemDescription",
-      label: "Replacement Item Description",
-      type: "text",
-      filterKey: "replacementItemDescription",
-    },
-    {
       key: "senderPoolDescription",
       label: "Sender Pool Description",
       type: "text",
       filterKey: "senderPoolDescription",
     },
-    {
-      key: "senderPoolItemDescription",
-      label: "Sender Pool Item Description",
-      type: "text",
-      filterKey: "senderPoolItemDescription",
-    },
+    // {
+    //   key: "config_generation",
+    //   label: "Config Generation",
+    //   type: "text",
+    //   filterKey: "config_generation",
+    // },
+    // {
+    //   key: "processing_latency_us",
+    //   label: "Processing Latency (us)",
+    //   type: "number",
+    //   filterKey: "processing_latency_us",
+    // },
+
     {
       key: "content",
       label: "Content",
@@ -519,114 +521,20 @@ const DetailedReport: React.FC = () => {
       type: "text",
       isSearchable: false,
     },
-    {
-      key: "effectiveSenderId",
-      label: "Effective Sender ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "senderTranslationAction",
-      label: "Translation Action",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "senderTranslationRuleId",
-      label: "Translation Rule ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "senderTranslationRuleDescription",
-      label: "Translation Rule Description",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "replacementListDescription",
-      label: "Replacement List Description",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "replacementItemDescription",
-      label: "Replacement Item Description",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "senderPoolDescription",
-      label: "Sender Pool Description",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "senderPoolItemDescription",
-      label: "Sender Pool Item Description",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "original_sender_id",
-      label: "Original Sender ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "translation_type",
-      label: "Translation Type",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "replacement_list_id",
-      label: "Replacement List ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "replacement_item_id",
-      label: "Replacement Item ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "sender_pool_id",
-      label: "Sender Pool ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "sender_pool_item_id",
-      label: "Sender Pool Item ID",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "translation_reason_code",
-      label: "Translation Reason Code",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "translation_source",
-      label: "Translation Source",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "processing_latency_us",
-      label: "Processing Latency (us)",
-      type: "number",
-      isSearchable: false,
-    },
-    {
-      key: "config_generation",
-      label: "Config Generation",
-      type: "number",
-      isSearchable: false,
-    },
+
+
+    // {
+    //   key: "processing_latency_us",
+    //   label: "Processing Latency (us)",
+    //   type: "number",
+    //   isSearchable: false,
+    // },
+    // {
+    //   key: "config_generation",
+    //   label: "Config Generation",
+    //   type: "number",
+    //   isSearchable: false,
+    // },
     {
       key: "encoding",
       label: "Encoding",
@@ -643,7 +551,7 @@ const DetailedReport: React.FC = () => {
       key: "failure_reason",
       label: "Failure Reason",
       type: "text",
-      isSearchable: false,
+      filterKey: "message__failure_reason__icontains",
     },
     {
       key: "message_queued_at",
@@ -936,7 +844,7 @@ const DetailedReport: React.FC = () => {
 
           const exportFields = ["id", ...allExportTableFields.map(f => EXPORT_FIELD_MAPPING[f.key] || f.key)].join(",");
           const exportHeaders = ["S.N.", ...allExportTableFields.map(f => f.tableLabel || f.label)].join(",");
-          
+
           handleCsvExportWithApi(downloadDetailedReportCsvApi, {
             ...currentSearchParamsRef.current,
             export_fields: exportFields,

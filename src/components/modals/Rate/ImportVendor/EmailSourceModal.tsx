@@ -272,7 +272,16 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
       setFormData((prev) => ({ ...prev, vendor: value, uniqueId: newUniqueId }));
 
       if (selectedVendor?.company) {
-        const selectedCompany = companiesList.find((c) => String(c.id) === String(selectedVendor.company));
+        // Safely extract the company ID whether it's a primitive number/string or a nested object
+        const vendorCompanyId = 
+          typeof selectedVendor.company === "object" 
+            ? (selectedVendor.company as any).id 
+            : selectedVendor.company;
+
+        const selectedCompany = companiesList.find(
+          (c) => String(c.id) === String(vendorCompanyId)
+        );
+        
         if (selectedCompany) {
           const cEmail = selectedCompany.ratesEmail || selectedCompany.companyEmail || "";
           const emailsToAdd = cEmail.split(",").map((e: string) => e.trim()).filter(Boolean);
