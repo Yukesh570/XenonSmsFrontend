@@ -621,18 +621,37 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   }, [isOpen, routeGroupId, fetchConfigs]);
 
   const toggleSection = (countryId: string) => {
+    let willOpen = false;
     setSections((prev) =>
       prev.map((s) => {
-        if (String(s.config.country) !== countryId) return s;
-        if (!s.isOpen && s.routes.length === 0 && !s.loading) {
-          fetchSectionRoutes(countryId);
+        const isTarget = String(s.config.country) === countryId;
+        if (isTarget) {
+          willOpen = !s.isOpen;
+          if (willOpen && s.routes.length === 0 && !s.loading) {
+            fetchSectionRoutes(countryId);
+          }
+          return { ...s, isOpen: willOpen };
         }
-        return { ...s, isOpen: !s.isOpen };
+        return { ...s, isOpen: false };
       }),
     );
     const section = sections.find((s) => String(s.config.country) === countryId);
     if (section && section.config.countryName) {
       fetchNetworkCodesForCountry(countryId, section.config.countryName);
+    }
+  };
+
+  const handleCountryChipClick = (countryId: string) => {
+    const current = sections.find((s) => String(s.config.country) === countryId);
+    const willOpen = !current?.isOpen;
+    toggleSection(countryId);
+    if (willOpen) {
+      setTimeout(() => {
+        const el = document.getElementById(`country-section-${countryId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }, 100);
     }
   };
 
@@ -1377,32 +1396,47 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                       </div>
 
                       {/* Filtered Country Chips */}
-                      {filteredSections.map((s) => (
-                        <div
-                          key={s.config.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${s.config.routingType === "PERCENTAGE"
-                            ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300"
-                            : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300"
+                      {filteredSections.map((s) => {
+                        const isSectionOpen = s.isOpen;
+                        const isPercentage = s.config.routingType === "PERCENTAGE";
+                        return (
+                          <div
+                            key={s.config.id}
+                            onClick={() => handleCountryChipClick(String(s.config.country))}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-all select-none ${
+                              isPercentage
+                                ? isSectionOpen
+                                  ? "bg-purple-100 border-purple-500 text-purple-800 dark:bg-purple-900/40 dark:border-purple-400 dark:text-purple-200 ring-2 ring-purple-500/40 shadow-sm font-semibold"
+                                  : "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300 hover:bg-purple-100/70 dark:hover:bg-purple-900/30"
+                                : isSectionOpen
+                                  ? "bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200 ring-2 ring-blue-500/40 shadow-sm font-semibold"
+                                  : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300 hover:bg-blue-100/70 dark:hover:bg-blue-900/30"
                             }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            {countryIsoMap[String(s.config.country)] && (
-                              <CountryFlag iso2={countryIsoMap[String(s.config.country)]} />
+                            title={isSectionOpen ? `Collapse ${s.config.countryName} routes` : `Expand ${s.config.countryName} routes`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {countryIsoMap[String(s.config.country)] && (
+                                <CountryFlag iso2={countryIsoMap[String(s.config.country)]} />
+                              )}
+                              {s.config.countryName}
+                            </span>
+                            <span className="text-[11px] opacity-60">({s.config.routingType})</span>
+                            {canUpdate && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" });
+                                }}
+                                className="ml-1 opacity-50 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                                title={`Delete ${s.config.countryName} configuration`}
+                              >
+                                <Trash2 size={12} />
+                              </button>
                             )}
-                            {s.config.countryName}
-                          </span>
-                          <span className="text-[11px] opacity-60">({s.config.routingType})</span>
-                          {canUpdate && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" })}
-                              className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                       {filteredSections.length === 0 && (
                         <p className="text-sm text-gray-400 py-1">No countries match the search filter.</p>
                       )}
@@ -1505,6 +1539,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                 return (
                   <div
                     key={countryId}
+                    id={`country-section-${countryId}`}
                     className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full shrink-0"
                   >
                     {/* Section header with Upper Bar Search Filters */}
