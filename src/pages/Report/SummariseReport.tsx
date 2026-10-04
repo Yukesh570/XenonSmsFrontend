@@ -124,9 +124,6 @@ const SummariseReport: React.FC = () => {
   const [filterValues, setFilterValues] = useState<SummariseReportFilters>({});
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<string | null>(null);
-  const [sortColumnIndex, setSortColumnIndex] = useState<number | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
   const [contextMenuPos, setContextMenuPos] = useState<{
     x: number;
     y: number;
@@ -280,7 +277,6 @@ const SummariseReport: React.FC = () => {
     overrideFilters?: SummariseReportFilters,
     overrideGroupBy?: string[],
     presetOverride?: DatePresetKey,
-    overrideSortBy?: string | null,
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -315,12 +311,9 @@ const SummariseReport: React.FC = () => {
         finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
       }
 
-      const finalSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
-
       const payload = {
         filters: finalFilters,
         group_by: overrideGroupBy || groupBy,
-        ...(finalSortBy ? { sort_by: finalSortBy } : {}),
       };
 
       const summaryResponse = await getSummariseSummaryApi(payload);
@@ -489,56 +482,6 @@ const SummariseReport: React.FC = () => {
     ] : [])
   ];
 
-  const getBackendSortKey = (colIndex: number, currentGroupBy: string[]): string | null => {
-    if (colIndex === 0) return null; // S.N.
-
-    const groupByCount = currentGroupBy.length > 0 ? currentGroupBy.length : 1;
-
-    if (colIndex <= groupByCount) {
-      if (currentGroupBy.length === 0) return null; // "Total" column
-      return currentGroupBy[colIndex - 1];
-    }
-
-    const metricIndex = colIndex - groupByCount - 1;
-    const metrics = [
-      "attempts",
-      "successful",
-      "submitted",
-      "delivered",
-      "failed",
-      "rejected",
-      "revenue",
-      "vendor_cost",
-      "asr_percent",
-      "dlr_percent",
-      "margin_percent"
-    ];
-
-    return metrics[metricIndex] || null;
-  };
-
-  const handleSort = (colIndex: number) => {
-    let newDirection: "asc" | "desc" | null = "desc";
-    if (sortColumnIndex === colIndex) {
-      if (sortDirection === "desc") newDirection = "asc";
-      else if (sortDirection === "asc") newDirection = null;
-    }
-
-    setSortColumnIndex(newDirection ? colIndex : null);
-    setSortDirection(newDirection);
-
-    const backendKey = getBackendSortKey(colIndex, appliedGroupBy);
-    if (!newDirection || !backendKey) {
-      setSortBy(null);
-      fetchReports(filterValues, appliedGroupBy, undefined, null);
-    } else {
-      const prefix = newDirection === "desc" ? "-" : "";
-      const newSortBy = `${prefix}${backendKey}`;
-      setSortBy(newSortBy);
-      fetchReports(filterValues, appliedGroupBy, undefined, newSortBy);
-    }
-  };
-
   const handleSearch = () => {
     fetchReports();
   };
@@ -547,12 +490,13 @@ const SummariseReport: React.FC = () => {
     setActivePreset("today");
     setFilterValues({});
     setGroupBy([]);
+    setSortConfig(null);
     fetchReports({}, [], "today");
   };
 
   // Dynamic Column Setup for Reordering, Resizing & Sorting
   const [columnOrder, setColumnOrder] = useState<string[]>([]);
-  const [sortConfig] = useState<{
+  const [sortConfig, setSortConfig] = useState<{
     key: string;
     direction: "asc" | "desc";
   } | null>(null);
@@ -579,6 +523,11 @@ const SummariseReport: React.FC = () => {
       const gbAdded = added.filter((k) => k.startsWith("gb_") || k === "total");
       const metricAdded = added.filter((k) => !k.startsWith("gb_") && k !== "total");
       return [...gbAdded, ...kept, ...metricAdded];
+    });
+    setSortConfig((prev) => {
+      if (!prev) return null;
+      if (!defaultKeys.includes(prev.key)) return null;
+      return prev;
     });
   }, [appliedGroupBy]);
 
@@ -620,16 +569,34 @@ const SummariseReport: React.FC = () => {
     });
   };
 
+  const handleSort = (columnIndex: number) => {
+    const colIndex = columnIndex - 1; // S.N. is at index 0
+    if (colIndex >= 0 && colIndex < columnOrder.length) {
+      const colKey = columnOrder[colIndex];
+      setSortConfig((prev) => {
+        if (prev?.key === colKey) {
+          if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+          return null;
+        }
+        return { key: colKey, direction: "asc" };
+      });
+    }
+  };
 
   const getRowVal = (row: any, key: string) => {
     if (key.startsWith("gb_")) {
       const gb = key.replace("gb_", "");
       let val = row[gb];
       if (gb === "client_company" && val === undefined) val = row["company"];
-      return String(val || "").toLowerCase();
+      if (val === null || val === undefined || val === "Unknown" || val === "-") return "";
+      if (typeof val === "number") return val;
+      const strVal = String(val).trim();
+      const num = Number(strVal);
+      if (!isNaN(num) && strVal !== "") return num;
+      return strVal.toLowerCase();
     }
     if (key === "total") return "grand total";
-    return Number(row[key] || 0);
+    return Number(row[key] ?? 0);
   };
 
   const sortedSummaryData = useMemo(() => {
@@ -637,11 +604,13 @@ const SummariseReport: React.FC = () => {
     return [...summaryData].sort((a, b) => {
       const valA = getRowVal(a, sortConfig.key);
       const valB = getRowVal(b, sortConfig.key);
+      if (valA === "" && valB !== "") return 1;
+      if (valA !== "" && valB === "") return -1;
       let comparison = 0;
       if (typeof valA === "number" && typeof valB === "number") {
         comparison = valA - valB;
       } else {
-        comparison = String(valA).localeCompare(String(valB));
+        comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
       }
       return sortConfig.direction === "asc" ? comparison : -comparison;
     });
@@ -981,7 +950,11 @@ const SummariseReport: React.FC = () => {
           resizableColumns={true}
           onReorderColumns={handleReorderColumns}
           onSort={handleSort}
-          sortColumnIndex={sortConfig ? columnOrder.indexOf(sortConfig.key) + 1 : null}
+          sortColumnIndex={
+            sortConfig && columnOrder.indexOf(sortConfig.key) >= 0
+              ? columnOrder.indexOf(sortConfig.key) + 1
+              : null
+          }
           sortDirection={sortConfig?.direction || null}
           rowsPerPageOptions={[
             { value: "25", label: "25" },
@@ -1052,42 +1025,46 @@ const SummariseReport: React.FC = () => {
         isOpen={showFailureModal}
         onClose={() => setShowFailureModal(false)}
         title="Failure Breakdown"
+        className="max-w-xl w-full h-[500px] max-h-[85vh] flex flex-col"
+        contentClassName="flex flex-col flex-1 min-h-0 !overflow-hidden"
       >
-        <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+        <div className="flex-1 min-h-0 flex flex-col h-full py-1">
           {isLoadingFailure ? (
-            <div className="flex justify-center items-center py-8">
+            <div className="flex-1 flex justify-center items-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             </div>
           ) : failureData.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="flex-1 flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
               No failure data found for this selection.
             </div>
           ) : (
-            <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-800">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Failure Reason
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      Count
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
-                  {failureData.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                      <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 break-words max-w-[300px]">
-                        {item.failure_reason || "Unknown"}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right">
-                        {item.count.toLocaleString()}
-                      </td>
+            <div className="flex-1 min-h-0 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col bg-white dark:bg-gray-900 shadow-sm">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                        Failure Reason
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 w-28 whitespace-nowrap">
+                        Count
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                    {failureData.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 break-words">
+                          {item.failure_reason || "Unknown"}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right whitespace-nowrap">
+                          {item.count.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

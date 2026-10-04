@@ -8,6 +8,7 @@ interface ModalProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
   closeOnBackdropClick?: boolean;
 }
 
@@ -46,6 +47,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className = "max-w-md",
+  contentClassName = "",
   closeOnBackdropClick = false,
 }) => {
   // Fast hover tooltip for modal data boxes and truncated values
@@ -348,7 +350,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body - scrolls cleanly with overscroll containment */}
-        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-0.5 custom-scrollbar">
+        <div className={`modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-0.5 custom-scrollbar ${contentClassName}`}>
           {children}
         </div>
       </div>
