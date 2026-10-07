@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
 import {
@@ -50,6 +51,7 @@ export interface ModalDataTableProps<T> {
   // Column Resizing & Persistence
   storageKey?: string;
   resizableColumns?: boolean;
+  defaultColumnWidths?: Record<string, number>;
 
   // Custom table max-height
   tableMaxHeight?: string | number;
@@ -163,6 +165,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
   storageKey,
   resizableColumns = true,
+  defaultColumnWidths,
   tableMaxHeight = "58vh",
 }: ModalDataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
@@ -190,6 +193,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     : "modal_col_widths_default";
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    let initial: Record<string, number> = defaultColumnWidths ? { ...defaultColumnWidths } : {};
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(effectiveStorageKey);
@@ -212,14 +216,14 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                 clean[key] = parsed[key];
               }
             }
-            return clean;
+            return { ...initial, ...clean };
           }
         }
       } catch (e) {
         console.error("Error loading column widths from localStorage", e);
       }
     }
-    return {};
+    return initial;
   });
 
   const saveWidths = (widths: Record<string, number>) => {
@@ -281,6 +285,95 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     return () => {
       if (resizeObserver) resizeObserver.disconnect();
       else window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
+
+  // Fast hover tooltip for table headers
+  const [headerTooltip, setHeaderTooltip] = useState<{
+    text: string;
+    coords: { top: number; left: number };
+    placement: "above" | "below";
+  } | null>(null);
+  const headerTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeHeaderRef = useRef<HTMLElement | null>(null);
+
+  const clearHeaderTooltip = useCallback(() => {
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+      headerTooltipTimerRef.current = null;
+    }
+    activeHeaderRef.current = null;
+    setHeaderTooltip(null);
+  }, []);
+
+  const handleHeaderMouseOver = (e: React.MouseEvent) => {
+    if (isResizingRef.current || hasDraggedRef.current) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    const th = target.closest("th") as HTMLElement | null;
+    if (!th) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    // Skip column resize handle
+    if (target.closest(".group\\/resizer")) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    if (th === activeHeaderRef.current) return;
+
+    activeHeaderRef.current = th;
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+    }
+
+    const spanEl = (th.querySelector("span[data-header-label]") || th.querySelector("span")) as HTMLElement | null;
+    const rawText = spanEl?.innerText?.trim() || th.innerText?.trim();
+    if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const text = rawText.replace(/\s+/g, " ");
+
+    headerTooltipTimerRef.current = setTimeout(() => {
+      if (!activeHeaderRef.current || !th.isConnected) return;
+      const rect = th.getBoundingClientRect();
+      const isAbove = rect.top >= 36;
+      setHeaderTooltip({
+        text,
+        coords: {
+          top: isAbove ? rect.top - 6 : rect.bottom + 6,
+          left: Math.max(12, Math.min(window.innerWidth - 12, rect.left + rect.width / 2)),
+        },
+        placement: isAbove ? "above" : "below",
+      });
+    }, 350);
+  };
+
+  useEffect(() => {
+    if (!headerTooltip) return;
+    const handleDismiss = () => clearHeaderTooltip();
+    window.addEventListener("scroll", handleDismiss, true);
+    window.addEventListener("resize", handleDismiss);
+    window.addEventListener("mousedown", handleDismiss);
+    window.addEventListener("keydown", handleDismiss);
+    return () => {
+      window.removeEventListener("scroll", handleDismiss, true);
+      window.removeEventListener("resize", handleDismiss);
+      window.removeEventListener("mousedown", handleDismiss);
+      window.removeEventListener("keydown", handleDismiss);
+    };
+  }, [headerTooltip, clearHeaderTooltip]);
+
+  useEffect(() => {
+    return () => {
+      if (headerTooltipTimerRef.current) clearTimeout(headerTooltipTimerRef.current);
     };
   }, []);
 
@@ -666,21 +759,22 @@ export function ModalDataTable<T extends Record<string, any> = any>({
       {!hideTopBar && (
         <div className="flex flex-row flex-wrap items-center justify-between border-b border-gray-200 dark:border-gray-700 px-3 py-2 gap-2 bg-white dark:bg-gray-800 relative z-10">
           <div className="flex flex-row flex-wrap items-center gap-2">
-            {/* Rows Per Page */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
-                Rows per page:
-              </span>
-              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
-                <Select
-                  value={String(activeRows)}
-                  onChange={(val) => handleRowsChange(Number(val))}
-                  options={rowsPerPageOptions}
-                  clearable={false}
-                  placement="bottom"
-                />
+              {/* Rows Per Page */}
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
+                  Rows per page:
+                </span>
+                <div className="w-20 sm:w-24 shrink-0 rows-per-page-select">
+                  <Select
+                    value={String(activeRows)}
+                    onChange={(val) => handleRowsChange(Number(val))}
+                    options={rowsPerPageOptions}
+                    clearable={false}
+                    placement="bottom"
+                    minMenuWidth={80}
+                  />
+                </div>
               </div>
-            </div>
 
             <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
 
@@ -781,7 +875,11 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             })}
           </colgroup>
 
-          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <thead
+            className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-700"
+            onMouseOver={handleHeaderMouseOver}
+            onMouseLeave={clearHeaderTooltip}
+          >
             {/* Header Titles Row with Drag & Drop, Sort, and Resizing */}
             <tr>
               {headers.map((header, i) => {
@@ -866,6 +964,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         />
                       )}
                       <span
+                        data-header-label="true"
                         className={`whitespace-nowrap text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
@@ -1041,6 +1140,15 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
 
+        .app-modal-data-table .flex.justify-center,
+        .app-modal-data-table .flex.justify-end,
+        .app-modal-data-table th div,
+        .app-modal-data-table .rows-per-page-select,
+        .app-modal-data-table .rows-per-page-select div {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+        }
+
         .rows-per-page-select {
           height: 34px !important;
           display: flex !important;
@@ -1070,8 +1178,11 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           max-height: 32px !important;
           padding-top: 0 !important;
           padding-bottom: 0 !important;
+          padding-left: 0.5rem !important;
+          padding-right: 1.5rem !important;
           line-height: 32px !important;
           font-size: 0.8125rem !important;
+          text-align: center !important;
         }
         .rows-per-page-select button {
           height: 100% !important;
@@ -1108,6 +1219,19 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         `,
         }}
       />
+
+      {headerTooltip &&
+        createPortal(
+          <div
+            className={`fixed z-[99999] px-2.5 py-1 text-xs font-medium text-white bg-gray-900/95 dark:bg-gray-800/95 rounded-md shadow-lg pointer-events-none transform -translate-x-1/2 ${
+              headerTooltip.placement === "above" ? "-translate-y-full" : "translate-y-0"
+            } transition-opacity duration-100 border border-gray-700/50 backdrop-blur-sm max-w-md break-words text-center select-none`}
+            style={{ top: headerTooltip.coords.top, left: headerTooltip.coords.left }}
+          >
+            {headerTooltip.text}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

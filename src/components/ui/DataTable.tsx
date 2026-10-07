@@ -46,6 +46,7 @@ interface DataTableProps<T> {
   // Column Resizing & Persistence
   storageKey?: string;
   resizableColumns?: boolean;
+  defaultColumnWidths?: Record<string, number>;
 
   // Optional footer rendered inside <tfoot> of the same <table> for pixel-perfect column alignment
   footerContent?: React.ReactNode;
@@ -89,6 +90,7 @@ export function DataTable<T extends { id?: number | string }>({
   errorMessage,
   storageKey,
   resizableColumns = true,
+  defaultColumnWidths,
   footerContent,
   tableMaxHeight,
 }: DataTableProps<T>) {
@@ -118,6 +120,7 @@ export function DataTable<T extends { id?: number | string }>({
       : "table_col_widths_default");
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    let initial: Record<string, number> = defaultColumnWidths ? { ...defaultColumnWidths } : {};
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(effectiveStorageKey);
@@ -140,14 +143,14 @@ export function DataTable<T extends { id?: number | string }>({
                 clean[key] = parsed[key];
               }
             }
-            return clean;
+            return { ...initial, ...clean };
           }
         }
       } catch (e) {
         console.error("Error loading column widths from localStorage", e);
       }
     }
-    return {};
+    return initial;
   });
 
   const saveWidths = (widths: Record<string, number>) => {
@@ -1067,6 +1070,15 @@ export function DataTable<T extends { id?: number | string }>({
           margin-right: auto !important;
           display: block !important;
           width: 100% !important;
+        }
+
+        .app-data-table .flex.justify-center,
+        .app-data-table .flex.justify-end,
+        .app-data-table th div,
+        .app-data-table .rows-per-page-select,
+        .app-data-table .rows-per-page-select div {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
         }
 
         .rows-per-page-select {

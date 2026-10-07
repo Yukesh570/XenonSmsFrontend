@@ -1,7 +1,7 @@
 import axiosInstance from "../axiosInstance";
 
 export interface SummariseReportFilters {
-  overrideSortBystart_date?: string;
+  start_date?: string;
   end_date?: string;
   client?: string;
   vendor?: string;
