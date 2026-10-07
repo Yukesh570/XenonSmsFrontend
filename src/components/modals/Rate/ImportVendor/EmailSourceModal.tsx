@@ -191,7 +191,7 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
   // ── Fetch reference data ────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
-      getVendorsApi("vendor", 1, 1000)
+      getVendorsApi("vendor", 1, 1000, { fields: "id,name,profileName,company" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setVendorsList(list);
@@ -202,14 +202,14 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
         })
         .catch((err: any) => console.error("Failed to load vendors", err));
 
-      getCompaniesApi("company", 1, 1000)
+      getCompaniesApi("company", 1, 1000, { fields: "id,name,ratesEmail,companyEmail" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setCompaniesList(list);
         })
         .catch((err: any) => console.error("Failed to load companies", err));
 
-      getMappingSetupsApi("mappingSetup", 1, 1000)
+      getMappingSetupsApi("mappingSetup", 1, 1000, { fields: "id,name" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setMappingOptions(list.map((m: any) => ({
@@ -243,7 +243,7 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
         setExtraEmails(parsed);
         setExtraDomains(parsedDomains);
       } else {
-        setFormData({ vendor: "", mappingSetup: "", allowedDomain: "", strictDomainMatch: false, subjectPattern: "", uniqueId: "", active: true });
+        setFormData({ vendor: "", mappingSetup: "", allowedDomain: "", strictDomainMatch: false, subjectPattern: "", uniqueId: "UID-" + Math.random().toString(36).substring(2, 8).toUpperCase(), active: true });
         setExtraEmails([]);
         setExtraDomains([]);
       }

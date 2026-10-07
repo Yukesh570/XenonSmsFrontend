@@ -56,6 +56,7 @@ export const getRouteLookupApi = async (
     mcc?: string;
     mnc?: string;
     network_name?: string;
+    country?: string;
   }
 ): Promise<RouteLookupResponse> => {
   const params: Record<string, any> = {};
@@ -64,6 +65,7 @@ export const getRouteLookupApi = async (
   if (paramsData?.mcc) params.mcc = paramsData.mcc;
   if (paramsData?.mnc) params.mnc = paramsData.mnc;
   if (paramsData?.network_name) params.network_name = paramsData.network_name;
+  if (paramsData?.country) params.country = paramsData.country;
   const response = await api.get(`/routeLookup/`, { params });
   return response.data;
 };

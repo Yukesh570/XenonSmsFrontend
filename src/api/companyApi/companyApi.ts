@@ -44,6 +44,7 @@ export interface CompanyData {
   allowNetting: boolean;
   showHlrApi: boolean;
   enableVendorPanel: boolean;
+  allowNegativeVendorCredit?: boolean;
 }
 
 export interface PaginatedResponse<T> {
@@ -113,5 +114,15 @@ export const getCreditTransactionHistoryApi = async (
   companyId?: number
 ) => {
   const response = await api.get(`/addCreditForCompany/?company__id=${companyId}`);
+  return response.data;
+};
+
+export const updateVendorCreditPolicyApi = async (
+  id: number,
+  allowNegativeVendorCredit: boolean
+) => {
+  const response = await api.patch(`/company/${id}/update-vendor-credit-policy/`, {
+    allowNegativeVendorCredit,
+  });
   return response.data;
 };

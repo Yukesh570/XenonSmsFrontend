@@ -113,10 +113,10 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
     query === ""
       ? options
       : options.filter((option) =>
-          option.label.toLowerCase().includes(query.toLowerCase()) ||
-          (option.displayLabel && option.displayLabel.toLowerCase().includes(query.toLowerCase())) ||
-          option.value.toLowerCase().includes(query.toLowerCase())
-        );
+        option.label.toLowerCase().includes(query.toLowerCase()) ||
+        (option.displayLabel && option.displayLabel.toLowerCase().includes(query.toLowerCase())) ||
+        option.value.toLowerCase().includes(query.toLowerCase())
+      );
 
   useEffect(() => {
     setVisibleCount(50);
@@ -374,8 +374,8 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
   const hoverText = isOptionsLoading
     ? "Loading..."
     : hasValueSet
-    ? (selectedOption ? (selectedOption.displayLabel ?? selectedOption.label) : String(value))
-    : "";
+      ? (selectedOption ? (selectedOption.displayLabel ?? selectedOption.label) : String(value))
+      : "";
 
   return (
     <div className={`flex flex-col ${hasLabel ? "" : "justify-end"} ${className}`}>
@@ -400,16 +400,14 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
           <FastTooltip text={hoverText} disabled={open || isFocused || isTyping || !hasValueSet || isOptionsLoading}>
             <div
               className={`relative w-full h-[34px] flex items-center rounded-lg border text-sm text-left shadow-input transition duration-150 ease-in-out focus-within:outline-none focus-within:ring-1 
-              ${
-                error
+              ${error
                   ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-500 dark:border-red-500 dark:focus-within:border-red-500 dark:focus-within:ring-red-500"
                   : "border-gray-200 focus-within:border-primary focus-within:ring-primary dark:focus-within:border-primary dark:focus-within:ring-primary"
-              } 
-              ${
-                isEffectivelyDisabled
+                } 
+              ${isEffectivelyDisabled
                   ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
                   : "bg-white dark:bg-gray-800"
-              }
+                }
               dark:border-gray-700`}
             >
               {selectedOption?.icon && !isTyping && !isOptionsLoading && (
@@ -429,9 +427,8 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} pr-12 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${
-                  isEffectivelyDisabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
-                }`}
+                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} pr-12 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${isEffectivelyDisabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
+                  }`}
                 displayValue={(val: string) => {
                   if (isOptionsLoading) return "Loading...";
                   const opt = options.find((option) => option.value === val);
@@ -488,9 +485,8 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 <Combobox.Button ref={comboboxButtonRef} className="absolute inset-y-0 right-0 flex items-center pr-2" disabled={isEffectivelyDisabled}>
                   <ChevronDown
                     size={16}
-                    className={`${
-                      isEffectivelyDisabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
-                    }`}
+                    className={`${isEffectivelyDisabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
+                      }`}
                     aria-hidden="true"
                   />
                 </Combobox.Button>
@@ -531,18 +527,18 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                   left: renderTrigger
                     ? Math.max(8, Math.min(coords.left, window.innerWidth - Math.max(coords.width, 130) - 8))
                     : Math.max(
-                        8,
-                        Math.min(
-                          coords.left,
-                          window.innerWidth -
-                            (typeof menuWidth === "number"
-                              ? menuWidth
-                              : typeof minMenuWidth === "number"
-                              ? minMenuWidth
-                              : coords.width) -
-                            8
-                        )
-                      ),
+                      8,
+                      Math.min(
+                        coords.left,
+                        window.innerWidth -
+                        (typeof menuWidth === "number"
+                          ? menuWidth
+                          : typeof minMenuWidth === "number"
+                            ? minMenuWidth
+                            : coords.width) -
+                        8
+                      )
+                    ),
                   width: menuWidth ?? (renderTrigger ? Math.max(coords.width, 130) : coords.width),
                   minWidth: minMenuWidth ?? (renderTrigger ? 130 : undefined),
                 }}
@@ -570,24 +566,22 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                       }}
                       className={() => {
                         const isHighlighted = highlightedIndex === index;
-                        return `relative cursor-default select-none py-2 pl-3 pr-10 ${
-                          option.disabled
+                        return `relative cursor-default select-none py-2 pl-3 pr-10 ${option.disabled
                             ? "opacity-40 cursor-not-allowed"
                             : isHighlighted
-                            ? "bg-primary/10 text-primary dark:text-primary dark:bg-primary/20"
-                            : "text-text-secondary dark:text-gray-300 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
-                        }`;
+                              ? "bg-primary/10 text-primary dark:text-primary dark:bg-primary/20"
+                              : "text-text-secondary dark:text-gray-300 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20"
+                          }`;
                       }}
                       value={option.value}
                     >
                       {({ selected }) => (
                         <>
                           <span
-                            className={`flex items-center gap-2 whitespace-normal break-words leading-tight ${
-                              selected
+                            className={`flex items-center gap-2 whitespace-normal break-words leading-tight ${selected
                                 ? "font-medium text-primary dark:text-primary"
                                 : "font-normal"
-                            }`}
+                              }`}
                           >
                             {option.icon && <span>{option.icon}</span>}
                             <span className="block">{option.label}</span>

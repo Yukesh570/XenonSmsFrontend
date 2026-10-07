@@ -156,29 +156,18 @@ const GenerateVendorInvoice: React.FC = () => {
     try {
       const res = await generateVendorCompanyInvoiceApi(payload, "PREVIEW");
 
-      if (res instanceof Blob) {
-        const fileUrl = window.URL.createObjectURL(new Blob([res], { type: 'application/pdf' }));
-        setPreviewPdfUrl(fileUrl);
+      if (res && res.pdfBase64) {
+        setPreviewPdfUrl(`data:application/pdf;base64,${res.pdfBase64}`);
         setIsPreviewModalOpen(true);
-        toast.success("PDF preview generated!");
+        toast.success(res.message || "PDF preview generated!");
       } else {
         toast.error("Could not generate PDF preview.");
       }
 
     } catch (error: any) {
-      if (error.response?.data instanceof Blob) {
-        const text = await error.response.data.text();
-        try {
-          const errorData = JSON.parse(text);
-          toast.error(errorData.detail || errorData.error || "Preview calculation failed.");
-        } catch {
-          toast.error("Preview calculation failed.");
-        }
-      } else {
-        const errorData = error.response?.data;
-        const errorMsg = errorData?.detail || errorData?.error || "Preview calculation failed.";
-        toast.error(errorMsg);
-      }
+      const errorData = error.response?.data;
+      const errorMsg = errorData?.detail || errorData?.error || "Preview calculation failed.";
+      toast.error(errorMsg);
     } finally {
       setIsPreviewing(false);
     }
@@ -186,10 +175,10 @@ const GenerateVendorInvoice: React.FC = () => {
 
   const handleCloseModal = () => {
     setIsPreviewModalOpen(false);
-    if (previewPdfUrl) {
+    if (previewPdfUrl && previewPdfUrl.startsWith("blob:")) {
       window.URL.revokeObjectURL(previewPdfUrl);
-      setPreviewPdfUrl(null);
     }
+    setPreviewPdfUrl(null);
   };
 
   const handleGenerate = async () => {

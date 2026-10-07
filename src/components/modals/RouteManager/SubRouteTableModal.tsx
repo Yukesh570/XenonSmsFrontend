@@ -36,6 +36,7 @@ import {
   Trash,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Save,
   CheckCircle2,
   AlertCircle,
@@ -329,6 +330,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [newRoutingType, setNewRoutingType] = useState("PRIORITY");
   const [newConfigStatus, setNewConfigStatus] = useState("ACTIVE");
   const [newLowCostPolicy, setNewLowCostPolicy] = useState(false);
+  const [newLowCostPolicyLimit, setNewLowCostPolicyLimit] = useState("");
   const [isAddingConfig, setIsAddingConfig] = useState(false);
 
   const [countrySearchTerm, setCountrySearchTerm] = useState("");
@@ -336,7 +338,21 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const [deleteConfigData, setDeleteConfigData] = useState<{ id: number; countryName: string } | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
+
+  const toggleGroupCollapse = (countryId: string, groupKey: string) => {
+    const fullKey = `${countryId}-${groupKey}`;
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fullKey)) {
+        newSet.delete(fullKey);
+      } else {
+        newSet.add(fullKey);
+      }
+      return newSet;
+    });
+  };
   const hasFetchedRef = useRef(false);
   const isOverallLoading = isLoadingConfigs || (isOpen && !hasFetchedRef.current);
   const [deleteRouteData, setDeleteRouteData] = useState<{ id: number; name: string; countryId: string } | null>(null);
@@ -488,16 +504,19 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       });
       const results: RouteGroupCountryData[] = res.results || [];
 
-      const routesPromises = results.map((cfg) =>
-        routeGroup
-          ? getCustomRoutesApi(moduleName, 1, 200, {
-            routeGroup__name: routeGroup,
-            country: String(cfg.country),
-          })
-            .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
-            .catch(() => ({ countryId: String(cfg.country), routes: [] }))
-          : Promise.resolve({ countryId: String(cfg.country), routes: [] })
-      );
+      const routesPromises = results.map((cfg) => {
+        if (!routeGroupId && !routeGroup) {
+          return Promise.resolve({ countryId: String(cfg.country), routes: [] });
+        }
+
+        const params = routeGroupId
+          ? { routeGroup: routeGroupId, country: String(cfg.country) }
+          : { routeGroup__name: routeGroup, country: String(cfg.country) };
+
+        return getCustomRoutesApi(moduleName, 1, 200, params)
+          .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
+          .catch(() => ({ countryId: String(cfg.country), routes: [] }));
+      });
 
       const allCountryRoutes = await Promise.all(routesPromises);
       const routesByCountryMap = new Map(
@@ -558,7 +577,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       );
       try {
         const res = await getCustomRoutesApi(moduleName, 1, 200, {
-          routeGroup__name: routeGroup,
+          ...(routeGroupId ? { routeGroup: routeGroupId } : { routeGroup__name: routeGroup }),
           country: countryId,
         });
         const fetchedRoutes = res.results || [];
@@ -642,6 +661,16 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const handleAddConfig = async () => {
     if (!newCountry) return toast.error("Select a country.");
     if (!routeGroupId) return toast.error("Route group not identified.");
+
+    let parsedLimit: string | null = null;
+    if (newLowCostPolicy && newLowCostPolicyLimit.trim() !== "") {
+      const limitVal = parseFloat(newLowCostPolicyLimit);
+      if (isNaN(limitVal) || limitVal < 0 || limitVal > 100) {
+        return toast.error("Low Cost Policy Limit must be between 0 and 100.");
+      }
+      parsedLimit = String(limitVal);
+    }
+
     setIsAddingConfig(true);
     try {
       await createRouteGroupCountryApi(
@@ -651,6 +680,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           routingType: newRoutingType as "PRIORITY" | "PERCENTAGE",
           status: newConfigStatus as "ACTIVE" | "INACTIVE",
           lowCostPolicy: newLowCostPolicy,
+          lowCostPolicyLimit: parsedLimit,
         },
         moduleName,
       );
@@ -659,6 +689,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setNewRoutingType("PRIORITY");
       setNewConfigStatus("ACTIVE");
       setNewLowCostPolicy(false);
+      setNewLowCostPolicyLimit("");
       fetchConfigs();
     } catch (err: any) {
       const data = err.response?.data;
@@ -694,6 +725,18 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       toast.success(`Low Cost Policy ${newValue ? 'enabled' : 'disabled'} for ${config.countryName}.`);
     } catch {
       toast.error("Failed to update Low Cost Policy.");
+    }
+  };
+
+  const handleUpdateLowCostPolicyLimit = async (config: RouteGroupCountryData, limit: string) => {
+    if (!config.id) return;
+    try {
+      const parsed = limit.trim() === "" ? null : limit;
+      const updated = await updateRouteGroupCountryApi(config.id, { lowCostPolicyLimit: parsed }, moduleName);
+      setSections(prev => prev.map(s => String(s.config.country) === String(config.country) ? { ...s, config: updated } : s));
+      toast.success(`Low Cost Policy Limit updated for ${config.countryName}.`);
+    } catch {
+      toast.error("Failed to update Low Cost Policy Limit.");
     }
   };
 
@@ -1300,9 +1343,27 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         <ToggleSwitch
                           label="Low Cost Policy"
                           checked={newLowCostPolicy}
-                          onChange={setNewLowCostPolicy}
+                          onChange={(val) => {
+                            setNewLowCostPolicy(val);
+                            if (!val) setNewLowCostPolicyLimit("");
+                          }}
                         />
                       </div>
+                      {newLowCostPolicy && (
+                        <div className="w-40">
+                          <Input
+                            label="Limit (Max Loss)"
+                            name="lowCostPolicyLimit"
+                            type="number"
+                            value={newLowCostPolicyLimit}
+                            onChange={(e) => setNewLowCostPolicyLimit(e.target.value)}
+                            placeholder="e.g. 5.00"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                          />
+                        </div>
+                      )}
                       <Button
                         type="button"
                         variant="primary"
@@ -1531,7 +1592,29 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           {isPercentage ? "Percentage" : "Priority"}
                         </span>
                         {canUpdate && (
-                          <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center">
+                          <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center gap-2">
+                            {section.config.lowCostPolicy && (
+                              <input
+                                type="number"
+                                className="w-40 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
+                                placeholder="lowCostPolicyLimit"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                defaultValue={Number(section.config.lowCostPolicyLimit) === 0 ? "" : (section.config.lowCostPolicyLimit || "")}
+                                onBlur={(e) => {
+                                  const currentValStr = Number(section.config.lowCostPolicyLimit) === 0 ? "" : String(section.config.lowCostPolicyLimit || "");
+                                  if (e.target.value !== currentValStr) {
+                                    handleUpdateLowCostPolicyLimit(section.config, e.target.value);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.currentTarget.blur();
+                                  }
+                                }}
+                              />
+                            )}
                             <ToggleSwitch
                               label="LCP"
                               checked={section.config.lowCostPolicy || false}
@@ -1710,13 +1793,23 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                   const groupModifiedRoutes = groupData.items.filter(item => !("isNew" in item) && (item as any).isModified);
                                   const groupHasChanges = groupNewRows.length > 0 || groupModifiedRoutes.length > 0;
                                   const groupIsValid = !isPercentage || groupData.total === 100;
+                                  const fullGroupKey = `${countryId}-${groupKey}`;
+                                  const isCollapsed = collapsedGroups.has(fullGroupKey);
 
                                   return (
                                     <React.Fragment key={groupKey}>
-                                      <tr className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700">
+                                      <tr 
+                                        className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+                                        onClick={() => toggleGroupCollapse(countryId, groupKey)}
+                                      >
                                         <td colSpan={10} className="px-3 py-1.5 text-xs font-semibold">
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
+                                              {isCollapsed ? (
+                                                <ChevronRight size={14} className="text-gray-500" />
+                                              ) : (
+                                                <ChevronDown size={14} className="text-gray-500" />
+                                              )}
                                               <Layers size={13} className="text-primary" />
                                               <span className="text-gray-700 dark:text-gray-200">
                                                 <strong>{formattedGroupHeaderLabel}</strong>
@@ -1775,7 +1868,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                         )}
                                       </tr>
 
-                                      {groupData.items.map((item, i) => {
+                                      {!isCollapsed && groupData.items.map((item, i) => {
                                         if ("isNew" in item) {
                                           const row = item.row;
                                           const rowMncOptions = mncOptions.map(opt => {

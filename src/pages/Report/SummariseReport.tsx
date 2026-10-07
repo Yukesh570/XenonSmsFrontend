@@ -452,7 +452,8 @@ const SummariseReport: React.FC = () => {
     }
 
     appliedGroupBy.forEach((gb) => {
-      if (contextMenuRow[gb] !== undefined && contextMenuRow[gb] !== "-" && contextMenuRow[gb] !== "Unknown") {
+      // Always send the filter if it exists in the row, so the backend knows what we clicked
+      if (contextMenuRow[gb] !== undefined) {
         rowFilters[gb] = contextMenuRow[gb];
       }
     });
@@ -506,6 +507,7 @@ const SummariseReport: React.FC = () => {
       "submitted",
       "delivered",
       "failed",
+      "undelivered",
       "rejected",
       "revenue",
       "vendor_cost",
@@ -565,6 +567,7 @@ const SummariseReport: React.FC = () => {
       "submitted",
       "delivered",
       "failed",
+      "undelivered",
       "rejected",
       "revenue",
       "vendor_cost",
@@ -598,6 +601,7 @@ const SummariseReport: React.FC = () => {
     map["submitted"] = { label: "Submitted" };
     map["delivered"] = { label: "Delivered" };
     map["failed"] = { label: "Failed" };
+    map["undelivered"] = { label: "Undelivered" };
     map["rejected"] = { label: "Rejected" };
     map["revenue"] = { label: `Revenue (${currencySymbol})` };
     map["vendor_cost"] = { label: `Vendor Cost (${currencySymbol})` };
@@ -725,6 +729,13 @@ const SummariseReport: React.FC = () => {
         </td>
       );
     }
+    if (colKey === "undelivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.undelivered || 0).toLocaleString()}
+        </td>
+      );
+    }
     if (colKey === "rejected") {
       return (
         <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
@@ -818,6 +829,13 @@ const SummariseReport: React.FC = () => {
       return (
         <td key={colKey} className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {Number(totals?.failed || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "undelivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-orange-500 dark:text-orange-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.undelivered || 0).toLocaleString()}
         </td>
       );
     }

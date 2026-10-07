@@ -16,6 +16,7 @@ import Select from "../../components/ui/Select";
 import DatePicker, { parseDateValue, type DatePickerMode } from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
+import MultiSelectDropdown from "../../components/ui/MultiSelectDropdown";
 import AdvancedFilter, {
   type FilterColumn,
 } from "../../components/ui/AdvancedFilter";
@@ -79,6 +80,7 @@ type FilterColumnType =
   | "date"
   | "date_gt_lt"
   | "text"
+  | "multi-select"
   | "number_range"
   | "number_gt_lt";
 
@@ -298,6 +300,12 @@ const DetailedReport: React.FC = () => {
       filterKey: "vendor__icontains",
     },
     {
+      key: "failure_reason",
+      label: "Failure Reason",
+      type: "text",
+      filterKey: "message__failure_reason__icontains",
+    },
+    {
       key: "countryName",
       label: "Country",
       type: "text",
@@ -376,37 +384,6 @@ const DetailedReport: React.FC = () => {
     },
 
 
-    {
-      key: "translation_type",
-      label: "Translation Type",
-      type: "text",
-      filterKey: "translation_type",
-    },
-
-    {
-      key: "translation_reason_code",
-      label: "Translation Reason Code",
-      type: "text",
-      filterKey: "translation_reason_code",
-    },
-    {
-      key: "senderTranslationRuleDescription",
-      label: "Translation Rule Description",
-      type: "text",
-      filterKey: "senderTranslationRuleDescription",
-    },
-    {
-      key: "replacementListDescription",
-      label: "Replacement List Description",
-      type: "text",
-      filterKey: "replacementListDescription",
-    },
-    {
-      key: "senderPoolDescription",
-      label: "Sender Pool Description",
-      type: "text",
-      filterKey: "senderPoolDescription",
-    },
     // {
     //   key: "config_generation",
     //   label: "Config Generation",
@@ -442,9 +419,9 @@ const DetailedReport: React.FC = () => {
     {
       key: "submitStatus",
       label: "Status",
-      type: "text",
+      type: "multi-select",
       options: statusOptions,
-      filterKey: "submitStatus__icontains",
+      filterKey: "submitStatus__in",
       render: (log) => <StatusBadge status={log.submitStatus} />,
     },
 
@@ -474,6 +451,70 @@ const DetailedReport: React.FC = () => {
       label: "Parts",
       type: "number",
       filterKey: "part_total__icontains",
+    },
+    {
+      key: "senderId",
+      label: "Sender ID",
+      type: "text",
+      isSearchable: false,
+    },
+
+
+    // {
+    //   key: "processing_latency_us",
+    //   label: "Processing Latency (us)",
+    //   type: "number",
+    //   isSearchable: false,
+    // },
+    // {
+    //   key: "config_generation",
+    //   label: "Config Generation",
+    //   type: "number",
+    //   isSearchable: false,
+    // },
+    {
+      key: "encoding",
+      label: "Encoding",
+      type: "text",
+      isSearchable: false,
+    },
+    {
+      key: "characterCount",
+      label: "Character Count",
+      type: "text",
+      isSearchable: false,
+    },
+
+    {
+      key: "translation_type",
+      label: "Translation Type",
+      type: "text",
+      filterKey: "translation_type",
+    },
+
+    {
+      key: "translation_reason_code",
+      label: "Translation Reason Code",
+      type: "text",
+      filterKey: "translation_reason_code",
+    },
+    {
+      key: "senderTranslationRuleDescription",
+      label: "Translation Rule Description",
+      type: "text",
+      filterKey: "senderTranslationRuleDescription",
+    },
+    {
+      key: "replacementListDescription",
+      label: "Replacement List Description",
+      type: "text",
+      filterKey: "replacementListDescription",
+    },
+    {
+      key: "senderPoolDescription",
+      label: "Sender Pool Description",
+      type: "text",
+      filterKey: "senderPoolDescription",
     },
     {
       key: "request_time",
@@ -515,44 +556,7 @@ const DetailedReport: React.FC = () => {
       filterKey: "delivery_time",
       isSearchOnly: true,
     },
-    {
-      key: "senderId",
-      label: "Sender ID",
-      type: "text",
-      isSearchable: false,
-    },
 
-
-    // {
-    //   key: "processing_latency_us",
-    //   label: "Processing Latency (us)",
-    //   type: "number",
-    //   isSearchable: false,
-    // },
-    // {
-    //   key: "config_generation",
-    //   label: "Config Generation",
-    //   type: "number",
-    //   isSearchable: false,
-    // },
-    {
-      key: "encoding",
-      label: "Encoding",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "characterCount",
-      label: "Character Count",
-      type: "text",
-      isSearchable: false,
-    },
-    {
-      key: "failure_reason",
-      label: "Failure Reason",
-      type: "text",
-      filterKey: "message__failure_reason__icontains",
-    },
     {
       key: "message_queued_at",
       label: "Queued At",
@@ -916,6 +920,18 @@ const DetailedReport: React.FC = () => {
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
+          if (col.type === "multi-select" && col.options) {
+            return (
+              <MultiSelectDropdown
+                key={col.key}
+                label={`Search ${baseLabel}`}
+                options={col.options}
+                selected={filterValues[col.key] ? filterValues[col.key].split(",") : []}
+                onChange={(selectedValues) => handleFilterChange(col.key, selectedValues.join(","))}
+                placeholder={`Select ${baseLabel}`}
+              />
+            );
+          }
           if (col.options)
             return (
               <Select

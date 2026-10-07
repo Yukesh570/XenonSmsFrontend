@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit, Trash, Download } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash, Download, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -12,6 +12,7 @@ import {
   downloadCustomerRatesCsvApi,
   type CustomerRateGroupData
 } from "../../api/rateApi/customerRateApi";
+import { CustomerRateExportLogModal } from "../../components/modals/Rate/CustomerRateExportLogModal";
 import { handleCsvExportWithApi } from "../../helper/csvExport";
 
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -119,6 +120,7 @@ const CustomerRate: React.FC = () => {
   const [isSubTableModalOpen, setIsSubTableModalOpen] = useState(false);
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isExportLogModalOpen, setIsExportLogModalOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -372,6 +374,7 @@ const CustomerRate: React.FC = () => {
   const menuItems: ContextMenuItem[] = selectedRowGroup ? [
     { label: "Manage Rates", icon: <Layers size={16} />, onClick: () => openSubTableModal(selectedRowGroup) },
     { label: "Download CSV", icon: <Download size={16} />, onClick: () => { handleDownloadCSV(selectedRowGroup.id!); setContextMenuPos(null); } },
+    { label: "Export Logs", icon: <FileText size={16} />, onClick: () => { setIsExportLogModalOpen(true); setContextMenuPos(null); } },
     ...(canUpdate ? [{ label: "Edit Group", icon: <Edit size={16} />, onClick: () => { setEditingGroup(selectedRowGroup); setIsCreateModalOpen(true); } }] : []),
     ...(canDelete ? [{ label: "Delete Group", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedRowGroup.id!) }] : []),
   ] : [];
@@ -513,6 +516,12 @@ const CustomerRate: React.FC = () => {
         onConfirm={handleDelete} 
         title="Delete Rate Group" 
         message={`Are you sure you want to delete rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`} 
+      />
+
+      <CustomerRateExportLogModal
+        isOpen={isExportLogModalOpen}
+        onClose={() => setIsExportLogModalOpen(false)}
+        rateGroup={selectedRowGroup}
       />
     </div>
   );

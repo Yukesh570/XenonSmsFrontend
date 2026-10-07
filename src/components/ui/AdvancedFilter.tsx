@@ -7,7 +7,7 @@ import Button from "./Button";
 export interface FilterColumn {
   key: string;
   label: string;
-  type?: "text" | "number" | "date" | "boolean" | "date_range" | "number_range" | "date_gt_lt" | "number_gt_lt";
+  type?: "text" | "number" | "date" | "boolean" | "date_range" | "number_range" | "date_gt_lt" | "number_gt_lt" | "multi-select";
 }
 
 export interface AdvancedFilterProps {

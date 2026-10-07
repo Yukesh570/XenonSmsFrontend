@@ -4,6 +4,7 @@ export interface SmsStatsData {
   count: number;
   deliveredCount: number;
   failedCount: number;
+  undeliveredCount: number;
   rejectedCount: number;
   deliveryRate: number;
 }
@@ -19,6 +20,7 @@ export interface SmsDailyData {
 export interface DlrStatsData {
   deliveredPercent: number;
   failedPercent: number;
+  undeliveredPercent: number;
   pendingPercent: number;
   rejectedPercent: number;
 }

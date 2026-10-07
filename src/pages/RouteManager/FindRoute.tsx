@@ -5,6 +5,8 @@ import { toast } from "react-toastify";
 
 import { getRouteLookupApi } from "../../api/routeLookupApi/routeLookupApi";
 import { getClientsApi } from "../../api/clientApi/clientApi";
+import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+import { CountryFlag } from "../../components/ui/CountryFlag";
 
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -16,6 +18,7 @@ import { StatusBadge } from "../../components/ui/StatusBadge";
 interface Option {
   label: string;
   value: string;
+  icon?: React.ReactNode;
 }
 
 interface RouteLookupTableRow {
@@ -122,8 +125,10 @@ const FindRoute: React.FC = () => {
   const [mcc, setMcc] = useState("");
   const [mnc, setMnc] = useState("");
   const [networkName, setNetworkName] = useState("");
+  const [country, setCountry] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
   const [clientOptions, setClientOptions] = useState<Option[]>([]);
+  const [countryOptions, setCountryOptions] = useState<Option[]>([]);
 
   const [tableData, setTableData] = useState<RouteLookupTableRow[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -179,9 +184,9 @@ const FindRoute: React.FC = () => {
     }
   }, []);
 
-  // Fetch Clients for Dropdown
+  // Fetch Clients and Countries for Dropdown
   useEffect(() => {
-    const loadClients = async () => {
+    const loadDropdowns = async () => {
       try {
         const res: any = await getClientsApi("client", 1, 1000);
         const list = res.results || (Array.isArray(res) ? res : []);
@@ -193,15 +198,27 @@ const FindRoute: React.FC = () => {
       } catch (err) {
         console.error("Failed to load clients", err);
       }
+
+      try {
+        const countryRes: any = await getCountriesApi("country", 1, 1000);
+        const countryList = countryRes.results || (Array.isArray(countryRes) ? countryRes : []);
+        setCountryOptions(countryList.map((c: any) => ({ 
+          label: c.name, 
+          value: String(c.id), // We can use ID since the API handles ID or Name for country
+          ...(c.iso2 ? { icon: <CountryFlag iso2={c.iso2} /> } : {})
+        })));
+      } catch (err) {
+        console.error("Failed to load countries", err);
+      }
     };
-    loadClients();
+    loadDropdowns();
   }, []);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    if (!phoneNumber.trim() && !mcc.trim()) {
-      toast.error("Please enter a phone number or an MCC to search.");
+    if (!phoneNumber.trim() && !mcc.trim() && !country.trim()) {
+      toast.error("Please enter a phone number, an MCC, or a Country to search.");
       return;
     }
 
@@ -216,7 +233,8 @@ const FindRoute: React.FC = () => {
           clientId: selectedClientId || undefined,
           mcc: mcc.trim(),
           mnc: mnc.trim(),
-          network_name: networkName.trim()
+          network_name: networkName.trim(),
+          country: country.trim()
         }
       );
 
@@ -296,6 +314,7 @@ const FindRoute: React.FC = () => {
     setMcc("");
     setMnc("");
     setNetworkName("");
+    setCountry("");
     setSelectedClientId("");
     setTableData([]);
     setSearchError(null);
@@ -370,7 +389,7 @@ const FindRoute: React.FC = () => {
       {/* Sleek, Compact Search Box */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-6">
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row flex-wrap items-end gap-4">
-          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
             <Input
               label="Phone Number"
               placeholder="e.g. 579102200043"
@@ -394,6 +413,13 @@ const FindRoute: React.FC = () => {
               placeholder="e.g. Telstra"
               value={networkName}
               onChange={(e) => setNetworkName(e.target.value)}
+            />
+            <Select
+              label="Country"
+              placeholder="Select Country"
+              value={country}
+              onChange={(val) => setCountry(val)}
+              options={countryOptions}
             />
             <Select
               label="Client (Optional)"
@@ -430,7 +456,7 @@ const FindRoute: React.FC = () => {
         <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-2.5 text-blue-700 dark:text-blue-400 text-xs sm:text-sm mb-6">
           <Info size={16} className="shrink-0 text-blue-500 dark:text-blue-400" />
           <p>
-            <span className="font-semibold">Instruction:</span> Please enter a Phone Number OR an MCC, then click <span className="font-semibold">Search</span> to perform a route lookup.
+            <span className="font-semibold">Instruction:</span> Please enter a Phone Number, MCC, OR Country, then click <span className="font-semibold">Search</span> to perform a route lookup.
           </p>
         </div>
       )}

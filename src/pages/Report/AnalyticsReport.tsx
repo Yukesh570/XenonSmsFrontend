@@ -161,6 +161,7 @@ export type AnalyticsColKey =
   | "dlrPct"
   | "delivered"
   | "failed"
+  | "undelivered"
   | "rejected"
   | "revenue"
   | "vendorCost"
@@ -176,6 +177,7 @@ const DEFAULT_ANALYTICS_COLUMNS: AnalyticsColKey[] = [
   "dlrPct",
   "delivered",
   "failed",
+  "undelivered",
   "rejected",
   "revenue",
   "vendorCost",
@@ -194,6 +196,7 @@ const DEFAULT_COL_WIDTHS: Record<AnalyticsColKey, number> = {
   dlrPct: 130,
   delivered: 150,
   failed: 130,
+  undelivered: 140,
   rejected: 145,
   revenue: 165,
   vendorCost: 185,
@@ -211,6 +214,7 @@ const getColumnLabel = (key: AnalyticsColKey, symbol: string): string => {
     case "dlrPct": return "DLR %";
     case "delivered": return "Delivered";
     case "failed": return "Failed";
+    case "undelivered": return "Undelivered";
     case "rejected": return "Rejected";
     case "revenue": return `Revenue (${symbol})`;
     case "vendorCost": return `Vendor Cost (${symbol})`;
@@ -433,6 +437,7 @@ const AnalyticsReport: React.FC = () => {
           dlrPct: m.dlr_percent || 0,
           delivered: m.delivered || 0,
           failed: m.failed || 0,
+          undelivered: m.undelivered || 0,
           rejected: m.rejected || 0,
           revenue: m.revenue || 0,
           vendorCost: m.vendor_cost || 0,
@@ -609,6 +614,7 @@ const AnalyticsReport: React.FC = () => {
       dlrPct: "dlr_percent",
       delivered: "delivered",
       failed: "failed",
+      undelivered: "undelivered",
       rejected: "rejected",
       revenue: "revenue",
       vendorCost: "vendor_cost",
@@ -976,6 +982,12 @@ const AnalyticsReport: React.FC = () => {
         return (
           <td key={key} className={pad}>
             <DataBarCell value={row.failed} max={maxAttempts} type="danger" />
+          </td>
+        );
+      case "undelivered":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.undelivered || 0} max={maxAttempts} type="danger" />
           </td>
         );
       case "rejected":

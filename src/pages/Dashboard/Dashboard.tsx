@@ -73,6 +73,7 @@ import { getDaysAgoInAppTimezone, formatDateTime } from "../../helper/dateFormat
 const DLR_COLORS: Record<string, string> = {
   Delivered: "#10b981",
   Failed: "#ef4444",
+  Undelivered: "#f97316",
   Pending: "#f59e0b",
   Rejected: "#6b7280",
 };
@@ -117,6 +118,7 @@ const Dashboard: React.FC = () => {
   const [totalSms, setTotalSms] = useState<string>("-");
   const [deliveredCount, setDeliveredCount] = useState<string>("-");
   const [failedCount, setFailedCount] = useState<string>("-");
+  const [undeliveredCount, setUndeliveredCount] = useState<string>("-");
   const [rejectedCount, setRejectedCount] = useState<string>("-");
   const [deliveryRate, setDeliveryRate] = useState<string>("-");
   const [isStatsLoading, setIsStatsLoading] = useState(true);
@@ -272,6 +274,7 @@ const Dashboard: React.FC = () => {
       setTotalSms(Number(d.count).toLocaleString());
       setDeliveredCount(Number(d.deliveredCount).toLocaleString());
       setFailedCount(Number(d.failedCount).toLocaleString());
+      setUndeliveredCount(Number(d.undeliveredCount || 0).toLocaleString());
       setRejectedCount(Number(d.rejectedCount || 0).toLocaleString());
       setDeliveryRate(`${d.deliveryRate}%`);
     } catch (e) {
@@ -288,6 +291,7 @@ const Dashboard: React.FC = () => {
       setDlrData([
         { name: "Delivered", value: d.deliveredPercent || 0, color: DLR_COLORS.Delivered },
         { name: "Failed", value: d.failedPercent || 0, color: DLR_COLORS.Failed },
+        { name: "Undelivered", value: d.undeliveredPercent || 0, color: DLR_COLORS.Undelivered },
         { name: "Pending", value: d.pendingPercent || 0, color: DLR_COLORS.Pending },
         { name: "Rejected", value: d.rejectedPercent || 0, color: DLR_COLORS.Rejected },
       ]);
@@ -552,6 +556,7 @@ const Dashboard: React.FC = () => {
                 setTotalSms(Number(data.smsStats.count).toLocaleString());
                 setDeliveredCount(Number(data.smsStats.deliveredCount).toLocaleString());
                 setFailedCount(Number(data.smsStats.failedCount).toLocaleString());
+                setUndeliveredCount(Number(data.smsStats.undeliveredCount || 0).toLocaleString());
                 setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
@@ -560,6 +565,7 @@ const Dashboard: React.FC = () => {
                 setDlrData([
                   { name: "Delivered", value: data.dlrStats.deliveredPercent || 0, color: DLR_COLORS.Delivered },
                   { name: "Failed", value: data.dlrStats.failedPercent || 0, color: DLR_COLORS.Failed },
+                  { name: "Undelivered", value: data.dlrStats.undeliveredPercent || 0, color: DLR_COLORS.Undelivered },
                   { name: "Pending", value: data.dlrStats.pendingPercent || 0, color: DLR_COLORS.Pending },
                   { name: "Rejected", value: data.dlrStats.rejectedPercent || 0, color: DLR_COLORS.Rejected },
                 ]);
@@ -841,7 +847,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 1: KPI Cards — SMS stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         <StatCard
           title={`Total SMS (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : totalSms}
@@ -855,6 +861,11 @@ const Dashboard: React.FC = () => {
         <StatCard
           title={`Failed (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : failedCount}
+          icon={<XCircle size={21} />}
+        />
+        <StatCard
+          title={`Undelivered (${activeRangeLabel})`}
+          value={isStatsLoading ? "…" : undeliveredCount}
           icon={<XCircle size={21} />}
         />
         <StatCard
@@ -1036,6 +1047,7 @@ const Dashboard: React.FC = () => {
                     content={() => {
                       const delivered = dlrData.find((d) => d.name === "Delivered") || { name: "Delivered", value: 0, color: DLR_COLORS.Delivered };
                       const failed = dlrData.find((d) => d.name === "Failed") || { name: "Failed", value: 0, color: DLR_COLORS.Failed };
+                      const undelivered = dlrData.find((d) => d.name === "Undelivered") || { name: "Undelivered", value: 0, color: DLR_COLORS.Undelivered };
                       const pending = dlrData.find((d) => d.name === "Pending") || { name: "Pending", value: 0, color: DLR_COLORS.Pending };
                       const rejected = dlrData.find((d) => d.name === "Rejected") || { name: "Rejected", value: 0, color: DLR_COLORS.Rejected };
 
@@ -1049,11 +1061,12 @@ const Dashboard: React.FC = () => {
 
                       return (
                         <div className="flex flex-col items-center gap-1.5 pt-2">
-                          <div className="flex items-center justify-center gap-5 sm:gap-6">
+                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
                             {renderLegendItem(delivered)}
                             {renderLegendItem(failed)}
+                            {renderLegendItem(undelivered)}
                           </div>
-                          <div className="flex items-center justify-center gap-5 sm:gap-6">
+                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
                             {renderLegendItem(pending)}
                             {renderLegendItem(rejected)}
                           </div>

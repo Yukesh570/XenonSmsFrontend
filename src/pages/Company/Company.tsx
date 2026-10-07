@@ -6,6 +6,7 @@ import { toast } from "react-toastify";
 import {
   getCompaniesApi,
   deleteCompanyApi,
+  updateVendorCreditPolicyApi,
   type CompanyData,
 } from "../../api/companyApi/companyApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -33,6 +34,7 @@ import ContextMenu, {
 import { actionHelper } from "../../helper/action";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { formatDateTime } from "../../helper/dateFormatter";
+import ToggleSwitch from "../../components/ui/ToggleSwitch";
 
 interface Option {
   label: string;
@@ -232,6 +234,26 @@ const CompanyList: React.FC = () => {
       type: "text",
       filterKey: "createdBy__username__icontains",
       render: (c: any) => c.createdByName || c.createdBy || "-",
+    },
+    {
+      key: "allowNegativeVendorCredit",
+      label: "Allow Negative Vendor Credit",
+      type: "boolean",
+      filterKey: "allowNegativeVendorCredit",
+      render: (c: any) => (
+        <ToggleSwitch
+          checked={c.allowNegativeVendorCredit}
+          onChange={async (checked) => {
+            try {
+              await updateVendorCreditPolicyApi(c.id, checked);
+              toast.success("Vendor credit policy updated successfully!");
+              fetchCompanies();
+            } catch (err) {
+              toast.error("Failed to update vendor credit policy.");
+            }
+          }}
+        />
+      ),
     },
     {
       key: "updatedBy",

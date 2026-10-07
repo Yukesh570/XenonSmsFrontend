@@ -18,6 +18,7 @@ import Modal from "../ui/Modal";
 import TextArea from "../ui/TextArea";
 import MultiEmailInput from "../ui/multiEmailInput";
 import { CountryFlag } from "../ui/CountryFlag";
+import ToggleSwitch from "../ui/ToggleSwitch";
 
 interface CompanyModalProps {
   isOpen: boolean;
@@ -73,6 +74,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     allowNetting: false,
     showHlrApi: false,
     enableVendorPanel: false,
+    allowNegativeVendorCredit: false,
     accountManager: "",
   });
 
@@ -158,6 +160,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
         allowNetting: editingCompany.allowNetting,
         showHlrApi: editingCompany.showHlrApi,
         enableVendorPanel: editingCompany.enableVendorPanel,
+        allowNegativeVendorCredit: editingCompany.allowNegativeVendorCredit || false,
         accountManager: editingCompany.accountManager != null ? String(editingCompany.accountManager) : "",
       });
     } else if (isOpen) {
@@ -192,6 +195,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
         allowNetting: false,
         showHlrApi: false,
         enableVendorPanel: false,
+        allowNegativeVendorCredit: false,
         accountManager: "",
       });
     }
@@ -495,6 +499,17 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
               placeholder="REF-2024-001"
               disabled={isViewMode}
             />
+            
+            <div className="flex flex-col justify-center h-[54px] pt-4">
+              <ToggleSwitch
+                label="Allow Negative Vendor Credit"
+                checked={formData.allowNegativeVendorCredit}
+                onChange={(v) => setFormData((prev) => ({ ...prev, allowNegativeVendorCredit: v }))}
+              />
+              <span className="text-xs text-gray-500 mt-1">
+                Route traffic even if vendor has negative balance.
+              </span>
+            </div>
 
             {isViewMode && (
               <>
