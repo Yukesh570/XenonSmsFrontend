@@ -791,9 +791,10 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (needsScroll && trafficScrollRef.current) {
-      const scrollToRight = () => {
-        if (trafficScrollRef.current) {
-          trafficScrollRef.current.scrollLeft = trafficScrollRef.current.scrollWidth;
+      const el = trafficScrollRef.current;
+      const scrollToRight = (): void => {
+        if (el) {
+          el.scrollLeft = el.scrollWidth;
         }
       };
       scrollToRight();
