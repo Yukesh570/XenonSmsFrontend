@@ -31,6 +31,7 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
   OFFLINE: { bg: "#FEE2E2", text: "#991B1B", border: "#DC2626", label: "Offline" },
   
   DRAFT: { bg: "#F3F4F6", text: "#374151", border: "#6B7280", label: "Draft" },
+  MULTIPLE_RATES: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Multiple Rates" },
 };
 
 interface StatusBadgeProps {

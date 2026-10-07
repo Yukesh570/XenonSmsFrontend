@@ -42,7 +42,7 @@ import {
   AlertCircle,
   Edit,
   X,
-  Layers,
+  Filter,
   Loader2,
   Search,
 } from "lucide-react";
@@ -196,18 +196,30 @@ const RatesHoverDropdown: React.FC<{
   return (
     <div
       ref={triggerRef}
-      className="relative inline-block"
+      className="relative inline-block select-none"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <span className="cursor-pointer text-blue-600 font-semibold bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded hover:bg-blue-100 transition-colors border border-blue-200 dark:border-blue-800 inline-flex items-center gap-1 text-xs">
-        Multiple Rates <span className="text-[10px]">{openUpwards && isOpen ? "▲" : "▼"}</span>
-      </span>
+      <div className="cursor-pointer inline-flex items-center hover:opacity-80 transition-opacity">
+        <StatusBadge
+          status="MULTIPLE_RATES"
+          customText={
+            <span className="inline-flex items-center gap-1 font-medium">
+              <span>Multiple Rates</span>
+              <ChevronDown
+                size={11}
+                strokeWidth={2.5}
+                className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
+              />
+            </span>
+          }
+        />
+      </div>
 
       {isOpen &&
         createPortal(
           <div
-            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-md p-2.5 min-w-[210px] max-w-[280px] pointer-events-auto animate-fade-in"
+            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl p-2.5 min-w-[210px] max-w-[290px] pointer-events-auto animate-fade-in"
             style={{
               position: "fixed",
               left: `${coords.left}px`,
@@ -217,11 +229,11 @@ const RatesHoverDropdown: React.FC<{
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
           >
-            <div className="text-xs font-semibold mb-1.5 text-gray-700 dark:text-gray-200 border-b dark:border-gray-700 pb-1 flex items-center justify-between">
+            <div className="text-xs font-semibold mb-1.5 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-1 flex items-center justify-between">
               <span>{title}</span>
               <span className="text-[10px] font-normal text-gray-400">({rates.length})</span>
             </div>
-            <div className="max-h-52 overflow-y-auto pr-0.5">
+            <div className="max-h-52 overflow-y-auto pr-0.5 custom-scrollbar">
               <table className="w-full text-left">
                 <thead>
                   <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50 sticky top-0">
@@ -495,77 +507,99 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     [],
   );
 
-  const fetchConfigs = useCallback(async () => {
-    if (!routeGroupId) return;
-    setIsLoadingConfigs(true);
-    try {
-      const res = await getRouteGroupCountriesApi(moduleName, 1, 1000, {
-        routeGroup: routeGroupId,
-      });
-      const results: RouteGroupCountryData[] = res.results || [];
+  const fetchConfigs = useCallback(
+    async (options?: { openCountryId?: string; silent?: boolean }) => {
+      if (!routeGroupId) return;
+      if (!options?.silent) {
+        setIsLoadingConfigs(true);
+      }
+      try {
+        const res = await getRouteGroupCountriesApi(moduleName, 1, 1000, {
+          routeGroup: routeGroupId,
+        });
+        const results: RouteGroupCountryData[] = res.results || [];
 
-      const routesPromises = results.map((cfg) => {
-        if (!routeGroupId && !routeGroup) {
-          return Promise.resolve({ countryId: String(cfg.country), routes: [] });
-        }
-
-        const params = routeGroupId
-          ? { routeGroup: routeGroupId, country: String(cfg.country) }
-          : { routeGroup__name: routeGroup, country: String(cfg.country) };
-
-        return getCustomRoutesApi(moduleName, 1, 200, params)
-          .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
-          .catch(() => ({ countryId: String(cfg.country), routes: [] }));
-      });
-
-      const allCountryRoutes = await Promise.all(routesPromises);
-      const routesByCountryMap = new Map(
-        allCountryRoutes.map((item) => [item.countryId, item.routes])
-      );
-
-      setSections((prev) => {
-        const prevMap = new Map(prev.map((s) => [String(s.config.country), s]));
-        return results.map((cfg) => {
-          const existing = prevMap.get(String(cfg.country));
-          const loadedRoutes = routesByCountryMap.get(String(cfg.country)) || [];
-
-          // Auto-open if matching target country or if only 1 country exists
-          const shouldAutoOpen = initialCountryName
-            ? (cfg.countryName && cfg.countryName.toLowerCase().trim() === initialCountryName.toLowerCase().trim()) ||
-            String(cfg.country) === initialCountryName
-            : results.length === 1;
-
-          const openState = existing ? existing.isOpen : shouldAutoOpen;
-
-          if (openState && cfg.countryName) {
-            fetchNetworkCodesForCountry(String(cfg.country), cfg.countryName);
+        const routesPromises = results.map((cfg) => {
+          if (!routeGroupId && !routeGroup) {
+            return Promise.resolve({ countryId: String(cfg.country), routes: [] });
           }
 
-          return existing
-            ? {
-              ...existing,
-              config: cfg,
-              routes: existing.routes.length > 0 ? existing.routes : loadedRoutes,
-            }
-            : {
-              config: cfg,
-              routes: loadedRoutes,
-              loading: false,
-              newRows: [],
-              isOpen: openState,
-              saving: false,
-              searchExpanded: false,
-            };
+          const params = routeGroupId
+            ? { routeGroup: routeGroupId, country: String(cfg.country) }
+            : { routeGroup__name: routeGroup, country: String(cfg.country) };
+
+          return getCustomRoutesApi(moduleName, 1, 200, params)
+            .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
+            .catch(() => ({ countryId: String(cfg.country), routes: [] }));
         });
-      });
-      if (results.length === 0) setConfigSectionOpen(true);
-    } catch {
-      toast.error("Failed to load country configurations.");
-    } finally {
-      setIsLoadingConfigs(false);
-      hasFetchedRef.current = true;
-    }
-  }, [routeGroupId, routeGroup, moduleName, initialCountryName, fetchNetworkCodesForCountry]);
+
+        const allCountryRoutes = await Promise.all(routesPromises);
+        const routesByCountryMap = new Map(
+          allCountryRoutes.map((item) => [item.countryId, item.routes])
+        );
+
+        setSections((prev) => {
+          const prevMap = new Map(prev.map((s) => [String(s.config.country), s]));
+          return results.map((cfg) => {
+            const countryKey = String(cfg.country);
+            const existing = prevMap.get(countryKey);
+            const loadedRoutes = routesByCountryMap.get(countryKey) || [];
+
+            let openState = false;
+            if (options?.openCountryId) {
+              openState = countryKey === options.openCountryId ? true : (existing ? existing.isOpen : false);
+            } else {
+              // Auto-open if matching target country or if only 1 country exists
+              const shouldAutoOpen = initialCountryName
+                ? (cfg.countryName && cfg.countryName.toLowerCase().trim() === initialCountryName.toLowerCase().trim()) ||
+                countryKey === initialCountryName
+                : results.length === 1;
+              openState = existing ? existing.isOpen : shouldAutoOpen;
+            }
+
+            if (openState && cfg.countryName) {
+              fetchNetworkCodesForCountry(countryKey, cfg.countryName);
+            }
+
+            return existing
+              ? {
+                ...existing,
+                config: cfg,
+                isOpen: openState,
+                routes: existing.routes.length > 0 ? existing.routes : loadedRoutes,
+              }
+              : {
+                config: cfg,
+                routes: loadedRoutes,
+                loading: false,
+                newRows: [],
+                isOpen: openState,
+                saving: false,
+                searchExpanded: false,
+              };
+          });
+        });
+
+        if (options?.openCountryId) {
+          const targetId = options.openCountryId;
+          setTimeout(() => {
+            const el = document.getElementById(`country-section-${targetId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            }
+          }, 150);
+        }
+
+        if (results.length === 0) setConfigSectionOpen(true);
+      } catch {
+        toast.error("Failed to load country configurations.");
+      } finally {
+        setIsLoadingConfigs(false);
+        hasFetchedRef.current = true;
+      }
+    },
+    [routeGroupId, routeGroup, moduleName, initialCountryName, fetchNetworkCodesForCountry],
+  );
 
   const fetchSectionRoutes = useCallback(
     async (countryId: string) => {
@@ -597,7 +631,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         );
       }
     },
-    [routeGroup, moduleName],
+    [routeGroup, moduleName, routeGroupId],
   );
 
   useEffect(() => {
@@ -690,6 +724,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       parsedLimit = String(limitVal);
     }
 
+    const targetCountryId = String(newCountry);
     setIsAddingConfig(true);
     try {
       await createRouteGroupCountryApi(
@@ -709,7 +744,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setNewConfigStatus("ACTIVE");
       setNewLowCostPolicy(false);
       setNewLowCostPolicyLimit("");
-      fetchConfigs();
+      fetchConfigs({ openCountryId: targetCountryId, silent: true });
     } catch (err: any) {
       const data = err.response?.data;
       if (data && typeof data === "object" && !Array.isArray(data)) {
@@ -730,7 +765,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       await deleteRouteGroupCountryApi(deleteConfigData.id, moduleName);
       toast.success(`Country ${deleteConfigData.countryName} removed successfully.`);
       setDeleteConfigData(null);
-      fetchConfigs();
+      fetchConfigs({ silent: true });
     } catch {
       toast.error("Failed to remove country.");
     }
@@ -961,12 +996,18 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         }
 
         if (row.MCC && row.MNC) {
+          const targetGroupKey = normalizeKey(row.MCC, row.MNC);
+          setCollapsedGroups((prev) => {
+            const next = new Set(prev);
+            next.delete(`${countryId}-${targetGroupKey}`);
+            return next;
+          });
           setTimeout(() => {
             fetchInlineCustomerRate(countryId, row._id, row);
           }, 0);
         }
 
-        return { ...s, newRows: [row, ...s.newRows] };
+        return { ...s, isOpen: true, newRows: [row, ...s.newRows] };
       }),
     );
   };
@@ -1196,11 +1237,25 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       await Promise.all(apiPromises);
       toast.success("Route changes saved successfully.");
 
+      const affectedGroupKeys = new Set<string>();
+      if (targetGroupKey) {
+        affectedGroupKeys.add(targetGroupKey);
+      }
+      targetNewRows.forEach((r) => affectedGroupKeys.add(normalizeKey(r.MCC, r.MNC)));
+      targetModifiedRoutes.forEach((r) => affectedGroupKeys.add(normalizeKey(r.MCC, r.MNC)));
+
+      setCollapsedGroups((prev) => {
+        const next = new Set(prev);
+        affectedGroupKeys.forEach((gk) => next.delete(`${countryId}-${gk}`));
+        return next;
+      });
+
       setSections((prev) =>
         prev.map((s) => {
           if (String(s.config.country) !== countryId) return s;
           return {
             ...s,
+            isOpen: true,
             newRows: targetGroupKey
               ? s.newRows.filter((r) => normalizeKey(r.MCC, r.MNC) !== targetGroupKey)
               : [],
@@ -1299,10 +1354,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         isOpen={isOpen}
         onClose={onClose}
         title={`Manage Route Group: ${routeGroup || ""}`}
-        className="max-w-full w-full relative min-w-0"
+        className="max-w-full w-full relative min-w-0 !p-3.5 sm:!p-4.5"
       >
         {/* Top Right "All Types" Filter Dropdown beside Modal Close Button with Spacing */}
-        <div className="absolute top-5 right-20 z-30 w-36 config-filter-wrapper" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute top-4 right-14 sm:right-16 z-30 w-36 config-filter-wrapper" onClick={(e) => e.stopPropagation()}>
           <Select
             label=""
             value={configFilter}
@@ -1312,17 +1367,22 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           />
         </div>
 
-        <div className="p-3 sm:p-4 flex flex-col gap-3.5 min-w-0 w-full">
+        <div className="p-1 sm:p-2 flex flex-col gap-3 min-w-0 w-full">
 
-          {/* Country Config (collapsible) */}
-          <div className="border-2 border-primary/20 dark:border-primary/30 rounded-xl bg-primary/[0.03] dark:bg-primary/[0.06] shadow-sm relative shrink-0">
+          {/* Country Config (collapsible) - Matches FilterCard styling */}
+          <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-card transition-all relative shrink-0">
             <button
               type="button"
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-primary/[0.07] dark:bg-primary/[0.12] text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-primary/[0.11] dark:hover:bg-primary/[0.16] transition-colors ${configSectionOpen ? 'rounded-t-xl' : 'rounded-xl'}`}
+              className={`w-full flex items-center justify-between px-3.5 py-2 text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 transition-colors select-none ${
+                configSectionOpen
+                  ? "bg-gray-50/70 dark:bg-gray-800/80 border-b border-gray-100 dark:border-gray-700 rounded-t-xl"
+                  : "hover:bg-gray-50 dark:hover:bg-gray-800/60 rounded-xl"
+              }`}
               onClick={() => setConfigSectionOpen((o) => !o)}
             >
-              <span className="flex items-center gap-2">
-                Country Routing Configuration
+              <span className="flex items-center gap-2 font-semibold text-gray-800 dark:text-gray-100">
+                <Filter size={14} className="text-primary" />
+                <span>Country Routing Configuration</span>
                 {isOverallLoading ? (
                   <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-500">
                     <Loader2 size={12} className="animate-spin text-primary" />
@@ -1338,11 +1398,15 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                   </span>
                 )}
               </span>
-              {configSectionOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              {configSectionOpen ? (
+                <ChevronUp size={15} className="text-gray-400 dark:text-gray-500" />
+              ) : (
+                <ChevronDown size={15} className="text-gray-400 dark:text-gray-500" />
+              )}
             </button>
 
             {configSectionOpen && (
-              <div className="p-3.5 space-y-3 bg-white dark:bg-gray-900 border-t border-primary/10 dark:border-primary/20 rounded-b-xl">
+              <div className="p-3.5 space-y-3 bg-white dark:bg-gray-800 rounded-b-xl">
 
                 {/* ADD NEW CONFIG AREA */}
                 {canCreate && availableCountries.length > 0 && (
@@ -1668,6 +1732,13 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                             {section.routes.length} route{section.routes.length > 1 ? "s" : ""}
                           </span>
                         )}
+
+                        {section.loading && (
+                          <span className="inline-flex items-center gap-1 text-[11px] text-primary dark:text-blue-400 font-medium animate-pulse ml-1">
+                            <Loader2 size={11} className="animate-spin" />
+                            <span>Updating…</span>
+                          </span>
+                        )}
                       </div>
 
                       {/* Upper Bar: Search Filters & Actions */}
@@ -1740,9 +1811,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           <Button
                             type="button"
                             variant="primary"
+                            size="xs"
                             onClick={() => addRow(countryId)}
                             leftIcon={<Plus size={13} />}
-                            className="text-xs py-1.5 px-3 h-auto min-h-0 bg-primary text-white hover:opacity-90 shadow-sm transition-all"
+                            className="!h-7 text-xs !py-0 !px-2.5 bg-primary text-white hover:opacity-90 shadow-sm transition-all font-medium"
                           >
                             Add Route
                           </Button>
@@ -1782,17 +1854,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           <table className="min-w-full text-left text-sm whitespace-nowrap border-separate border-spacing-0">
                             <thead className="bg-gray-50 dark:bg-gray-900 text-text-secondary dark:text-gray-400 shadow-sm border-b border-gray-200 dark:border-gray-700">
                               <tr>
-                                <th className="px-3 py-1.5 text-xs font-medium uppercase tracking-wider text-left border-b border-r border-gray-200 dark:border-gray-700 w-10">#</th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-24">MCC</th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[200px] w-56">MNC</th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-48">Terminating Vendor</th>
+                                <th className="px-2.5 py-1.5 text-xs font-medium uppercase tracking-wider text-left border-b border-r border-gray-200 dark:border-gray-700 w-10">#</th>
+                                <th className="px-2.5 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-16">MCC</th>
+                                <th className="px-2.5 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 min-w-[170px] w-52">MNC</th>
+                                <th className="px-2.5 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-44">Terminating Vendor</th>
                                 <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
                                   {isPercentage ? "Traffic %" : "Priority"}
                                 </th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                                <th className="px-2.5 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
                                   Customer Rate
                                 </th>
-                                <th className="px-3 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
+                                <th className="px-2.5 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-28">
                                   Vendor Rate
                                 </th>
                                 <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-20">
@@ -1801,14 +1873,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                 <th className="px-2 py-1.5 font-bold text-left border-b border-r dark:border-gray-600 w-16">
                                   Margin %
                                 </th>
-                                <th className="px-2 py-1.5 font-bold text-left border-b dark:border-gray-600 w-24">Status</th>
+                                <th className="px-2 py-1.5 font-bold text-left border-b dark:border-gray-600 w-20">Status</th>
                                 {(canUpdate || canDelete) && (
-                                  <th className="px-2 py-1.5 font-bold text-center border-b border-l dark:border-gray-600 w-10">Action</th>
+                                  <th className="px-2 py-1.5 font-bold text-center border-b border-l dark:border-gray-600 w-16 sticky right-0 z-20 bg-gray-50 dark:bg-gray-900 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.12)]">Action</th>
                                 )}
                               </tr>
                             </thead>
                             <tbody>
-                              {section.loading && (
+                              {section.loading && mccMncGroups.length === 0 && (
                                 <tr>
                                   <td colSpan={(canUpdate || canDelete) ? 11 : 10} className="px-4 py-6 text-center text-gray-400 bg-white dark:bg-gray-900">
                                     <LoadingSpinner size="xs" text="Loading routes..." className="py-0" />
@@ -1817,8 +1889,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                               )}
 
                               {/* Grouped Rendering by MCC / MNC */}
-                              {!section.loading &&
-                                mccMncGroups.map(([groupKey, groupData], groupIdx) => {
+                              {mccMncGroups.map(([groupKey, groupData], groupIdx) => {
                                   const [_mccVal, mncVal] = groupKey.split("-");
 
                                   const operatorName = brandMap[mncVal] || "";
@@ -1846,11 +1917,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                               {isCollapsed ? (
-                                                <ChevronRight size={14} className="text-gray-500" />
+                                                <ChevronRight size={14} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
                                               ) : (
-                                                <ChevronDown size={14} className="text-gray-500" />
+                                                <ChevronDown size={14} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
                                               )}
-                                              <Layers size={13} className="text-primary" />
                                               <span className="text-gray-700 dark:text-gray-200">
                                                 <strong>{formattedGroupHeaderLabel}</strong>
                                                 {operatorName && (
@@ -1888,16 +1958,20 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                           </div>
                                         </td>
                                         {(canUpdate || canDelete) && (
-                                          <td className="px-3 py-1.5 border-l dark:border-gray-700 text-center align-middle">
+                                          <td 
+                                            className="px-2 py-1.5 border-l dark:border-gray-700 text-center align-middle sticky right-0 z-10 bg-gray-100 dark:bg-gray-800 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.12)] w-16"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
                                             {groupHasChanges && canUpdate && (
                                               <div className="flex items-center justify-center">
                                                 <Button
                                                   type="button"
                                                   variant="primary"
+                                                  size="xs"
                                                   onClick={() => saveGroupRows(countryId, groupKey)}
                                                   disabled={section.saving || !groupIsValid}
-                                                  className="h-6 px-2.5 text-[11px] shadow-sm min-w-0 font-medium"
-                                                  leftIcon={section.saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
+                                                  className="!h-[24px] !px-2 !py-0 !text-[11px] shadow-sm min-w-0 font-medium"
+                                                  leftIcon={section.saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
                                                   title={!groupIsValid ? "Cannot save: Total traffic percentage must equal 100%" : "Save Changes for this Group"}
                                                 >
                                                   {section.saving ? "Saving…" : "Save"}
@@ -1954,10 +2028,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                               key={row._id}
                                               className="relative focus-within:z-20 bg-blue-50/70 dark:bg-blue-900/10 border-l-[3px] border-l-blue-400"
                                             >
-                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-blue-500 text-xs font-bold w-10">
+                                              <td className="px-2.5 py-1 border-b border-r dark:border-gray-700 text-blue-500 text-xs font-bold w-10 text-center">
                                                 NEW
                                               </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[110px] overflow-visible">
+                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 w-16 min-w-[70px] overflow-visible">
                                                 <div className="inline-table-field">
                                                   <Select
                                                     label=""
@@ -1970,7 +2044,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[200px] w-56 overflow-visible">
+                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 min-w-[170px] w-52 overflow-visible">
                                                 <div className="inline-table-field">
                                                   <Select
                                                     label=""
@@ -1984,7 +2058,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 min-w-[160px] overflow-visible">
+                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 min-w-[140px] w-44 overflow-visible">
                                                 <div className="inline-table-field">
                                                   <Select
                                                     label=""
@@ -1997,7 +2071,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1.5 border-b border-r dark:border-gray-700 w-20">
+                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 w-20">
                                                 <div className="inline-table-field">
                                                   <Input
                                                     label=""
@@ -2010,7 +2084,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
+                                              <td className="px-2.5 py-1 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono w-28">
                                                 {row.allCustomerRates && row.allCustomerRates.length > 1 ? (
                                                   <RatesHoverDropdown
                                                     title="All Customer Rates"
@@ -2027,7 +2101,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   "—"
                                                 )}
                                               </td>
-                                              <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono">
+                                              <td className="px-2.5 py-1 border-b border-r dark:border-gray-700 text-xs text-gray-500 font-mono w-28">
                                                 {row.allVendorRates && row.allVendorRates.length > 1 ? (
                                                   <RatesHoverDropdown
                                                     title="All Network Rates"
@@ -2044,13 +2118,13 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   "—"
                                                 )}
                                               </td>
-                                              <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
+                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-20 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
                                                 {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMargin !== null ? `${rowMargin.toFixed(6)} ${row.baseCurrencyCode || ''}` : "—"}
                                               </td>
-                                              <td className={`px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-center ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
+                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-16 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
                                                 {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMarginPct !== null ? rowMarginPct.toFixed(2) + "%" : "—"}
                                               </td>
-                                              <td className="px-2 py-1.5 border-b dark:border-gray-700 overflow-visible w-24">
+                                              <td className="px-2 py-1 border-b dark:border-gray-700 overflow-visible w-20">
                                                 <div className="inline-table-field min-w-[80px]">
                                                   <Select
                                                     label=""
@@ -2063,7 +2137,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                 </div>
                                               </td>
                                               {canUpdate && (
-                                                <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center w-10">
+                                                <td className="px-2 py-1 border-b border-l dark:border-gray-700 text-center w-16 sticky right-0 z-10 bg-blue-50/95 dark:bg-gray-800 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.12)]">
                                                   <button
                                                     onClick={() => removeRow(countryId, row._id)}
                                                     className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
@@ -2100,14 +2174,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                               : `${rowBgClass} hover:bg-blue-50/40 dark:hover:bg-primary/5`
                                               }`}
                                           >
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10">{i + 1}</td>
-                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 border-b border-r dark:border-gray-700 text-gray-400 text-xs bg-gray-50/30 dark:bg-gray-800/10 w-10 text-center">{i + 1}</td>
+                                            <td className="px-2.5 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-16 text-center">
                                               {route.MCC || "-"}
                                             </td>
-                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[200px] w-56" title={mncDisplay}>
+                                            <td className="px-2.5 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap min-w-[170px] w-52 max-w-[220px] truncate" title={mncDisplay}>
                                               {mncDisplay}
                                             </td>
-                                            <td className="px-3 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-44 truncate" title={vendorName}>
                                               {vendorName}
                                             </td>
                                             <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
@@ -2118,7 +2192,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                 </span>
                                               )}
                                             </td>
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap w-28">
                                               {((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1) ? (
                                                 <RatesHoverDropdown
                                                   title="All Customer Rates"
@@ -2129,7 +2203,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                 (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
                                               )}
                                             </td>
-                                            <td className="px-3 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
+                                            <td className="px-2.5 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap w-28">
                                               {((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ? (
                                                 <RatesHoverDropdown
                                                   title="All Network Rates"
@@ -2146,11 +2220,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                             <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
                                               {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
                                             </td>
-                                            <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-24">
+                                            <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-20">
                                               <StatusBadge status={route.status} />
                                             </td>
                                             {(canUpdate || canDelete) && (
-                                              <td className="px-2 py-1.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-10">
+                                              <td className={`px-2 py-1.5 border-b border-l dark:border-gray-700 text-center whitespace-nowrap w-16 sticky right-0 z-10 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.12)] ${
+                                                isLocallyModified 
+                                                  ? "bg-amber-50 dark:bg-gray-800" 
+                                                  : rowBgClass.includes("dark:bg-gray-900") 
+                                                    ? "bg-white dark:bg-gray-900" 
+                                                    : "bg-gray-50/90 dark:bg-gray-800"
+                                              }`}>
                                                 {canDelete && (
                                                   <button
                                                     type="button"
@@ -2262,11 +2342,24 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         .inline-table-field label, .inline-filter-wrapper label { display: none !important; }
         .inline-table-field > div, .inline-filter-wrapper > div { margin-bottom: 0 !important; }
         .inline-table-field input, .inline-filter-wrapper input,
-        .inline-table-field select, .inline-filter-wrapper select,
-        .inline-table-field button, .inline-filter-wrapper button {
-          min-height: 28px !important; height: 28px !important; padding-top: 2px !important;
-          padding-bottom: 2px !important; padding-left: 6px !important; padding-right: 6px !important;
-          font-size: 12px !important; border-radius: 4px !important;
+        .inline-table-field select, .inline-filter-wrapper select {
+          min-height: 26px !important; height: 26px !important; padding-top: 1px !important;
+          padding-bottom: 1px !important; padding-left: 6px !important; padding-right: 6px !important;
+          font-size: 11px !important; border-radius: 4px !important;
+        }
+        .inline-table-field div[class*="h-[34px]"],
+        .inline-filter-wrapper div[class*="h-[34px]"] {
+          min-height: 26px !important; height: 26px !important;
+          border-radius: 4px !important;
+        }
+        .inline-table-field div[class*="h-[34px]"] input,
+        .inline-filter-wrapper div[class*="h-[34px]"] input {
+          font-size: 11px !important; padding-left: 6px !important; padding-right: 22px !important;
+          height: 100% !important; min-height: unset !important;
+        }
+        .inline-table-field div[class*="h-[34px]"] button,
+        .inline-filter-wrapper div[class*="h-[34px]"] button {
+          height: 100% !important; min-height: unset !important;
         }
         .config-filter-wrapper label { display: none !important; }
         .config-filter-wrapper > div { margin-bottom: 0 !important; }

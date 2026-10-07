@@ -185,10 +185,11 @@ const DEFAULT_ANALYTICS_COLUMNS: AnalyticsColKey[] = [
   "marginPct",
 ];
 
-const ENTITY_COL_WIDTH = 280;
+const MIN_ENTITY_COL_WIDTH = 260;
+const DEFAULT_ENTITY_COL_WIDTH = 360;
 
 const DEFAULT_COL_WIDTHS: Record<AnalyticsColKey, number> = {
-  entity: 280,
+  entity: DEFAULT_ENTITY_COL_WIDTH,
   attempts: 140,
   successful: 155,
   submitted: 150,
@@ -688,15 +689,17 @@ const AnalyticsReport: React.FC = () => {
   const [resizingColKey, setResizingColKey] = useState<AnalyticsColKey | null>(null);
 
   const getColMinWidth = (key: AnalyticsColKey): number => {
-    if (key === "entity") return ENTITY_COL_WIDTH;
+    if (key === "entity") return MIN_ENTITY_COL_WIDTH;
     const label = getColumnLabel(key, currencySymbol);
     return Math.max(getHeaderFullWidth(label), 100);
   };
 
   const getColWidth = (key: AnalyticsColKey): number => {
-    if (key === "entity") return ENTITY_COL_WIDTH;
     const minW = getColMinWidth(key);
     const userW = columnWidths[key];
+    if (key === "entity" && (!userW || userW < 320)) {
+      return userW && userW >= minW ? userW : DEFAULT_COL_WIDTHS.entity;
+    }
     if (userW && userW >= minW) return userW;
     return Math.max(DEFAULT_COL_WIDTHS[key] || 120, minW);
   };
@@ -705,7 +708,6 @@ const AnalyticsReport: React.FC = () => {
   const isResizingRef = useRef(false);
 
   const handleResizeStart = (e: React.MouseEvent, key: AnalyticsColKey) => {
-    if (key === "entity") return; // Entity column is locked
     e.stopPropagation();
     e.preventDefault();
     const thEl = thRefs.current[key];
@@ -894,9 +896,11 @@ const AnalyticsReport: React.FC = () => {
   }, [orderedColumnKeys, columnWidths, currencySymbol]);
 
   const getEffectiveColWidth = (key: AnalyticsColKey): number => {
-    if (key === "entity") return ENTITY_COL_WIDTH;
+    const baseW = getColWidth(key);
+    if (key === "entity") return baseW;
 
     if (containerWidth && totalRequestedWidth < containerWidth) {
+      const entityW = getColWidth("entity");
       const nonEntityCols = orderedColumnKeys.filter((k) => k !== "entity");
       const unresizedCols = nonEntityCols.filter((k) => !columnWidths[k]);
       const isExplicitlyResized = Boolean(columnWidths[key]);
@@ -908,7 +912,7 @@ const AnalyticsReport: React.FC = () => {
         const explicitlyResizedSum = nonEntityCols.reduce((sum, k) => {
           return columnWidths[k] ? sum + getColWidth(k) : sum;
         }, 0);
-        const spaceForUnresized = Math.max(0, containerWidth - ENTITY_COL_WIDTH - explicitlyResizedSum);
+        const spaceForUnresized = Math.max(0, containerWidth - entityW - explicitlyResizedSum);
         const unresizedDefaultSum = unresizedCols.reduce((sum, k) => sum + getColMinWidth(k), 0);
 
         if (unresizedDefaultSum > 0) {
@@ -920,7 +924,7 @@ const AnalyticsReport: React.FC = () => {
         if (key === lastColKey) {
           const otherColsSum = orderedColumnKeys.reduce((sum, k) => {
             if (k === lastColKey) return sum;
-            return sum + (k === "entity" ? ENTITY_COL_WIDTH : getColWidth(k));
+            return sum + getColWidth(k);
           }, 0);
           return Math.max(getColWidth(key), containerWidth - otherColsSum);
         }
@@ -1214,15 +1218,13 @@ const AnalyticsReport: React.FC = () => {
           >
             <colgroup>
               {orderedColumnKeys.map((colKey) => {
-                const isEntity = colKey === "entity";
                 const w = getEffectiveColWidth(colKey);
                 return (
                   <col
                     key={colKey}
                     style={{
-                      width: isEntity ? `${ENTITY_COL_WIDTH}px` : `${w}px`,
-                      minWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : `${getColMinWidth(colKey)}px`,
-                      maxWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : undefined,
+                      width: `${w}px`,
+                      minWidth: `${getColMinWidth(colKey)}px`,
                     }}
                   />
                 );
@@ -1257,12 +1259,12 @@ const AnalyticsReport: React.FC = () => {
                       onDragEnd={handleDragEnd}
                       onClick={() => handleSort(colKey)}
                       style={{
-                        width: isEntity ? `${ENTITY_COL_WIDTH}px` : `${colWidth}px`,
-                        minWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : `${getColMinWidth(colKey)}px`,
-                        maxWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : undefined,
+                        width: `${colWidth}px`,
+                        minWidth: `${getColMinWidth(colKey)}px`,
+                        maxWidth: isEntity ? `${colWidth}px` : undefined,
                       }}
                       className={`relative px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap select-none transition-colors group cursor-pointer h-9 ${isEntity
-                        ? "w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                        ? "sticky left-0 z-40 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                         : ""
                         } ${isSorted
                           ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
@@ -1306,20 +1308,19 @@ const AnalyticsReport: React.FC = () => {
                       </div>
 
                       {/* Single Boundary Line that acts as Column Resizer */}
-                      {!isEntity && (
+                      <div
+                        onMouseDown={(e) => handleResizeStart(e, colKey)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-20 flex items-center justify-end group/resizer select-none"
+                        title="Drag to resize column"
+                      >
                         <div
-                          onMouseDown={(e) => handleResizeStart(e, colKey)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-20 flex items-center justify-end group/resizer select-none"
-                        >
-                          <div
-                            className={`w-px h-full transition-all ${isBeingResized
-                              ? "bg-primary w-[2px]"
-                              : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
-                              }`}
-                          />
-                        </div>
-                      )}
+                          className={`w-px h-full transition-all ${isBeingResized
+                            ? "bg-primary w-[2px]"
+                            : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
+                            }`}
+                        />
+                      </div>
                     </th>
                   );
                 })}
@@ -1355,27 +1356,29 @@ const AnalyticsReport: React.FC = () => {
                   return (
                     <React.Fragment key={amName}>
                       {/* LEVEL 0: AM ROW */}
-                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors font-semibold">
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors font-semibold group/row">
                         {orderedColumnKeys.map((colKey) => {
                           if (colKey === "entity") {
+                            const entityWidth = getEffectiveColWidth("entity");
                             return (
                               <td
                                 key="entity"
                                 style={{
-                                  width: `${ENTITY_COL_WIDTH}px`,
-                                  minWidth: `${ENTITY_COL_WIDTH}px`,
-                                  maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                  width: `${entityWidth}px`,
+                                  minWidth: `${entityWidth}px`,
+                                  maxWidth: `${entityWidth}px`,
                                 }}
-                                className="px-4 py-2.5 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                className="px-3 py-2 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                               >
                                 <button
                                   type="button"
                                   onClick={() => toggleAm(amName)}
-                                  className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-200 hover:text-primary focus:outline-none group"
+                                  title={amName}
+                                  className="flex items-center gap-2 w-full max-w-full min-w-0 text-text-primary dark:text-gray-200 hover:text-primary focus:outline-none group/btn text-left"
                                 >
                                   <ExpandButton isExpanded={isAmExpanded} />
-                                  <span className="text-xs font-semibold">{amName}</span>
-                                  <span className="text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded ml-1">
+                                  <span className="text-xs font-semibold truncate min-w-0 flex-1">{amName}</span>
+                                  <span className="text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded shrink-0">
                                     AM
                                   </span>
                                 </button>
@@ -1389,12 +1392,12 @@ const AnalyticsReport: React.FC = () => {
                       {/* LEVEL 1: COMPANY ROWS */}
                       {isAmExpanded && (
                         isAmLoading ? (
-                          <tr>
-                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
+                          <tr className="group/row">
+                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-8 text-xs text-gray-500 italic sticky left-0 bg-white dark:bg-gray-800">Loading companies...</td>
                           </tr>
                         ) : sortedCompanies.length === 0 ? (
-                          <tr>
-                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
+                          <tr className="group/row">
+                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-8 text-xs text-gray-400 italic sticky left-0 bg-white dark:bg-gray-800">No company data found.</td>
                           </tr>
                         ) : (
                           sortedCompanies.map((companyRow: any, cIdx: number) => {
@@ -1407,27 +1410,29 @@ const AnalyticsReport: React.FC = () => {
 
                             return (
                               <React.Fragment key={companyKey}>
-                                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-700 dark:text-gray-300">
+                                <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-700 dark:text-gray-300 group/row">
                                   {orderedColumnKeys.map((colKey) => {
                                     if (colKey === "entity") {
+                                      const entityWidth = getEffectiveColWidth("entity");
                                       return (
                                         <td
                                           key="entity"
                                           style={{
-                                            width: `${ENTITY_COL_WIDTH}px`,
-                                            minWidth: `${ENTITY_COL_WIDTH}px`,
-                                            maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                            width: `${entityWidth}px`,
+                                            minWidth: `${entityWidth}px`,
+                                            maxWidth: `${entityWidth}px`,
                                           }}
-                                          className="px-4 py-2 pl-10 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                          className="px-3 py-2 pl-8 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                         >
                                           <button
                                             type="button"
                                             onClick={() => toggleCompany(amName, companyName)}
-                                            className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-indigo-600 focus:outline-none group"
+                                            title={companyName}
+                                            className="flex items-center gap-2 w-full max-w-full min-w-0 text-text-primary dark:text-gray-300 hover:text-indigo-600 focus:outline-none group/btn text-left"
                                           >
                                             <ExpandButton isExpanded={isCompanyExpanded} />
-                                            <span className="text-xs font-semibold">{companyName}</span>
-                                            <span className="text-[10px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.5 rounded ml-1">
+                                            <span className="text-xs font-semibold truncate min-w-0 flex-1">{companyName}</span>
+                                            <span className="text-[10px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.5 rounded shrink-0">
                                               COMPANY
                                             </span>
                                           </button>
@@ -1441,12 +1446,12 @@ const AnalyticsReport: React.FC = () => {
                                 {/* LEVEL 2: COUNTRY ROWS */}
                                 {isCompanyExpanded && (
                                   isCompanyLoading ? (
-                                    <tr>
-                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
+                                    <tr className="group/row">
+                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-12 text-xs text-gray-500 italic sticky left-0 bg-white dark:bg-gray-800">Loading countries...</td>
                                     </tr>
                                   ) : sortedCountries.length === 0 ? (
-                                    <tr>
-                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
+                                    <tr className="group/row">
+                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-12 text-xs text-gray-400 italic sticky left-0 bg-white dark:bg-gray-800">No country data found.</td>
                                     </tr>
                                   ) : (
                                     sortedCountries.map((countryRow: any, coIdx: number) => {
@@ -1460,30 +1465,32 @@ const AnalyticsReport: React.FC = () => {
 
                                       return (
                                         <React.Fragment key={countryKey}>
-                                          <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-600 dark:text-gray-400">
+                                          <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-600 dark:text-gray-400 group/row">
                                             {orderedColumnKeys.map((colKey) => {
                                               if (colKey === "entity") {
+                                                const entityWidth = getEffectiveColWidth("entity");
                                                 return (
                                                   <td
                                                     key="entity"
                                                     style={{
-                                                      width: `${ENTITY_COL_WIDTH}px`,
-                                                      minWidth: `${ENTITY_COL_WIDTH}px`,
-                                                      maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                                      width: `${entityWidth}px`,
+                                                      minWidth: `${entityWidth}px`,
+                                                      maxWidth: `${entityWidth}px`,
                                                     }}
-                                                    className="px-4 py-2 pl-14 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                                    className="px-3 py-2 pl-12 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                                   >
                                                     <button
                                                       type="button"
                                                       onClick={() => toggleCountry(amName, companyName, countryName)}
-                                                      className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-amber-600 focus:outline-none group"
+                                                      title={countryName}
+                                                      className="flex items-center gap-2 w-full max-w-full min-w-0 text-text-primary dark:text-gray-300 hover:text-amber-600 focus:outline-none group/btn text-left"
                                                     >
                                                       <ExpandButton isExpanded={isCountryExpanded} />
-                                                      <div className="flex items-center gap-1.5">
+                                                      <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
                                                         {match?.iso2 && <CountryFlag iso2={match.iso2} />}
-                                                        <span className="text-xs font-medium">{countryName}</span>
+                                                        <span className="text-xs font-medium truncate min-w-0 flex-1">{countryName}</span>
                                                       </div>
-                                                      <span className="text-[10px] font-bold tracking-wider uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded ml-1">
+                                                      <span className="text-[10px] font-bold tracking-wider uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded shrink-0">
                                                         COUNTRY
                                                       </span>
                                                     </button>
@@ -1497,12 +1504,12 @@ const AnalyticsReport: React.FC = () => {
                                           {/* LEVEL 3: VENDOR ROWS */}
                                           {isCountryExpanded && (
                                             isCountryLoading ? (
-                                              <tr>
-                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
+                                              <tr className="group/row">
+                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-16 text-xs text-gray-500 italic sticky left-0 bg-white dark:bg-gray-800">Loading vendors...</td>
                                               </tr>
                                             ) : sortedVendors.length === 0 ? (
-                                              <tr>
-                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
+                                              <tr className="group/row">
+                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-16 text-xs text-gray-400 italic sticky left-0 bg-white dark:bg-gray-800">No vendors found.</td>
                                               </tr>
                                             ) : (
                                               sortedVendors.map((vendorRow: any, vIdx: number) => {
@@ -1510,25 +1517,29 @@ const AnalyticsReport: React.FC = () => {
                                                 return (
                                                   <tr
                                                     key={`${countryKey}__${vendorName}_${vIdx}`}
-                                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-xs text-text-secondary dark:text-gray-400"
+                                                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-xs text-text-secondary dark:text-gray-400 group/row"
                                                   >
                                                     {orderedColumnKeys.map((colKey) => {
                                                       if (colKey === "entity") {
+                                                        const entityWidth = getEffectiveColWidth("entity");
                                                         return (
                                                           <td
                                                             key="entity"
                                                             style={{
-                                                              width: `${ENTITY_COL_WIDTH}px`,
-                                                              minWidth: `${ENTITY_COL_WIDTH}px`,
-                                                              maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                                              width: `${entityWidth}px`,
+                                                              minWidth: `${entityWidth}px`,
+                                                              maxWidth: `${entityWidth}px`,
                                                             }}
-                                                            className="px-4 py-2 pl-20 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                                            className="px-3 py-2 pl-16 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                                           >
-                                                            <div className="inline-flex items-center space-x-2">
-                                                              <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
+                                                            <div
+                                                              title={vendorName}
+                                                              className="flex items-center gap-2 w-full max-w-full min-w-0 text-left"
+                                                            >
+                                                              <span className="font-mono text-xs text-gray-700 dark:text-gray-300 truncate min-w-0 flex-1">
                                                                 {vendorName}
                                                               </span>
-                                                              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded ml-1">
+                                                              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded shrink-0">
                                                                 VENDOR
                                                               </span>
                                                             </div>
@@ -1589,6 +1600,11 @@ const AnalyticsReport: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .app-data-table th.sticky,
+        .app-data-table td.sticky {
+          position: sticky !important;
+          left: 0 !important;
+        }
         `,
         }}
       />
