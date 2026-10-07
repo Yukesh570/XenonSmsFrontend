@@ -346,7 +346,6 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [isAddingConfig, setIsAddingConfig] = useState(false);
 
   const [countrySearchTerm, setCountrySearchTerm] = useState("");
-  const [isCountrySearchExpanded, setIsCountrySearchExpanded] = useState(false);
 
   const [deleteConfigData, setDeleteConfigData] = useState<{ id: number; countryName: string } | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
@@ -641,7 +640,6 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setSectionFilters({});
       setSectionErrors({});
       setCountrySearchTerm("");
-      setIsCountrySearchExpanded(false);
       setIsLoadingConfigs(false);
       hasFetchedRef.current = false;
       return;
@@ -1465,70 +1463,44 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                   <hr className="border-gray-200 dark:border-gray-700 my-0.5" />
                 )}
 
-                {/* CONFIGURED COUNTRIES CHIPS WITH EXPANDABLE SEARCH ON THE LEFT */}
-                <div className="flex flex-col gap-2">
+                {/* CONFIGURED COUNTRIES PILLS */}
+                <div className="flex flex-col gap-1.5">
                   {isOverallLoading ? (
                     <LoadingSpinner size="sm" text="Loading configurations..." className="py-4" />
                   ) : sections.length > 0 ? (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Search country trigger / expanded input on the left */}
-                      <div className="relative flex items-center">
-                        {isCountrySearchExpanded ? (
-                          <div className="flex items-center gap-1.5 animate-fade-in">
-                            <div className="relative flex items-center w-36 sm:w-44">
-                              <Search size={13} className="absolute left-2.5 text-gray-400 pointer-events-none" />
-                              <input
-                                type="text"
-                                placeholder="Search country..."
-                                value={countrySearchTerm}
-                                onChange={(e) => setCountrySearchTerm(e.target.value)}
-                                autoFocus
-                                className="w-full pl-7 pr-7 py-1 h-7 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-colors"
-                              />
-                              {countrySearchTerm && (
-                                <button
-                                  type="button"
-                                  onClick={() => setCountrySearchTerm("")}
-                                  className="absolute right-1.5 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
-                                  title="Clear"
-                                >
-                                  <X size={12} />
-                                </button>
-                              )}
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCountrySearchTerm("");
-                                setIsCountrySearchExpanded(false);
-                              }}
-                              className="h-7 w-7 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md transition-colors"
-                              title="Close search"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-1.5 max-h-56 overflow-y-auto p-1 pr-1.5 custom-scrollbar">
+                      {/* Search box on the same line as the country pills (always expanded) */}
+                      <div className="relative flex items-center w-full h-7">
+                        <Search size={13} className="absolute left-2.5 text-gray-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          placeholder="Search country..."
+                          value={countrySearchTerm}
+                          onChange={(e) => setCountrySearchTerm(e.target.value)}
+                          className="w-full h-full pl-7 pr-7 text-xs rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary dark:focus:border-primary dark:focus:ring-primary transition-colors"
+                        />
+                        {countrySearchTerm && (
                           <button
                             type="button"
-                            onClick={() => setIsCountrySearchExpanded(true)}
-                            className="h-7 w-7 flex items-center justify-center text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md border border-gray-200 dark:border-gray-700 transition-colors"
-                            title="Search configured countries"
+                            onClick={() => setCountrySearchTerm("")}
+                            className="absolute right-1.5 p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded"
+                            title="Clear"
                           >
-                            <Search size={14} />
+                            <X size={12} />
                           </button>
                         )}
                       </div>
 
-                      {/* Filtered Country Chips */}
+                      {/* Filtered Country Pills */}
                       {filteredSections.map((s) => {
                         const isSectionOpen = s.isOpen;
                         const isPercentage = s.config.routingType === "PERCENTAGE";
+                        const iso = countryIsoMap[String(s.config.country)];
                         return (
                           <div
                             key={s.config.id}
                             onClick={() => handleCountryChipClick(String(s.config.country))}
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-all select-none ${
+                            className={`w-full flex items-center justify-between min-w-0 h-7 px-2 rounded-md border text-xs font-medium cursor-pointer transition-all select-none ${
                               isPercentage
                                 ? isSectionOpen
                                   ? "bg-purple-100 border-purple-500 text-purple-800 dark:bg-purple-900/40 dark:border-purple-400 dark:text-purple-200 ring-2 ring-purple-500/40 shadow-sm font-semibold"
@@ -1539,31 +1511,35 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                             }`}
                             title={isSectionOpen ? `Collapse ${s.config.countryName} routes` : `Expand ${s.config.countryName} routes`}
                           >
-                            <span className="flex items-center gap-1.5">
-                              {countryIsoMap[String(s.config.country)] && (
-                                <CountryFlag iso2={countryIsoMap[String(s.config.country)]} />
+                            <span className="flex items-center gap-1.5 min-w-0 flex-1 mr-1">
+                              {iso && (
+                                <CountryFlag iso2={iso} />
                               )}
-                              {s.config.countryName}
+                              <span className="truncate">{s.config.countryName}</span>
                             </span>
-                            <span className="text-[11px] opacity-60">({s.config.routingType})</span>
-                            {canUpdate && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" });
-                                }}
-                                className="ml-1 opacity-50 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10"
-                                title={`Delete ${s.config.countryName} configuration`}
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            )}
+                            <span className="flex items-center gap-1 shrink-0">
+                              <span className="text-[10px] sm:text-[11px] opacity-60 font-normal">({s.config.routingType})</span>
+                              {canUpdate && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" });
+                                  }}
+                                  className="opacity-40 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                                  title={`Delete ${s.config.countryName} configuration`}
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              )}
+                            </span>
                           </div>
                         );
                       })}
                       {filteredSections.length === 0 && (
-                        <p className="text-sm text-gray-400 py-1">No countries match the search filter.</p>
+                        <div className="col-span-1 sm:col-span-2 md:col-span-3 text-xs text-gray-400 flex items-center px-2 py-1">
+                          No countries match "{countrySearchTerm}".
+                        </div>
                       )}
                     </div>
                   ) : (
