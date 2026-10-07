@@ -7,7 +7,6 @@ import Input from "../../../ui/Input";
 import Button from "../../../ui/Button";
 import Select from "../../../ui/Select";
 import Modal from "../../../ui/Modal";
-import { formatDateTime } from "../../../../helper/dateFormatter";
 import { AlertTriangle, Download, FileText, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface ImportBatchModalProps {
@@ -137,7 +136,7 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
       className={isViewMode ? "max-w-5xl" : "max-w-2xl"}
     >
       <form onSubmit={handleSubmit} className="space-y-6 px-1 max-h-[85vh] overflow-y-auto custom-scrollbar">
-        
+
         {isViewMode && editingData?.failureReason && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
             <AlertTriangle className="text-red-500 mt-0.5" size={20} />
@@ -188,7 +187,7 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
             <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">
                 <legend className="text-sm font-semibold text-primary px-2 m-0">Original Attachment</legend>
-                <Button 
+                <Button
                   variant="secondary"
                   size="sm"
                   onClick={async () => {
@@ -258,13 +257,13 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
 
                     {/* Subtle Divider */}
                     <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
-                    
+
                     {/* Combined Pagination Bar */}
                     <div className="h-[34px] inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-gray-500 dark:text-gray-300 shadow-sm overflow-hidden">
                       <span className="px-2 sm:px-2.5 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px] sm:text-xs">
                         {totalRowsCount === 0 ? 0 : (rowsPage - 1) * (rowsPerPage > 0 ? rowsPerPage : 10) + 1}-{Math.min(rowsPage * (rowsPerPage > 0 ? rowsPerPage : 10), totalRowsCount)} of {totalRowsCount}
                       </span>
-                      
+
                       <button
                         type="button"
                         className="w-8 shrink-0 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
@@ -326,11 +325,10 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
                           <td className="px-4 py-2">{row.rawMcc} / {row.rawMnc}</td>
                           <td className="px-4 py-2 font-medium">{row.importedRate}</td>
                           <td className="px-4 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              row.rowStatus === 'VALID' || row.rowStatus === 'NEW' ? 'bg-green-100 text-green-800' : 
-                              row.rowStatus === 'INVALID' || row.rowStatus === 'UNMAPPED' ? 'bg-red-100 text-red-800' : 
-                              'bg-gray-100 text-gray-800'
-                            }`}>
+                            <span className={`px-2 py-1 rounded text-xs font-semibold ${row.rowStatus === 'VALID' || row.rowStatus === 'NEW' ? 'bg-green-100 text-green-800' :
+                                row.rowStatus === 'INVALID' || row.rowStatus === 'UNMAPPED' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                              }`}>
                               {row.rowStatus}
                             </span>
                           </td>
