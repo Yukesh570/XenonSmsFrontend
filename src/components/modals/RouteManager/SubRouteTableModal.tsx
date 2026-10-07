@@ -36,6 +36,7 @@ import {
   Trash,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Save,
   CheckCircle2,
   AlertCircle,
@@ -329,6 +330,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [newRoutingType, setNewRoutingType] = useState("PRIORITY");
   const [newConfigStatus, setNewConfigStatus] = useState("ACTIVE");
   const [newLowCostPolicy, setNewLowCostPolicy] = useState(false);
+  const [newLowCostPolicyLimit, setNewLowCostPolicyLimit] = useState("");
   const [isAddingConfig, setIsAddingConfig] = useState(false);
 
   const [countrySearchTerm, setCountrySearchTerm] = useState("");
@@ -336,7 +338,21 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const [deleteConfigData, setDeleteConfigData] = useState<{ id: number; countryName: string } | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [isLoadingConfigs, setIsLoadingConfigs] = useState(false);
+
+  const toggleGroupCollapse = (countryId: string, groupKey: string) => {
+    const fullKey = `${countryId}-${groupKey}`;
+    setCollapsedGroups(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(fullKey)) {
+        newSet.delete(fullKey);
+      } else {
+        newSet.add(fullKey);
+      }
+      return newSet;
+    });
+  };
   const hasFetchedRef = useRef(false);
   const isOverallLoading = isLoadingConfigs || (isOpen && !hasFetchedRef.current);
   const [deleteRouteData, setDeleteRouteData] = useState<{ id: number; name: string; countryId: string } | null>(null);
@@ -488,16 +504,19 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       });
       const results: RouteGroupCountryData[] = res.results || [];
 
-      const routesPromises = results.map((cfg) =>
-        routeGroup
-          ? getCustomRoutesApi(moduleName, 1, 200, {
-            routeGroup__name: routeGroup,
-            country: String(cfg.country),
-          })
-            .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
-            .catch(() => ({ countryId: String(cfg.country), routes: [] }))
-          : Promise.resolve({ countryId: String(cfg.country), routes: [] })
-      );
+      const routesPromises = results.map((cfg) => {
+        if (!routeGroupId && !routeGroup) {
+          return Promise.resolve({ countryId: String(cfg.country), routes: [] });
+        }
+
+        const params = routeGroupId
+          ? { routeGroup: routeGroupId, country: String(cfg.country) }
+          : { routeGroup__name: routeGroup, country: String(cfg.country) };
+
+        return getCustomRoutesApi(moduleName, 1, 200, params)
+          .then((r) => ({ countryId: String(cfg.country), routes: r.results || [] }))
+          .catch(() => ({ countryId: String(cfg.country), routes: [] }));
+      });
 
       const allCountryRoutes = await Promise.all(routesPromises);
       const routesByCountryMap = new Map(
@@ -558,7 +577,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       );
       try {
         const res = await getCustomRoutesApi(moduleName, 1, 200, {
-          routeGroup__name: routeGroup,
+          ...(routeGroupId ? { routeGroup: routeGroupId } : { routeGroup__name: routeGroup }),
           country: countryId,
         });
         const fetchedRoutes = res.results || [];
@@ -621,18 +640,37 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   }, [isOpen, routeGroupId, fetchConfigs]);
 
   const toggleSection = (countryId: string) => {
+    let willOpen = false;
     setSections((prev) =>
       prev.map((s) => {
-        if (String(s.config.country) !== countryId) return s;
-        if (!s.isOpen && s.routes.length === 0 && !s.loading) {
-          fetchSectionRoutes(countryId);
+        const isTarget = String(s.config.country) === countryId;
+        if (isTarget) {
+          willOpen = !s.isOpen;
+          if (willOpen && s.routes.length === 0 && !s.loading) {
+            fetchSectionRoutes(countryId);
+          }
+          return { ...s, isOpen: willOpen };
         }
-        return { ...s, isOpen: !s.isOpen };
+        return { ...s, isOpen: false };
       }),
     );
     const section = sections.find((s) => String(s.config.country) === countryId);
     if (section && section.config.countryName) {
       fetchNetworkCodesForCountry(countryId, section.config.countryName);
+    }
+  };
+
+  const handleCountryChipClick = (countryId: string) => {
+    const current = sections.find((s) => String(s.config.country) === countryId);
+    const willOpen = !current?.isOpen;
+    toggleSection(countryId);
+    if (willOpen) {
+      setTimeout(() => {
+        const el = document.getElementById(`country-section-${countryId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }, 100);
     }
   };
 
@@ -642,6 +680,16 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const handleAddConfig = async () => {
     if (!newCountry) return toast.error("Select a country.");
     if (!routeGroupId) return toast.error("Route group not identified.");
+
+    let parsedLimit: string | null = null;
+    if (newLowCostPolicy && newLowCostPolicyLimit.trim() !== "") {
+      const limitVal = parseFloat(newLowCostPolicyLimit);
+      if (isNaN(limitVal) || limitVal < 0 || limitVal > 100) {
+        return toast.error("Low Cost Policy Limit must be between 0 and 100.");
+      }
+      parsedLimit = String(limitVal);
+    }
+
     setIsAddingConfig(true);
     try {
       await createRouteGroupCountryApi(
@@ -651,6 +699,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           routingType: newRoutingType as "PRIORITY" | "PERCENTAGE",
           status: newConfigStatus as "ACTIVE" | "INACTIVE",
           lowCostPolicy: newLowCostPolicy,
+          lowCostPolicyLimit: parsedLimit,
         },
         moduleName,
       );
@@ -659,6 +708,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setNewRoutingType("PRIORITY");
       setNewConfigStatus("ACTIVE");
       setNewLowCostPolicy(false);
+      setNewLowCostPolicyLimit("");
       fetchConfigs();
     } catch (err: any) {
       const data = err.response?.data;
@@ -694,6 +744,18 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       toast.success(`Low Cost Policy ${newValue ? 'enabled' : 'disabled'} for ${config.countryName}.`);
     } catch {
       toast.error("Failed to update Low Cost Policy.");
+    }
+  };
+
+  const handleUpdateLowCostPolicyLimit = async (config: RouteGroupCountryData, limit: string) => {
+    if (!config.id) return;
+    try {
+      const parsed = limit.trim() === "" ? null : limit;
+      const updated = await updateRouteGroupCountryApi(config.id, { lowCostPolicyLimit: parsed }, moduleName);
+      setSections(prev => prev.map(s => String(s.config.country) === String(config.country) ? { ...s, config: updated } : s));
+      toast.success(`Low Cost Policy Limit updated for ${config.countryName}.`);
+    } catch {
+      toast.error("Failed to update Low Cost Policy Limit.");
     }
   };
 
@@ -1296,13 +1358,31 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                       <div className="w-32">
                         <Select label="Status" value={newConfigStatus} onChange={setNewConfigStatus} options={statusOptions} />
                       </div>
-                      <div className="flex items-center gap-2 mb-[2px] ml-2">
+                      <div className="flex items-center h-[34px] ml-2">
                         <ToggleSwitch
                           label="Low Cost Policy"
                           checked={newLowCostPolicy}
-                          onChange={setNewLowCostPolicy}
+                          onChange={(val) => {
+                            setNewLowCostPolicy(val);
+                            if (!val) setNewLowCostPolicyLimit("");
+                          }}
                         />
                       </div>
+                      {newLowCostPolicy && (
+                        <div className="w-44">
+                          <Input
+                            label="Low Cost Policy Limit"
+                            name="lowCostPolicyLimit"
+                            type="number"
+                            value={newLowCostPolicyLimit}
+                            onChange={(e) => setNewLowCostPolicyLimit(e.target.value)}
+                            placeholder="e.g. 5.00"
+                            min="0"
+                            max="100"
+                            step="0.01"
+                          />
+                        </div>
+                      )}
                       <Button
                         type="button"
                         variant="primary"
@@ -1377,32 +1457,47 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                       </div>
 
                       {/* Filtered Country Chips */}
-                      {filteredSections.map((s) => (
-                        <div
-                          key={s.config.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${s.config.routingType === "PERCENTAGE"
-                            ? "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300"
-                            : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300"
+                      {filteredSections.map((s) => {
+                        const isSectionOpen = s.isOpen;
+                        const isPercentage = s.config.routingType === "PERCENTAGE";
+                        return (
+                          <div
+                            key={s.config.id}
+                            onClick={() => handleCountryChipClick(String(s.config.country))}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium cursor-pointer transition-all select-none ${
+                              isPercentage
+                                ? isSectionOpen
+                                  ? "bg-purple-100 border-purple-500 text-purple-800 dark:bg-purple-900/40 dark:border-purple-400 dark:text-purple-200 ring-2 ring-purple-500/40 shadow-sm font-semibold"
+                                  : "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-900/20 dark:border-purple-700 dark:text-purple-300 hover:bg-purple-100/70 dark:hover:bg-purple-900/30"
+                                : isSectionOpen
+                                  ? "bg-blue-100 border-blue-500 text-blue-800 dark:bg-blue-900/40 dark:border-blue-400 dark:text-blue-200 ring-2 ring-blue-500/40 shadow-sm font-semibold"
+                                  : "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-700 dark:text-blue-300 hover:bg-blue-100/70 dark:hover:bg-blue-900/30"
                             }`}
-                        >
-                          <span className="flex items-center gap-1.5">
-                            {countryIsoMap[String(s.config.country)] && (
-                              <CountryFlag iso2={countryIsoMap[String(s.config.country)]} />
+                            title={isSectionOpen ? `Collapse ${s.config.countryName} routes` : `Expand ${s.config.countryName} routes`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {countryIsoMap[String(s.config.country)] && (
+                                <CountryFlag iso2={countryIsoMap[String(s.config.country)]} />
+                              )}
+                              {s.config.countryName}
+                            </span>
+                            <span className="text-[11px] opacity-60">({s.config.routingType})</span>
+                            {canUpdate && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" });
+                                }}
+                                className="ml-1 opacity-50 hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/5 dark:hover:bg-white/10"
+                                title={`Delete ${s.config.countryName} configuration`}
+                              >
+                                <Trash2 size={12} />
+                              </button>
                             )}
-                            {s.config.countryName}
-                          </span>
-                          <span className="text-[11px] opacity-60">({s.config.routingType})</span>
-                          {canUpdate && (
-                            <button
-                              type="button"
-                              onClick={() => setDeleteConfigData({ id: s.config.id!, countryName: s.config.countryName || "this country" })}
-                              className="ml-1 opacity-50 hover:opacity-100 transition-opacity"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                       {filteredSections.length === 0 && (
                         <p className="text-sm text-gray-400 py-1">No countries match the search filter.</p>
                       )}
@@ -1505,6 +1600,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                 return (
                   <div
                     key={countryId}
+                    id={`country-section-${countryId}`}
                     className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 overflow-hidden min-w-0 w-full shrink-0"
                   >
                     {/* Section header with Upper Bar Search Filters */}
@@ -1530,15 +1626,42 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         >
                           {isPercentage ? "Percentage" : "Priority"}
                         </span>
-                        {canUpdate && (
-                          <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center">
-                            <ToggleSwitch
-                              label="LCP"
-                              checked={section.config.lowCostPolicy || false}
-                              onChange={(val) => handleToggleLowCostPolicy(section.config, val)}
+                        <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center gap-2">
+                          <ToggleSwitch
+                            label="LCP"
+                            checked={section.config.lowCostPolicy || false}
+                            onChange={(val) => canUpdate && handleToggleLowCostPolicy(section.config, val)}
+                            disabled={!canUpdate}
+                            className="translate-y-[3px]"
+                          />
+                          {section.config.lowCostPolicy && (
+                            <input
+                              type="number"
+                              disabled={!canUpdate}
+                              className={`w-40 h-7 px-2.5 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm ${
+                                !canUpdate ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-800" : ""
+                              }`}
+                              placeholder="Low Cost Policy Limit"
+                              title="Low Cost Policy Limit (Max Loss)"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              defaultValue={Number(section.config.lowCostPolicyLimit) === 0 ? "" : (section.config.lowCostPolicyLimit || "")}
+                              onBlur={(e) => {
+                                if (!canUpdate) return;
+                                const currentValStr = Number(section.config.lowCostPolicyLimit) === 0 ? "" : String(section.config.lowCostPolicyLimit || "");
+                                if (e.target.value !== currentValStr) {
+                                  handleUpdateLowCostPolicyLimit(section.config, e.target.value);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                }
+                              }}
                             />
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         {section.routes.length > 0 && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">
@@ -1710,13 +1833,23 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                   const groupModifiedRoutes = groupData.items.filter(item => !("isNew" in item) && (item as any).isModified);
                                   const groupHasChanges = groupNewRows.length > 0 || groupModifiedRoutes.length > 0;
                                   const groupIsValid = !isPercentage || groupData.total === 100;
+                                  const fullGroupKey = `${countryId}-${groupKey}`;
+                                  const isCollapsed = collapsedGroups.has(fullGroupKey);
 
                                   return (
                                     <React.Fragment key={groupKey}>
-                                      <tr className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700">
+                                      <tr 
+                                        className="bg-gray-100/90 dark:bg-gray-800/90 border-t border-b border-gray-200 dark:border-gray-700 cursor-pointer hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+                                        onClick={() => toggleGroupCollapse(countryId, groupKey)}
+                                      >
                                         <td colSpan={10} className="px-3 py-1.5 text-xs font-semibold">
                                           <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
+                                              {isCollapsed ? (
+                                                <ChevronRight size={14} className="text-gray-500" />
+                                              ) : (
+                                                <ChevronDown size={14} className="text-gray-500" />
+                                              )}
                                               <Layers size={13} className="text-primary" />
                                               <span className="text-gray-700 dark:text-gray-200">
                                                 <strong>{formattedGroupHeaderLabel}</strong>
@@ -1775,7 +1908,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                         )}
                                       </tr>
 
-                                      {groupData.items.map((item, i) => {
+                                      {!isCollapsed && groupData.items.map((item, i) => {
                                         if ("isNew" in item) {
                                           const row = item.row;
                                           const rowMncOptions = mncOptions.map(opt => {

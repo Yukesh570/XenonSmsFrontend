@@ -156,15 +156,15 @@ const MessageReport: React.FC = () => {
       const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
       return Array.isArray(parsed)
         ? parsed.filter(
-            (col: string) =>
-              ![
-                "createdAt__gt_lt",
-                "queued_at__gt_lt",
-                "submitted_at__gt_lt",
-                "delivered_at__gt_lt",
-                "failed_at__gt_lt",
-              ].includes(col),
-          )
+          (col: string) =>
+            ![
+              "createdAt__gt_lt",
+              "queued_at__gt_lt",
+              "submitted_at__gt_lt",
+              "delivered_at__gt_lt",
+              "failed_at__gt_lt",
+            ].includes(col),
+        )
         : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
@@ -186,6 +186,7 @@ const MessageReport: React.FC = () => {
   });
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
 
   // Message Log Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -270,8 +271,6 @@ const MessageReport: React.FC = () => {
       { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
       { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
       { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
-      { key: "senderTranslationAction", label: "Translation Action", type: "text", filterKey: "senderTranslationAction__icontains" },
-      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text", filterKey: "senderTranslationRuleId" },
       {
         key: "vendorName",
         label: "Vendor",
@@ -335,26 +334,8 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
-      {
-        key: "senderTranslationAction",
-        label: "Translation Action",
-        type: "text",
-        render: (log: any) => (
-          <span className="text-sm">
-            {log.senderTranslationAction || "-"}
-          </span>
-        ),
-      },
-      {
-        key: "senderTranslationRuleId",
-        label: "Translation Rule ID",
-        type: "text",
-        render: (log: any) => (
-          <span className="text-sm">
-            {log.senderTranslationRuleId || "-"}
-          </span>
-        ),
-      },
+
+
       {
         key: "countryName",
         label: "Country",
@@ -498,7 +479,7 @@ const MessageReport: React.FC = () => {
 
     try {
       const currentSearchParams: Record<string, any> = {};
-      const sourceFilters = overrideParams || filterValues;
+      const sourceFilters = overrideParams !== undefined ? overrideParams : appliedFilters;
 
       searchColumns.forEach((key) => {
         const value = sourceFilters[key];
@@ -613,19 +594,21 @@ const MessageReport: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (activePreset !== "today") return;
+
     const liveUpdateTimer = setInterval(() => {
-      const isFiltering = Object.values(filterValues).some((val) => val !== "");
+      const isFiltering = Object.values(appliedFilters).some((val) => Boolean(val && val.trim() !== ""));
 
       const currentGlobalPath = window.location.pathname === "/" ? "/dashboard" : window.location.pathname;
       const isTabActive = currentGlobalPath === location.pathname || currentGlobalPath.startsWith(`${location.pathname}/`);
 
       if (isAtTopRef.current && !isFiltering && isTabActive) {
-        fetchLogs(undefined, 1, false, true);
+        fetchLogs(appliedFilters, 1, false, true);
       }
     }, 5000);
 
     return () => clearInterval(liveUpdateTimer);
-  }, [filterValues, isLoading, isFetchingMore, location.pathname]);
+  }, [appliedFilters, isLoading, isFetchingMore, location.pathname, activePreset]);
 
   useEffect(() => {
     const scrollEl = tableWrapperRef.current?.querySelector<HTMLDivElement>(
@@ -639,13 +622,13 @@ const MessageReport: React.FC = () => {
       if (isLoading || isFetchingMore || !hasMore) return;
       const { scrollTop, scrollHeight, clientHeight } = scrollEl;
       if (scrollHeight - scrollTop - clientHeight < LOAD_MORE_THRESHOLD_PX) {
-        fetchLogs(filterValues, loadedPage + 1, true);
+        fetchLogs(appliedFilters, loadedPage + 1, true);
       }
     };
 
     scrollEl.addEventListener("scroll", handleScroll);
     return () => scrollEl.removeEventListener("scroll", handleScroll);
-  }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, logs.length]);
+  }, [isLoading, isFetchingMore, hasMore, loadedPage, appliedFilters, logs.length]);
 
   const handleFilterChange = (key: string, value: string) => {
     if (key === "createdAt" || key === "createdAt__gt_lt") {
@@ -657,24 +640,23 @@ const MessageReport: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.createdAt;
-      delete next.createdAt__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
-    fetchLogs(updatedFilters, 1, false, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.createdAt;
+    delete nextFilters.createdAt__gt_lt;
+    setFilterValues(nextFilters);
+    setAppliedFilters(nextFilters);
+    fetchLogs(nextFilters, 1, false, false, presetKey);
   };
 
   const handleSearch = () => {
-    fetchLogs(undefined, 1, false);
+    setAppliedFilters(filterValues);
+    fetchLogs(filterValues, 1, false);
   };
 
   const handleClearFilters = () => {
     setActivePreset("today");
     setFilterValues({});
+    setAppliedFilters({});
     fetchLogs({}, 1, false, false, "today");
   };
 
@@ -942,11 +924,10 @@ const MessageReport: React.FC = () => {
                     key={preset.key}
                     type="button"
                     onClick={() => handlePresetClick(preset.key)}
-                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${
-                      isActive
-                        ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
-                        : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
-                    }`}
+                    className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                      ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
+                      : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
+                      }`}
                   >
                     {preset.label}
                   </button>

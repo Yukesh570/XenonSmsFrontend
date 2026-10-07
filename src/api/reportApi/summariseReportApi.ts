@@ -20,6 +20,7 @@ export interface SummariseSummaryData {
   submitted: number;
   delivered: number;
   failed: number;
+  undelivered?: number;
   rejected?: number;
   revenue: number;
   vendor_cost: number;
@@ -40,6 +41,7 @@ export interface SummariseTotals {
   submitted: number;
   delivered: number;
   failed: number;
+  undelivered?: number;
   rejected?: number;
   revenue: number;
   vendor_cost: number;
@@ -103,3 +105,15 @@ export const downloadSummariseReportCsvApi = async (
   });
   return response.data;
 };
+
+/**
+ * Fetch failure reasons breakdown
+ * POST /api/reports/summarise/failure_reasons/
+ */
+export const getFailureReasonsApi = async (
+  payload: { filters: SummariseReportFilters }
+): Promise<{ data: { failure_reason: string; count: number }[] }> => {
+  const response = await axiosInstance.post(`/api/reports/summarise/failure_reasons/`, payload);
+  return response.data;
+};
+

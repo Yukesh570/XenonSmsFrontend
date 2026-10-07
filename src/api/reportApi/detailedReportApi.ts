@@ -27,7 +27,6 @@ export interface DetailedReportData {
   part_total: number;
   senderId: string;
   effectiveSenderId?: string;
-  senderTranslationAction?: string;
   senderTranslationRuleId?: number | string;
   vendor: string;
   base_vendorRate?: string | number;

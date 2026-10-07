@@ -9,6 +9,7 @@ interface FilterCardProps {
   hideSearchButton?: boolean;
   title?: string;
   defaultOpen?: boolean;
+  extraActions?: React.ReactNode;
 }
 
 const FilterCard: React.FC<FilterCardProps> = ({
@@ -18,6 +19,7 @@ const FilterCard: React.FC<FilterCardProps> = ({
   hideSearchButton = false,
   title = "Search & Filters",
   defaultOpen = true,
+  extraActions,
 }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -79,6 +81,8 @@ const FilterCard: React.FC<FilterCardProps> = ({
             >
               Clear
             </Button>
+
+            {extraActions}
           </div>
         </form>
       )}

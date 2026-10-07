@@ -149,7 +149,8 @@ const EmailTemplatePage: React.FC = () => {
       options: smtpOptions,
       isSearchable: false,
       render: (template) =>
-        template.emailServer ? serverMap[template.emailServer] || `ID: ${template.emailServer}` : "-",
+        template.emailServerName ||
+        (template.emailServer ? serverMap[template.emailServer] || `ID: ${template.emailServer}` : "-"),
     },
     {
       key: "content",

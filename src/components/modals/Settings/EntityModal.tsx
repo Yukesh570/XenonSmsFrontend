@@ -6,6 +6,7 @@ import {
   type EntityData,
 } from "../../../api/settingApi/entityApi/entityApi";
 import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import Button from "../../ui/Button";
 import Modal from "../../ui/Modal";
 // FIXED: Imported your brand new reusable component
@@ -88,7 +89,7 @@ export const EntityModal: React.FC<EntityModalProps> = ({
     };
   }, [logoFile, logoPreview]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -253,14 +254,17 @@ export const EntityModal: React.FC<EntityModalProps> = ({
             placeholder="contact@company.com"
             disabled={isViewMode}
           />
-          <Input
-            label="Bank Account Detail"
-            name="bankAccountDetail"
-            value={formData.bankAccountDetail}
-            onChange={handleChange}
-            placeholder="Bank info..."
-            disabled={isViewMode}
-          />
+          <div className="md:col-span-2">
+            <TextArea
+              label="Bank Account Detail"
+              name="bankAccountDetail"
+              value={formData.bankAccountDetail}
+              onChange={handleChange}
+              placeholder="Bank info..."
+              disabled={isViewMode}
+              rows={4}
+            />
+          </div>
         </div>
 
         <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-800">

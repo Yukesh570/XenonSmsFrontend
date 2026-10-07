@@ -17,6 +17,7 @@ import { DeleteModal } from "../../components/modals/DeleteModal";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
+import MultiSelectDropdown from "../../components/ui/MultiSelectDropdown";
 import DatePicker from "../../components/ui/DatePicker";
 import DataTable from "../../components/ui/DataTable";
 import FilterCard from "../../components/ui/FilterCard";
@@ -35,6 +36,7 @@ import { CountryFlag } from "../../components/ui/CountryFlag";
 interface Option {
   label: string;
   value: string;
+  icon?: React.ReactNode;
 }
 
 type FilterColumnType =
@@ -55,6 +57,7 @@ interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
   filterKey?: string;
   isSearchOnly?: boolean;
   isSearchable?: boolean;
+  isMultiSelect?: boolean;
   tableLabel?: string;
 }
 
@@ -185,7 +188,8 @@ const CustomRoute: React.FC = () => {
       label: "Country",
       type: "text",
       options: countryOptions,
-      filterKey: "country__name__icontains",
+      isMultiSelect: true,
+      filterKey: "country__name__in",
       render: (c: any) => {
         if (c.routeGroupCountry && Array.isArray(c.routeGroupCountry) && c.routeGroupCountry.length > 0) {
           const full = c.routeGroupCountry.map((item: any) => item.countryName).join(", ");
@@ -283,7 +287,10 @@ const CustomRoute: React.FC = () => {
         if (value) {
           const columnDef = allColumns.find((c) => c.key === key);
 
-          if (columnDef?.options) {
+          if (columnDef?.isMultiSelect || key === "country") {
+            const filterKey = columnDef?.filterKey || "country__name__in";
+            currentSearchParams[filterKey] = value;
+          } else if (columnDef?.options) {
             const selectedOption = columnDef.options.find(
               (opt) => opt.value === value,
             );
@@ -324,7 +331,7 @@ const CustomRoute: React.FC = () => {
         const columnDef = allColumns.find((c: any) => c.key === sortConfig.key);
         let sortKey = sortConfig.key;
         if (columnDef && columnDef.filterKey) {
-          sortKey = columnDef.filterKey.replace(/__(icontains|exact|range|gt_lt|gte|lte)$/, "");
+          sortKey = columnDef.filterKey.replace(/__(icontains|exact|range|gt_lt|gte|lte|in)$/, "");
         }
         currentSearchParams["ordering"] = sortConfig.direction === "desc" ? `-${sortKey}` : sortKey;
       }
@@ -435,12 +442,20 @@ const CustomRoute: React.FC = () => {
     const initialName = queryParams.get("name") || (location.state as any)?.searchName;
     const clientName = queryParams.get("client") || (location.state as any)?.clientName;
     const vendorName = queryParams.get("vendor") || (location.state as any)?.vendorName;
+    const countryParam = queryParams.get("country") || queryParams.get("country__name__in") || (location.state as any)?.country;
     const autoOpen = queryParams.get("autoOpen") === "true" || Boolean((location.state as any)?.autoOpen);
 
+    const initialFilters: Record<string, string> = {};
     if (initialName || clientName || vendorName) {
-      const nameVal = initialName || clientName || vendorName;
-      setFilterValues((prev) => ({ ...prev, name: nameVal }));
-      fetchGroupedRoutes({ name: nameVal }, autoOpen, { clientName, vendorName });
+      initialFilters.name = initialName || clientName || vendorName;
+    }
+    if (countryParam) {
+      initialFilters.country = countryParam;
+    }
+
+    if (Object.keys(initialFilters).length > 0) {
+      setFilterValues((prev) => ({ ...prev, ...initialFilters }));
+      fetchGroupedRoutes(initialFilters, autoOpen, { clientName, vendorName });
     } else {
       fetchGroupedRoutes();
     }
@@ -605,6 +620,23 @@ const CustomRoute: React.FC = () => {
       <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
+          if (col.isMultiSelect || col.key === "country") {
+            const selectedCountries = filterValues[col.key]
+              ? filterValues[col.key].split(",").filter(Boolean)
+              : [];
+            return (
+              <MultiSelectDropdown
+                key={col.key}
+                label={`Search ${baseLabel}`}
+                options={col.options || []}
+                selected={selectedCountries}
+                onChange={(selectedVals) =>
+                  handleFilterChange(col.key, selectedVals.join(","))
+                }
+                placeholder={`Select ${baseLabel}`}
+              />
+            );
+          }
           if (col.options)
             return (
               <Select

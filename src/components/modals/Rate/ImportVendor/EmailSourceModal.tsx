@@ -191,7 +191,7 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
   // ── Fetch reference data ────────────────────────────────────────────────────
   useEffect(() => {
     if (isOpen) {
-      getVendorsApi("vendor", 1, 1000)
+      getVendorsApi("vendor", 1, 1000, { fields: "id,name,profileName,company" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setVendorsList(list);
@@ -202,14 +202,14 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
         })
         .catch((err: any) => console.error("Failed to load vendors", err));
 
-      getCompaniesApi("company", 1, 1000)
+      getCompaniesApi("company", 1, 1000, { fields: "id,name,ratesEmail,companyEmail" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setCompaniesList(list);
         })
         .catch((err: any) => console.error("Failed to load companies", err));
 
-      getMappingSetupsApi("mappingSetup", 1, 1000)
+      getMappingSetupsApi("mappingSetup", 1, 1000, { fields: "id,name" })
         .then((res: any) => {
           const list = res.results || (Array.isArray(res) ? res : []);
           setMappingOptions(list.map((m: any) => ({
@@ -243,7 +243,7 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
         setExtraEmails(parsed);
         setExtraDomains(parsedDomains);
       } else {
-        setFormData({ vendor: "", mappingSetup: "", allowedDomain: "", strictDomainMatch: false, subjectPattern: "", uniqueId: "", active: true });
+        setFormData({ vendor: "", mappingSetup: "", allowedDomain: "", strictDomainMatch: false, subjectPattern: "", uniqueId: "UID-" + Math.random().toString(36).substring(2, 8).toUpperCase(), active: true });
         setExtraEmails([]);
         setExtraDomains([]);
       }
@@ -272,7 +272,16 @@ export const EmailSourceModal: React.FC<EmailSourceModalProps> = ({
       setFormData((prev) => ({ ...prev, vendor: value, uniqueId: newUniqueId }));
 
       if (selectedVendor?.company) {
-        const selectedCompany = companiesList.find((c) => String(c.id) === String(selectedVendor.company));
+        // Safely extract the company ID whether it's a primitive number/string or a nested object
+        const vendorCompanyId = 
+          typeof selectedVendor.company === "object" 
+            ? (selectedVendor.company as any).id 
+            : selectedVendor.company;
+
+        const selectedCompany = companiesList.find(
+          (c) => String(c.id) === String(vendorCompanyId)
+        );
+        
         if (selectedCompany) {
           const cEmail = selectedCompany.ratesEmail || selectedCompany.companyEmail || "";
           const emailsToAdd = cEmail.split(",").map((e: string) => e.trim()).filter(Boolean);

@@ -177,3 +177,42 @@ export const downloadCustomerRatesCsvApi = async (
   const response = await api.get(`/customerRateGroup/${rateGroupId}/download_rates_csv/`);
   return response.data;
 };
+
+// ==========================================
+// CUSTOMER RATE EXPORT LOG API
+// ==========================================
+
+export interface CustomerRateExportLogData {
+  id: number;
+  rateGroup: number;
+  exportType: string;
+  totalRatesExported: number;
+  sentToEmails: string;
+  status: string;
+  errorMessage: string | null;
+  emailTemplate: number;
+  createdBy: number;
+  createdAt: string;
+  updatedAt: string;
+  createdByName?: string;
+  emailTemplateName?: string;
+}
+
+export const getCustomerRateExportLogsApi = async (
+  page: number = 1,
+  pageSize: number = 10,
+  searchParams?: Record<string, any>
+): Promise<PaginatedResponse<CustomerRateExportLogData>> => {
+  const params: any = {
+    page,
+    page_size: pageSize,
+    ...searchParams,
+  };
+  const response = await api.get(`/customerRateExportLog/`, { params });
+  return response.data;
+};
+
+export const retryCustomerRateExportApi = async (id: number): Promise<any> => {
+  const response = await api.put(`/customerRateExportLog/${id}/retry/`);
+  return response.data;
+};

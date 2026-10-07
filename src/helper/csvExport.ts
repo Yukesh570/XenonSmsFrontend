@@ -43,7 +43,130 @@ export const validateDateRange = (params: Record<string, any>): { valid: boolean
     return { valid: true, message: "" };
 };
 
+const getErrorMessage = (errorOrData: any, fallback: string = "Export failed."): string => {
+    if (!errorOrData) return fallback;
+    if (typeof errorOrData === "string") return errorOrData;
+    if (errorOrData.response?.data) {
+        const d = errorOrData.response.data;
+        if (typeof d === "string") return d;
+        if (d.error) return typeof d.error === "string" ? d.error : JSON.stringify(d.error);
+        if (d.message) return typeof d.message === "string" ? d.message : JSON.stringify(d.message);
+        if (d.detail) return typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
+        return fallback;
+    }
+    const err =
+        errorOrData.error ||
+        errorOrData.message ||
+        errorOrData.detail ||
+        errorOrData.result?.error ||
+        errorOrData.result?.message ||
+        (typeof errorOrData.result === "string" ? errorOrData.result : null);
+
+    if (err) {
+        return typeof err === "string" ? err : JSON.stringify(err);
+    }
+    return errorOrData.message || fallback;
+};
+
+const pollCsvTaskStatus = (
+    toastId: any,
+    taskId: string,
+    moduleName: string = ""
+) => {
+    let attempts = 0;
+    let consecutiveErrors = 0;
+    const maxAttempts = 60; // 120 seconds total
+
+    const checkStatus = setInterval(async () => {
+        attempts += 1;
+        try {
+            const res = await downloadStatus(moduleName, taskId);
+            consecutiveErrors = 0;
+
+            const statusStr = String(res?.status || res?.state || "").toUpperCase();
+            const downloadUrl = res?.download_url || res?.result?.download_url;
+
+            // Check failure conditions
+            const isFailed =
+                statusStr === "FAILURE" ||
+                statusStr === "FAILED" ||
+                statusStr === "ERROR" ||
+                statusStr === "REVOKED" ||
+                res?.failed === true ||
+                res?.successful === false ||
+                Boolean(res?.ready && !downloadUrl);
+
+            if (isFailed) {
+                clearInterval(checkStatus);
+                const errorMsg = getErrorMessage(res, "Export failed on the server.");
+                toast.update(toastId, {
+                    render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                    type: "error",
+                    isLoading: false,
+                    autoClose: 4000
+                });
+                return;
+            }
+
+            // Check success conditions
+            const isReady = res?.ready === true || statusStr === "SUCCESS";
+            if (isReady && downloadUrl) {
+                clearInterval(checkStatus);
+                window.location.href = downloadUrl;
+                toast.update(toastId, {
+                    render: "Export successful!",
+                    type: "success",
+                    isLoading: false,
+                    autoClose: 3000
+                });
+                return;
+            }
+
+            // Check progress
+            if (res && res.progress !== undefined && res.progress !== null) {
+                toast.update(toastId, { render: `Generating... ${res.progress}%` });
+            }
+
+            // Check timeout
+            if (attempts >= maxAttempts) {
+                clearInterval(checkStatus);
+                toast.update(toastId, {
+                    render: "Export timed out.",
+                    type: "error",
+                    isLoading: false,
+                    autoClose: 4000
+                });
+            }
+        } catch (error: any) {
+            // If the server responded with an HTTP error code (4xx, 5xx), the task/endpoint failed
+            if (error?.response) {
+                clearInterval(checkStatus);
+                const errorMsg = getErrorMessage(error, "Failed to check export status.");
+                toast.update(toastId, {
+                    render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                    type: "error",
+                    isLoading: false,
+                    autoClose: 4000
+                });
+                return;
+            }
+
+            consecutiveErrors += 1;
+            if (consecutiveErrors >= 3 || attempts >= maxAttempts) {
+                clearInterval(checkStatus);
+                toast.update(toastId, {
+                    render: "Failed to check status.",
+                    type: "error",
+                    isLoading: false,
+                    autoClose: 4000
+                });
+            }
+        }
+    }, 2000);
+};
+
 export const handleCsvExport = async (moduleName: string, searchParams: Record<string, any>) => {
+    let toastId: any = null;
     try {
         const validation = validateDateRange(searchParams);
         if (!validation.valid) {
@@ -51,7 +174,7 @@ export const handleCsvExport = async (moduleName: string, searchParams: Record<s
             return;
         }
 
-        const toastId = toast.loading("Export started. Please wait...");
+        toastId = toast.loading("Export started. Please wait...");
 
         // Map date filters to startDate and endDate for the backend CSV API
         const apiParams = { ...searchParams };
@@ -74,47 +197,33 @@ export const handleCsvExport = async (moduleName: string, searchParams: Record<s
 
         const data: any = await downloadCSVApi(moduleName, apiParams);
 
-        if (!data || !data.task_id) {
-            toast.update(toastId, { render: "Failed to start export process.", type: "error", isLoading: false, autoClose: 3000 });
+        const initialStatus = String(data?.status || data?.state || "").toUpperCase();
+        if (!data || !data.task_id || initialStatus === "FAILURE" || initialStatus === "FAILED" || initialStatus === "ERROR") {
+            const errorMsg = getErrorMessage(data, "Failed to start export process.");
+            toast.update(toastId, {
+                render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
             return;
         }
 
-        const taskId = data.task_id;
-        let attempts = 0;
-        const maxAttempts = 60; // 120 seconds total limit for big SMS files
+        pollCsvTaskStatus(toastId, data.task_id, moduleName);
 
-        const checkStatus = setInterval(async () => {
-            attempts += 1;
-            try {
-                const res = await downloadStatus(moduleName, taskId);
-
-                if (res && res.progress) {
-                    toast.update(toastId, { render: `Generating... ${res.progress}%` });
-                }
-
-                if (res && res.ready) {
-                    clearInterval(checkStatus);
-                    if (res.download_url) {
-                        window.location.href = res.download_url;
-                        toast.update(toastId, { render: "Export successful!", type: "success", isLoading: false, autoClose: 3000 });
-                    } else {
-                        toast.update(toastId, { render: res.error || "Export generated but URL is missing.", type: "error", isLoading: false, autoClose: 3000 });
-                    }
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(checkStatus);
-                    toast.update(toastId, { render: "Export timed out.", type: "error", isLoading: false, autoClose: 3000 });
-                }
-            } catch (error) {
-                if (attempts >= maxAttempts) {
-                    clearInterval(checkStatus);
-                    toast.update(toastId, { render: "Failed to check status.", type: "error", isLoading: false, autoClose: 3000 });
-                }
-            }
-        }, 2000);
-
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        toast.error("Failed to initiate export.");
+        const errorMsg = getErrorMessage(error, "Failed to initiate export.");
+        if (toastId) {
+            toast.update(toastId, {
+                render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } else {
+            toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+        }
     }
 };
 
@@ -129,6 +238,7 @@ export const handleCsvExportWithApi = async (
     dateKeys: string[] = ["request_time", "queued_at", "submitted_at", "delivered_at", "failed_at"],
     requireDateFilter: boolean = true,
 ) => {
+    let toastId: any = null;
     try {
         if (requireDateFilter) {
             const validation = validateDateRange(searchParams);
@@ -138,7 +248,7 @@ export const handleCsvExportWithApi = async (
             }
         }
 
-        const toastId = toast.loading("Export started. Please wait...");
+        toastId = toast.loading("Export started. Please wait...");
 
         const apiParams = { ...searchParams };
         for (const key of dateKeys) {
@@ -159,46 +269,32 @@ export const handleCsvExportWithApi = async (
 
         const data: any = await apiFn(apiParams);
 
-        if (!data || !data.task_id) {
-            toast.update(toastId, { render: "Failed to start export process.", type: "error", isLoading: false, autoClose: 3000 });
+        const initialStatus = String(data?.status || data?.state || "").toUpperCase();
+        if (!data || !data.task_id || initialStatus === "FAILURE" || initialStatus === "FAILED" || initialStatus === "ERROR") {
+            const errorMsg = getErrorMessage(data, "Failed to start export process.");
+            toast.update(toastId, {
+                render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
             return;
         }
 
-        const taskId = data.task_id;
-        let attempts = 0;
-        const maxAttempts = 60;
+        pollCsvTaskStatus(toastId, data.task_id, "");
 
-        const checkStatus = setInterval(async () => {
-            attempts += 1;
-            try {
-                const res = await downloadStatus("", taskId);
-
-                if (res && res.progress) {
-                    toast.update(toastId, { render: `Generating... ${res.progress}%` });
-                }
-
-                if (res && res.ready) {
-                    clearInterval(checkStatus);
-                    if (res.download_url) {
-                        window.location.href = res.download_url;
-                        toast.update(toastId, { render: "Export successful!", type: "success", isLoading: false, autoClose: 3000 });
-                    } else {
-                        toast.update(toastId, { render: res.error || "Export generated but URL is missing.", type: "error", isLoading: false, autoClose: 3000 });
-                    }
-                } else if (attempts >= maxAttempts) {
-                    clearInterval(checkStatus);
-                    toast.update(toastId, { render: "Export timed out.", type: "error", isLoading: false, autoClose: 3000 });
-                }
-            } catch (error) {
-                if (attempts >= maxAttempts) {
-                    clearInterval(checkStatus);
-                    toast.update(toastId, { render: "Failed to check status.", type: "error", isLoading: false, autoClose: 3000 });
-                }
-            }
-        }, 2000);
-
-    } catch (error) {
+    } catch (error: any) {
         console.error(error);
-        toast.error("Failed to initiate export.");
+        const errorMsg = getErrorMessage(error, "Failed to initiate export.");
+        if (toastId) {
+            toast.update(toastId, {
+                render: typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg),
+                type: "error",
+                isLoading: false,
+                autoClose: 4000
+            });
+        } else {
+            toast.error(typeof errorMsg === "string" ? errorMsg : JSON.stringify(errorMsg));
+        }
     }
 };

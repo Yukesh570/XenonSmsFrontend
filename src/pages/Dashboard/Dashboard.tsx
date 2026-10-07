@@ -14,6 +14,8 @@ import {
   Globe,
   Clock,
   AlertTriangle,
+  Zap,
+  Radio,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import StatCard from "../../components/ui/StatCard";
@@ -71,6 +73,7 @@ import { getDaysAgoInAppTimezone, formatDateTime } from "../../helper/dateFormat
 const DLR_COLORS: Record<string, string> = {
   Delivered: "#10b981",
   Failed: "#ef4444",
+  Undelivered: "#f97316",
   Pending: "#f59e0b",
   Rejected: "#6b7280",
 };
@@ -115,6 +118,7 @@ const Dashboard: React.FC = () => {
   const [totalSms, setTotalSms] = useState<string>("-");
   const [deliveredCount, setDeliveredCount] = useState<string>("-");
   const [failedCount, setFailedCount] = useState<string>("-");
+  const [undeliveredCount, setUndeliveredCount] = useState<string>("-");
   const [rejectedCount, setRejectedCount] = useState<string>("-");
   const [deliveryRate, setDeliveryRate] = useState<string>("-");
   const [isStatsLoading, setIsStatsLoading] = useState(true);
@@ -157,7 +161,7 @@ const Dashboard: React.FC = () => {
 
   // ─── Date range ──────────────────────────────────────────────────────────────
 
-  type RangeKey = "5m" | "15m" | "1h" | "2h" | "4h" | "today" | "7d" | "30d" | "90d" | "365d" | "all";
+  type RangeKey = "5m" | "15m" | "1h" | "2h" | "4h" | "today" | "yesterday" | "3d" | "7d" | "30d" | "90d" | "365d" | "all";
 
   const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
     { key: "5m", label: "Last 5 Minutes" },
@@ -166,6 +170,8 @@ const Dashboard: React.FC = () => {
     { key: "2h", label: "Last 2 Hour" },
     { key: "4h", label: "Last 4 Hour" },
     { key: "today", label: "Today" },
+    { key: "yesterday", label: "Yesterday" },
+    { key: "3d", label: "Last 3 Days" },
     { key: "7d", label: "Last 7 Days" },
     { key: "30d", label: "Last 30 Days" },
     { key: "90d", label: "Last 90 Days" },
@@ -179,12 +185,51 @@ const Dashboard: React.FC = () => {
     activeRangeRef.current = activeRange;
   }, [activeRange]);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const rangeDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!rangeOpen) return;
+
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (rangeDropdownRef.current && !rangeDropdownRef.current.contains(e.target as Node)) {
+        setRangeOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setRangeOpen(false);
+      }
+    };
+
+    const handleDismiss = () => {
+      setRangeOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("popstate", handleDismiss);
+    document.addEventListener("visibilitychange", handleDismiss);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("popstate", handleDismiss);
+      document.removeEventListener("visibilitychange", handleDismiss);
+    };
+  }, [rangeOpen]);
 
   const buildParams = (range: RangeKey): Record<string, any> => {
     if (range === "all") return {};
     if (range === "today") {
       const today = getDaysAgoInAppTimezone(0);
       return { today: true, startDate: today, endDate: today };
+    }
+    if (range === "yesterday") {
+      const yesterday = getDaysAgoInAppTimezone(1);
+      return { startDate: yesterday, endDate: yesterday };
     }
     const end = new Date();
     const start = new Date();
@@ -195,7 +240,7 @@ const Dashboard: React.FC = () => {
     else if (range === "2h") start.setHours(start.getHours() - 2);
     else if (range === "4h") start.setHours(start.getHours() - 4);
     else {
-      const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+      const days = range === "3d" ? 3 : range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
       return {
         startDate: getDaysAgoInAppTimezone(days - 1),
         endDate: getDaysAgoInAppTimezone(0),
@@ -219,6 +264,13 @@ const Dashboard: React.FC = () => {
       return params;
     }
 
+    if (range === "yesterday") {
+      const yesterday = getDaysAgoInAppTimezone(1);
+      params.createdAt__gte = `${yesterday}T00:00:00`;
+      params.createdAt__lte = `${yesterday}T23:59:59`;
+      return params;
+    }
+
     if (range === "5m" || range === "15m" || range === "1h" || range === "2h" || range === "4h") {
       const end = new Date();
       const start = new Date();
@@ -237,7 +289,7 @@ const Dashboard: React.FC = () => {
       return params;
     }
 
-    const days = range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
+    const days = range === "3d" ? 3 : range === "7d" ? 7 : range === "30d" ? 30 : range === "90d" ? 90 : 365;
     const start = getDaysAgoInAppTimezone(days - 1);
     const end = getDaysAgoInAppTimezone(0);
     params.createdAt__gte = `${start}T00:00:00`;
@@ -249,7 +301,7 @@ const Dashboard: React.FC = () => {
   const fetchTrafficTraffic = async (range: RangeKey) => {
     setIsTrafficLoading(true);
     try {
-      if (range === "today") {
+      if (range === "today" || range === "yesterday") {
         const data = await getSmsHourlyApi(buildParams(range));
         setTrafficData(data);
       } else {
@@ -270,6 +322,7 @@ const Dashboard: React.FC = () => {
       setTotalSms(Number(d.count).toLocaleString());
       setDeliveredCount(Number(d.deliveredCount).toLocaleString());
       setFailedCount(Number(d.failedCount).toLocaleString());
+      setUndeliveredCount(Number(d.undeliveredCount || 0).toLocaleString());
       setRejectedCount(Number(d.rejectedCount || 0).toLocaleString());
       setDeliveryRate(`${d.deliveryRate}%`);
     } catch (e) {
@@ -286,6 +339,7 @@ const Dashboard: React.FC = () => {
       setDlrData([
         { name: "Delivered", value: d.deliveredPercent || 0, color: DLR_COLORS.Delivered },
         { name: "Failed", value: d.failedPercent || 0, color: DLR_COLORS.Failed },
+        { name: "Undelivered", value: d.undeliveredPercent || 0, color: DLR_COLORS.Undelivered },
         { name: "Pending", value: d.pendingPercent || 0, color: DLR_COLORS.Pending },
         { name: "Rejected", value: d.rejectedPercent || 0, color: DLR_COLORS.Rejected },
       ]);
@@ -453,6 +507,8 @@ const Dashboard: React.FC = () => {
 
   // ─── Effects ─────────────────────────────────────────────────────────────────
 
+  const refreshTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const refreshData = () => {
       fetchFailureBreakdown(activeRange);
@@ -468,10 +524,18 @@ const Dashboard: React.FC = () => {
       setSelectedFailureCategory(null);
     };
 
+    const handleTimezoneChange = () => {
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = setTimeout(() => {
+        refreshData();
+      }, 150);
+    };
+
     refreshData();
-    window.addEventListener("timezoneChanged", refreshData);
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
     return () => {
-      window.removeEventListener("timezoneChanged", refreshData);
+      if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
+      window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
   }, [activeRange]);
 
@@ -486,7 +550,6 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchClientSessionSummary();
     fetchOnlineVendors();
-    fetchTpsNotifications();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
     if (!wsBase) {
       console.error("WebSocket Error: VITE_WS_BASE_URL is missing in your .env file!");
@@ -541,6 +604,7 @@ const Dashboard: React.FC = () => {
                 setTotalSms(Number(data.smsStats.count).toLocaleString());
                 setDeliveredCount(Number(data.smsStats.deliveredCount).toLocaleString());
                 setFailedCount(Number(data.smsStats.failedCount).toLocaleString());
+                setUndeliveredCount(Number(data.smsStats.undeliveredCount || 0).toLocaleString());
                 setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
@@ -549,6 +613,7 @@ const Dashboard: React.FC = () => {
                 setDlrData([
                   { name: "Delivered", value: data.dlrStats.deliveredPercent || 0, color: DLR_COLORS.Delivered },
                   { name: "Failed", value: data.dlrStats.failedPercent || 0, color: DLR_COLORS.Failed },
+                  { name: "Undelivered", value: data.dlrStats.undeliveredPercent || 0, color: DLR_COLORS.Undelivered },
                   { name: "Pending", value: data.dlrStats.pendingPercent || 0, color: DLR_COLORS.Pending },
                   { name: "Rejected", value: data.dlrStats.rejectedPercent || 0, color: DLR_COLORS.Rejected },
                 ]);
@@ -677,10 +742,9 @@ const Dashboard: React.FC = () => {
 
   const activeRangeLabel = RANGE_OPTIONS.find((r) => r.key === activeRange)?.label ?? "";
 
-  // ─── Traffic Volume chart granularity helpers ───────────────────────────────
-  const isHourly = activeRange === "today";
   const firstItem = trafficData[0] as any;
   const xAxisKey = firstItem && ("date" in firstItem) ? "date" : firstItem && ("day" in firstItem) ? "day" : "hour";
+  const isHourly = (activeRange === "today" || activeRange === "yesterday") && xAxisKey === "hour";
 
   const formatXAxisTick = (value: any) => {
     if (isHourly) return `${value}:00`;
@@ -707,9 +771,9 @@ const Dashboard: React.FC = () => {
   let chartMinWidth = "100%";
   let needsScroll = false;
 
-  if (activeRange === "today") {
+  if (activeRange === "today" || activeRange === "yesterday") {
     tickInterval = 3;
-  } else if (activeRange === "7d") {
+  } else if (activeRange === "3d" || activeRange === "7d") {
     tickInterval = 0;
   } else if (activeRange === "30d") {
     tickInterval = 0;
@@ -775,21 +839,21 @@ const Dashboard: React.FC = () => {
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="container mx-auto pb-8">
+    <div className="container mx-auto pb-6">
       {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-3.5 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
+          <h1 className="text-xl sm:text-2xl font-semibold text-text-primary dark:text-white">
             Dashboard Overview
           </h1>
-          <p className="text-sm text-text-secondary dark:text-gray-400 mt-1">
+          <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 mt-0.5">
             Live system metrics and SMS traffic analytics.{" "}
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary/10 text-primary">
               {activeRangeLabel}
             </span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <ToggleSwitch
             label="Auto-Refresh Metrics"
             checked={isMetricsLive}
@@ -797,25 +861,25 @@ const Dashboard: React.FC = () => {
           />
 
           {/* Range dropdown */}
-          <div className="relative">
+          <div className="relative" ref={rangeDropdownRef}>
             <button
               onClick={() => setRangeOpen((o) => !o)}
-              className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-sm font-medium text-text-primary dark:text-white shadow-sm hover:border-primary hover:text-primary transition-colors"
+              className="h-[34px] flex items-center gap-1.5 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg text-xs sm:text-sm font-medium text-text-primary dark:text-white shadow-sm hover:border-primary hover:text-primary transition-colors"
             >
-              <Calendar size={15} className="text-primary" />
+              <Calendar size={14} className="text-primary" />
               {activeRangeLabel}
               <ChevronDown
-                size={15}
+                size={14}
                 className={`transition-transform ${rangeOpen ? "rotate-180" : ""}`}
               />
             </button>
             {rangeOpen && (
-              <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 overflow-hidden">
+              <div className="absolute right-0 mt-1 w-40 max-h-80 overflow-y-auto bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50">
                 {RANGE_OPTIONS.map((opt) => (
                   <button
                     key={opt.key}
                     onClick={() => { setActiveRange(opt.key); setRangeOpen(false); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${activeRange === opt.key
+                    className={`w-full text-left px-3 py-1.5 text-xs sm:text-sm transition-colors ${activeRange === opt.key
                       ? "bg-primary/10 text-primary font-medium"
                       : "text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
                       }`}
@@ -826,75 +890,72 @@ const Dashboard: React.FC = () => {
               </div>
             )}
           </div>
-          {/* <div className="flex items-center space-x-2 text-sm text-text-secondary">
-            <Home size={16} className="text-gray-400" />
-            <span className="text-text-primary dark:text-white">Dashboard</span>
-          </div> */}
         </div>
       </div>
 
       {/* Row 1: KPI Cards — SMS stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         <StatCard
           title={`Total SMS (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : totalSms}
-          icon={<MessageSquare size={24} />}
+          icon={<MessageSquare size={21} />}
         />
         <StatCard
           title={`Delivered (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : deliveredCount}
-          icon={<Activity size={24} />}
+          icon={<Activity size={21} />}
         />
         <StatCard
           title={`Failed (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : failedCount}
-          icon={<XCircle size={24} />}
+          icon={<XCircle size={21} />}
+        />
+        <StatCard
+          title={`Undelivered (${activeRangeLabel})`}
+          value={isStatsLoading ? "…" : undeliveredCount}
+          icon={<XCircle size={21} />}
         />
         <StatCard
           title={`Rejected (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : rejectedCount}
-          icon={<AlertTriangle size={24} />}
+          icon={<AlertTriangle size={21} />}
         />
         <StatCard
-          title="Delivery Rate"
+          title={`Delivery Rate (${activeRangeLabel})`}
           value={isStatsLoading ? "…" : deliveryRate}
-          icon={<Activity size={24} />}
-          trendText={activeRangeLabel}
+          icon={<Activity size={21} />}
         />
       </div>
 
       {/* Row 2: KPI Cards — Connectivity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         <StatCard
           title="Active Client Sessions"
           value={activeSessionsCount}
-          icon={<Monitor size={24} />}
-          trendText="Live via WebSocket"
+          icon={<Monitor size={21} />}
         />
         <StatCard
           title="Online Clients"
           value={onlineClients}
-          icon={<Users size={24} />}
-          trendText="bindStatus: ONLINE"
+          icon={<Users size={21} />}
         />
         <StatCard
           title="Online Vendors"
           value={onlineVendors}
-          icon={<Server size={24} />}
-          trendText="bindStatus: ONLINE"
+          icon={<Server size={21} />}
         />
       </div>
 
       {/* Row 3: Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         {/* Traffic Volume */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3.5 sm:p-4 shadow-sm flex flex-col">
+          <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white mb-2.5">
             Traffic Volume ({activeRangeLabel})
           </h3>
-          <div className="h-[280px] w-full overflow-hidden">
+          <div className="h-[210px] sm:h-[220px] w-full overflow-hidden">
             {isTrafficLoading ? (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 Loading traffic data…
               </div>
             ) : trafficData.length > 0 ? (
@@ -985,7 +1046,7 @@ const Dashboard: React.FC = () => {
                 </div>
               </div>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 No traffic data available.
               </div>
             )}
@@ -993,13 +1054,13 @@ const Dashboard: React.FC = () => {
         </div>
 
         {/* DLR Breakdown */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm flex flex-col">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3.5 sm:p-4 shadow-sm flex flex-col">
+          <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white mb-2.5">
             DLR Breakdown ({activeRangeLabel})
           </h3>
-          <div className="h-[280px] w-full flex-1">
+          <div className="h-[210px] sm:h-[220px] w-full flex-1">
             {isDlrLoading ? (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 Loading DLR data…
               </div>
             ) : dlrData.some(d => d.value > 0) ? (
@@ -1008,9 +1069,9 @@ const Dashboard: React.FC = () => {
                   <Pie
                     data={dlrData}
                     cx="50%"
-                    cy="45%"
-                    innerRadius={70}
-                    outerRadius={100}
+                    cy="42%"
+                    innerRadius={50}
+                    outerRadius={75}
                     paddingAngle={2}
                     dataKey="value"
                     stroke="none"
@@ -1030,24 +1091,40 @@ const Dashboard: React.FC = () => {
                   />
                   <Legend
                     verticalAlign="bottom"
-                    height={36}
-                    iconType="circle"
-                    formatter={(value: string, entry) => {
-                      const p = entry.payload as { value?: number };
+                    content={() => {
+                      const delivered = dlrData.find((d) => d.name === "Delivered") || { name: "Delivered", value: 0, color: DLR_COLORS.Delivered };
+                      const failed = dlrData.find((d) => d.name === "Failed") || { name: "Failed", value: 0, color: DLR_COLORS.Failed };
+                      const undelivered = dlrData.find((d) => d.name === "Undelivered") || { name: "Undelivered", value: 0, color: DLR_COLORS.Undelivered };
+                      const pending = dlrData.find((d) => d.name === "Pending") || { name: "Pending", value: 0, color: DLR_COLORS.Pending };
+                      const rejected = dlrData.find((d) => d.name === "Rejected") || { name: "Rejected", value: 0, color: DLR_COLORS.Rejected };
+
+                      const renderLegendItem = (item: { name: string; value: number; color: string }) => (
+                        <div key={item.name} className="inline-flex items-center gap-1.5 text-xs text-text-secondary dark:text-gray-300">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                          <span>{item.name}</span>
+                          <span className="font-medium text-text-primary dark:text-white">({item.value}%)</span>
+                        </div>
+                      );
+
                       return (
-                        <span className="text-sm text-text-secondary dark:text-gray-300">
-                          {value}{" "}
-                          <span className="font-medium text-text-primary dark:text-white ml-1">
-                            ({p?.value}%)
-                          </span>
-                        </span>
+                        <div className="flex flex-col items-center gap-1.5 pt-2">
+                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
+                            {renderLegendItem(delivered)}
+                            {renderLegendItem(failed)}
+                            {renderLegendItem(undelivered)}
+                          </div>
+                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
+                            {renderLegendItem(pending)}
+                            {renderLegendItem(rejected)}
+                          </div>
+                        </div>
                       );
                     }}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 No DLR data available.
               </div>
             )}
@@ -1056,7 +1133,7 @@ const Dashboard: React.FC = () => {
       </div>
 
       {/* Row 4: Revenue Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         <StatCard
           title="Total Revenue"
           value={
@@ -1064,7 +1141,7 @@ const Dashboard: React.FC = () => {
               ? `${revenue.currencySymbol || "$"}${Number(revenue.total_revenue).toFixed(4)}`
               : "-"
           }
-          icon={<Banknote size={24} />}
+          icon={<Banknote size={21} />}
           trendText="Received from clients"
         />
         <StatCard
@@ -1074,7 +1151,7 @@ const Dashboard: React.FC = () => {
               ? `${revenue.currencySymbol || "$"}${Number(revenue.total_cost).toFixed(4)}`
               : "-"
           }
-          icon={<Banknote size={24} />}
+          icon={<Banknote size={21} />}
           trendText="Paid to vendors"
         />
         <StatCard
@@ -1084,7 +1161,7 @@ const Dashboard: React.FC = () => {
               ? `${revenue.currencySymbol || "$"}${Number(revenue.gross_margin).toFixed(4)}`
               : "-"
           }
-          icon={<TrendingUp size={24} />}
+          icon={<TrendingUp size={21} />}
           trendText="Revenue minus cost"
         />
         <StatCard
@@ -1094,13 +1171,13 @@ const Dashboard: React.FC = () => {
               ? `${Number(revenue.margin_pct).toFixed(2)}%`
               : "-"
           }
-          icon={<Activity size={24} />}
+          icon={<Activity size={21} />}
           trendText="Gross margin percentage"
         />
       </div>
 
       {/* Analytics Toggle */}
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end mb-2 sm:mb-2.5">
         <ToggleSwitch
           label="Auto-Refresh Analytics"
           checked={isAnalyticsLive}
@@ -1108,142 +1185,180 @@ const Dashboard: React.FC = () => {
         />
       </div>
 
-      {/* Row 5: Live Sessions + Notifications */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="flex justify-between items-center p-6 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center">
-              Live Client Sessions
-              {isAnalyticsLive ? (
-                <span className="ml-3 flex h-3 w-3 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-              ) : (
-                <span className="ml-3 flex h-3 w-3 relative">
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400"></span>
-                </span>
-              )}
+      {/* Performance Section: Vendor & Route Performance, Client Performance, Geographic Breakdown */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
+        {/* Vendor & Route Performance */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+              <Server size={16} className="text-primary" />
+              Vendor & Route Performance
             </h3>
-            <NavLink to="/clientSession">
-              <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
-                View Details
-              </Button>
-            </NavLink>
           </div>
-          <div className="overflow-y-auto custom-scrollbar max-h-[280px]">
-            {isLiveSessionsLoading ? (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
-                Loading sessions…
-              </p>
-            ) : liveSessions.length > 0 ? (
-              <table className="w-full text-left border-collapse">
-                <thead className="sticky top-0 bg-white dark:bg-gray-800">
-                  <tr className="border-b border-gray-100 dark:border-gray-700">
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">System ID</th>
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Username</th>
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Company</th>
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Active Sessions</th>
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] custom-scrollbar">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+                <tr className="border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Vendor</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Route</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isVendorLoading ? (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-xs text-text-secondary dark:text-gray-500">
+                      Loading vendor performance…
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {liveSessions.map((session, idx) => (
+                ) : vendorPerformance.length > 0 ? (
+                  vendorPerformance.map((v, i) => (
                     <tr
-                      key={`${session.systemId}-${idx}`}
-                      className="border-b border-gray-100 dark:border-gray-700 last:border-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                      key={`${v.vendor}-${v.route}-${i}`}
+                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
-                      <td className="p-4 text-sm font-medium text-text-primary dark:text-white">{session.systemId}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{session.client_name}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{session.companyName}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{session.active_sessions}</td>
+                      <td className="px-3 py-1.5 text-xs font-medium text-text-primary dark:text-white">{v.vendor}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{v.route}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{v.total.toLocaleString()}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{v.deliveryRate}%</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">
+                        {formatLatency(v.avgLatencySeconds)}
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
-                No active live client sessions.
-              </p>
-            )}
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center">
+                      <Server size={28} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p className="text-text-secondary dark:text-gray-400 text-xs">No vendor traffic yet.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Client TPS Throttled Notifications */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-700">
-            <div className="flex items-center gap-2">
-              <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center">
-                Client TPS Throttled
-              </h3>
-              {tpsNotifications.length > 0 && (
-                <span className="text-xs font-semibold px-2 py-0.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full border border-amber-500/20">
-                  {tpsNotifications.length}
-                </span>
-              )}
-            </div>
+        {/* Client Performance */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+              <Users size={16} className="text-primary" />
+              Client Performance
+            </h3>
           </div>
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] custom-scrollbar">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+                <tr className="border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Client</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isClientLoading ? (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center text-xs text-text-secondary dark:text-gray-500">
+                      Loading client performance…
+                    </td>
+                  </tr>
+                ) : clientPerformance.length > 0 ? (
+                  clientPerformance.map((c, i) => (
+                    <tr
+                      key={`${c.client}-${i}`}
+                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="px-3 py-1.5 text-xs font-medium text-text-primary dark:text-white">{c.client}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{c.total.toLocaleString()}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{c.deliveryRate}%</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">
+                        {formatLatency(c.avgLatencySeconds)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} className="py-6 text-center">
+                      <Users size={28} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p className="text-text-secondary dark:text-gray-400 text-xs">No client traffic yet.</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-          <div className="p-3.5 flex-1 overflow-y-auto space-y-2 max-h-[280px] custom-scrollbar">
-            {isTpsLoading && tpsNotifications.length === 0 ? (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
-                Loading TPS alerts…
-              </p>
-            ) : tpsNotifications.length > 0 ? (
-              tpsNotifications.map((n, i) => {
-                const { clientName, message } = parseTpsDescription(n.description);
-                return (
-                  <div
-                    key={n.id || i}
-                    className="p-2.5 rounded-lg bg-gray-50/80 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700/60 hover:bg-gray-100/70 dark:hover:bg-gray-700/60 transition-all flex items-start gap-2.5"
-                  >
-                    <div className="shrink-0 mt-0.5">
-                      <div className="bg-amber-500/10 dark:bg-amber-500/20 text-amber-500 p-1.5 rounded-md">
-                        <AlertTriangle size={13} />
-                      </div>
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs text-text-secondary dark:text-gray-300 leading-snug">
-                        {clientName ? (
-                          <>
-                            <span className="font-semibold text-text-primary dark:text-white">
-                              '{clientName}'
-                            </span>{" "}
-                            <span>{message}</span>
-                          </>
-                        ) : (
-                          n.description
-                        )}
-                      </p>
-
-                      {n.createdAt && (
-                        <div className="mt-1 flex items-center text-[11px] text-text-secondary dark:text-gray-400 font-mono">
-                          <Clock size={11} className="mr-1 shrink-0 opacity-70" />
-                          <span>{formatDateTime(n.createdAt)}</span>
+        {/* Geographic Breakdown */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700">
+            <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+              <Globe size={16} className="text-primary" />
+              Geographic Breakdown
+            </h3>
+          </div>
+          <div className="overflow-x-auto overflow-y-auto max-h-[240px] custom-scrollbar">
+            <table className="w-full text-left border-collapse">
+              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+                <tr className="border-b border-gray-100 dark:border-gray-700">
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Country</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {isGeoLoading ? (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center text-xs text-text-secondary dark:text-gray-500">
+                      Loading geographic data…
+                    </td>
+                  </tr>
+                ) : geoBreakdown.length > 0 ? (
+                  geoBreakdown.map((g, i) => (
+                    <tr
+                      key={`${g.iso2}-${i}`}
+                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <td className="px-3 py-1.5 text-xs font-medium text-text-primary dark:text-white">
+                        <div className="flex items-center gap-1.5">
+                          {g.iso2 && <CountryFlag iso2={g.iso2} />}
+                          {g.country}
                         </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <p className="text-sm text-text-secondary dark:text-gray-400 text-center py-8">
-                No TPS throttled alerts.
-              </p>
-            )}
+                      </td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{g.total.toLocaleString()}</td>
+                      <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{g.deliveryRate}%</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="py-6 text-center">
+                      <Globe size={28} className="mx-auto mb-2 text-gray-300 dark:text-gray-600" />
+                      <p className="text-text-secondary dark:text-gray-400 text-xs">
+                        No geographic data yet — this section fills in as new traffic is routed.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
 
-      {/* Row 6: Failure Breakdown + Latency & SLA */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4 flex items-center gap-2">
-            <AlertTriangle size={18} className="text-primary" />
+      {/* Row: Failure Breakdown + (Latency & SLA / Client TPS Throttled) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
+        <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3.5 sm:p-4 shadow-sm">
+          <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white mb-2.5 flex items-center gap-1.5">
+            <AlertTriangle size={16} className="text-primary" />
             Failure Breakdown ({activeRangeLabel})
           </h3>
-          <div className="h-[260px] w-full">
+          <div className="h-[200px] sm:h-[210px] w-full">
             {isFailureLoading ? (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 Loading failure data…
               </div>
             ) : failureBreakdown.length > 0 ? (
@@ -1251,7 +1366,7 @@ const Dashboard: React.FC = () => {
                 <BarChart
                   data={failureBreakdown}
                   layout="vertical"
-                  margin={{ top: 10, right: 20, left: 10, bottom: 0 }}
+                  margin={{ top: 5, right: 15, left: 5, bottom: 0 }}
                   style={{ outline: "none" }}
                 >
                   <CartesianGrid
@@ -1271,7 +1386,7 @@ const Dashboard: React.FC = () => {
                     dataKey="category"
                     axisLine={false}
                     tickLine={false}
-                    width={150}
+                    width={130}
                     tick={{ fill: isDark ? "#9ca3af" : "#6b7280", fontSize: 11 }}
                   />
                   <Tooltip
@@ -1279,6 +1394,16 @@ const Dashboard: React.FC = () => {
                       backgroundColor: isDark ? "#1f2937" : "#fff",
                       borderColor: isDark ? "#374151" : "#e5e7eb",
                       borderRadius: "0.5rem",
+                      color: isDark ? "#f3f4f6" : "#111827",
+                    }}
+                    labelStyle={{
+                      color: isDark ? "#f9fafb" : "#111827",
+                      fontWeight: 600,
+                      marginBottom: 2,
+                    }}
+                    itemStyle={{
+                      color: "var(--color-primary)",
+                      fontWeight: 600,
                     }}
                     cursor={{ fill: isDark ? "#37415133" : "#f3f4f633" }}
                   />
@@ -1308,80 +1433,149 @@ const Dashboard: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-sm text-text-secondary dark:text-gray-500">
+              <div className="h-full flex items-center justify-center text-xs sm:text-sm text-text-secondary dark:text-gray-500">
                 No failures recorded for this range.
               </div>
             )}
           </div>
         </div>
 
-        {/* Latency & SLA */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-text-primary dark:text-white mb-4 flex items-center gap-2">
-            <Clock size={18} className="text-primary" />
-            Latency & SLA ({activeRangeLabel})
-          </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs text-text-secondary dark:text-gray-400 mb-1">Avg Latency</p>
-              <p className="text-xl font-bold text-text-primary dark:text-white">
-                {isLatencyLoading ? "…" : formatLatency(latencyStats?.avgLatencySeconds)}
-              </p>
+        {/* Latency & SLA (half) + Client TPS Throttled (half) */}
+        <div className="flex flex-col gap-2.5 sm:gap-3">
+          {/* Latency & SLA */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm">
+            <h3 className="text-xs sm:text-sm font-semibold text-text-primary dark:text-white mb-2 flex items-center gap-1.5">
+              <Clock size={15} className="text-primary" />
+              Latency & SLA ({activeRangeLabel})
+            </h3>
+            <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
+              <div>
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">Avg Latency</p>
+                <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
+                  {isLatencyLoading ? "…" : formatLatency(latencyStats?.avgLatencySeconds)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">P95 Latency</p>
+                <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
+                  {isLatencyLoading ? "…" : formatLatency(latencyStats?.p95LatencySeconds)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">P50 Latency</p>
+                <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
+                  {isLatencyLoading ? "…" : formatLatency(latencyStats?.p50LatencySeconds)}
+                </p>
+              </div>
+              <div>
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">
+                  Stuck &gt;{latencyStats?.stuckThresholdMinutes ?? 5}m
+                </p>
+                <p
+                  className={`text-base sm:text-lg font-bold ${(latencyStats?.stuckCount ?? 0) > 0
+                    ? "text-red-600 dark:text-red-400"
+                    : "text-text-primary dark:text-white"
+                    }`}
+                >
+                  {isLatencyLoading ? "…" : latencyStats?.stuckCount ?? 0}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-text-secondary dark:text-gray-400 mb-1">P95 Latency</p>
-              <p className="text-xl font-bold text-text-primary dark:text-white">
-                {isLatencyLoading ? "…" : formatLatency(latencyStats?.p95LatencySeconds)}
-              </p>
+          </div>
+
+          {/* Client TPS Throttled Notifications */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100 dark:border-gray-700">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+                  <Zap size={15} className="text-primary" />
+                  Client TPS Throttled
+                </h3>
+                {tpsNotifications.length > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">
+                    {tpsNotifications.length}
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-text-secondary dark:text-gray-400 mb-1">P50 Latency</p>
-              <p className="text-xl font-bold text-text-primary dark:text-white">
-                {isLatencyLoading ? "…" : formatLatency(latencyStats?.p50LatencySeconds)}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-text-secondary dark:text-gray-400 mb-1">
-                Stuck &gt;{latencyStats?.stuckThresholdMinutes ?? 5}m
-              </p>
-              <p
-                className={`text-xl font-bold ${(latencyStats?.stuckCount ?? 0) > 0
-                  ? "text-red-600 dark:text-red-400"
-                  : "text-text-primary dark:text-white"
-                  }`}
-              >
-                {isLatencyLoading ? "…" : latencyStats?.stuckCount ?? 0}
-              </p>
+
+            <div className="p-2 sm:p-2.5 flex-1 overflow-y-auto space-y-1.5 max-h-[140px] custom-scrollbar">
+              {isTpsLoading && tpsNotifications.length === 0 ? (
+                <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 text-center py-4">
+                  Loading TPS alerts…
+                </p>
+              ) : tpsNotifications.length > 0 ? (
+                tpsNotifications.map((n, i) => {
+                  const { clientName, message } = parseTpsDescription(n.description);
+                  return (
+                    <div
+                      key={n.id || i}
+                      className="p-2 rounded-lg bg-gray-50/80 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700/60 hover:bg-gray-100/70 dark:hover:bg-gray-700/60 transition-all flex items-start gap-2"
+                    >
+                      <div className="shrink-0 mt-0.5">
+                        <div className="bg-primary/10 dark:bg-primary/20 text-primary p-1 rounded">
+                          <AlertTriangle size={12} />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-text-secondary dark:text-gray-300 leading-snug">
+                          {clientName ? (
+                            <>
+                              <span className="font-semibold text-text-primary dark:text-white">
+                                '{clientName}'
+                              </span>{" "}
+                              <span>{message}</span>
+                            </>
+                          ) : (
+                            n.description
+                          )}
+                        </p>
+
+                        {n.createdAt && (
+                          <div className="mt-1 flex items-center text-[10px] text-text-secondary dark:text-gray-400 font-mono">
+                            <Clock size={10} className="mr-1 shrink-0 opacity-70" />
+                            <span>{formatDateTime(n.createdAt)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 text-center py-4">
+                  No TPS throttled alerts.
+                </p>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Row 7: Detailed Error Messages (Raw) */}
+      {/* Detailed Error Messages (Raw) */}
       {selectedFailureCategory && (
-        <div className="mb-6">
+        <div className="mb-2.5 sm:mb-3">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-            <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
-              <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center gap-2">
-                <AlertTriangle size={18} className="text-primary" />
+            <div className="px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+              <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+                <AlertTriangle size={16} className="text-primary" />
                 Detailed Error "{selectedFailureCategory}" ({activeRangeLabel})
               </h3>
               <Button variant="secondary" size="sm" onClick={() => setSelectedFailureCategory(null)}>
                 Close Details
               </Button>
             </div>
-            <div className="overflow-x-auto custom-scrollbar max-h-[300px]">
+            <div className="overflow-x-auto custom-scrollbar max-h-[220px]">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                   <tr className="border-b border-gray-100 dark:border-gray-700">
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Error Reason</th>
-                    <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400 w-32 text-right">Count</th>
+                    <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Error Reason</th>
+                    <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider w-32 text-right">Count</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isFailureReasonCountsLoading ? (
                     <tr>
-                      <td colSpan={2} className="p-10 text-center text-sm text-text-secondary dark:text-gray-500">
+                      <td colSpan={2} className="py-6 text-center text-xs text-text-secondary dark:text-gray-500">
                         Loading error details…
                       </td>
                     </tr>
@@ -1391,17 +1585,17 @@ const Dashboard: React.FC = () => {
                         key={i}
                         className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                       >
-                        <td className="p-4 text-sm text-text-secondary dark:text-gray-300 break-words whitespace-normal">
+                        <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300 break-words whitespace-normal">
                           {f.failure_reason || "Unknown"}
                         </td>
-                        <td className="p-4 text-sm font-medium text-text-primary dark:text-white text-right">
+                        <td className="px-3 py-1.5 text-xs font-medium text-text-primary dark:text-white text-right">
                           {f.count.toLocaleString()}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={2} className="p-10 text-center text-sm text-text-secondary dark:text-gray-500">
+                      <td colSpan={2} className="py-6 text-center text-xs text-text-secondary dark:text-gray-500">
                         No errors recorded for this range.
                       </td>
                     </tr>
@@ -1413,167 +1607,53 @@ const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Row 8: Vendor Performance + Client Performance + Geographic Breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {/* Vendor & Route Performance */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center gap-2">
-              <Server size={18} className="text-primary" />
-              Vendor & Route Performance
-            </h3>
-          </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[320px] custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
-                <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Vendor</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Route</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Total</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Delivery Rate</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Avg Latency</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isVendorLoading ? (
-                  <tr>
-                    <td colSpan={5} className="p-10 text-center text-sm text-text-secondary dark:text-gray-500">
-                      Loading vendor performance…
-                    </td>
-                  </tr>
-                ) : vendorPerformance.length > 0 ? (
-                  vendorPerformance.map((v, i) => (
-                    <tr
-                      key={`${v.vendor}-${v.route}-${i}`}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                    >
-                      <td className="p-4 text-sm font-medium text-text-primary dark:text-white">{v.vendor}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{v.route}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{v.total.toLocaleString()}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{v.deliveryRate}%</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">
-                        {formatLatency(v.avgLatencySeconds)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={5} className="p-10 text-center">
-                      <Server size={40} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-                      <p className="text-text-secondary dark:text-gray-400 text-sm">No vendor traffic yet.</p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+      {/* Live Client Sessions */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden mb-2.5 sm:mb-3">
+        <div className="flex justify-between items-center px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700">
+          <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+            <Radio size={16} className="text-primary" />
+            Live Client Sessions
+          </h3>
+          <NavLink to="/clientSession">
+            <Button variant="secondary" size="sm" rightIcon={<ArrowRight size={14} />}>
+              View Details
+            </Button>
+          </NavLink>
         </div>
-
-        {/* Client Performance */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center gap-2">
-              <Users size={18} className="text-primary" />
-              Client Performance
-            </h3>
-          </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[320px] custom-scrollbar">
+        <div className="overflow-y-auto custom-scrollbar max-h-[220px]">
+          {isLiveSessionsLoading ? (
+            <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 text-center py-6">
+              Loading sessions…
+            </p>
+          ) : liveSessions.length > 0 ? (
             <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+              <thead className="sticky top-0 bg-white dark:bg-gray-800">
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Client</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Total</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Delivery Rate</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Avg Latency</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">System ID</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Username</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Company</th>
+                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Active Sessions</th>
                 </tr>
               </thead>
               <tbody>
-                {isClientLoading ? (
-                  <tr>
-                    <td colSpan={4} className="p-10 text-center text-sm text-text-secondary dark:text-gray-500">
-                      Loading client performance…
-                    </td>
+                {liveSessions.map((session, idx) => (
+                  <tr
+                    key={`${session.systemId}-${idx}`}
+                    className="border-b border-gray-100 dark:border-gray-700 last:border-none hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                  >
+                    <td className="px-3 py-1.5 text-xs font-medium text-text-primary dark:text-white">{session.systemId}</td>
+                    <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{session.client_name}</td>
+                    <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{session.companyName}</td>
+                    <td className="px-3 py-1.5 text-xs text-text-secondary dark:text-gray-300">{session.active_sessions}</td>
                   </tr>
-                ) : clientPerformance.length > 0 ? (
-                  clientPerformance.map((c, i) => (
-                    <tr
-                      key={`${c.client}-${i}`}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                    >
-                      <td className="p-4 text-sm font-medium text-text-primary dark:text-white">{c.client}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{c.total.toLocaleString()}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{c.deliveryRate}%</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">
-                        {formatLatency(c.avgLatencySeconds)}
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={4} className="p-10 text-center">
-                      <Users size={40} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-                      <p className="text-text-secondary dark:text-gray-400 text-sm">No client traffic yet.</p>
-                    </td>
-                  </tr>
-                )}
+                ))}
               </tbody>
             </table>
-          </div>
-        </div>
-
-        {/* Geographic Breakdown */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-gray-100 dark:border-gray-700">
-            <h3 className="text-lg font-semibold text-text-primary dark:text-white flex items-center gap-2">
-              <Globe size={18} className="text-primary" />
-              Geographic Breakdown
-            </h3>
-          </div>
-          <div className="overflow-x-auto overflow-y-auto max-h-[320px] custom-scrollbar">
-            <table className="w-full text-left border-collapse">
-              <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
-                <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Country</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Total</th>
-                  <th className="p-4 text-xs font-medium text-text-secondary dark:text-gray-400">Delivery Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isGeoLoading ? (
-                  <tr>
-                    <td colSpan={3} className="p-10 text-center text-sm text-text-secondary dark:text-gray-500">
-                      Loading geographic data…
-                    </td>
-                  </tr>
-                ) : geoBreakdown.length > 0 ? (
-                  geoBreakdown.map((g, i) => (
-                    <tr
-                      key={`${g.iso2}-${i}`}
-                      className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                    >
-                      <td className="p-4 text-sm font-medium text-text-primary dark:text-white">
-                        <div className="flex items-center gap-2">
-                          {g.iso2 && <CountryFlag iso2={g.iso2} />}
-                          {g.country}
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{g.total.toLocaleString()}</td>
-                      <td className="p-4 text-sm text-text-secondary dark:text-gray-300">{g.deliveryRate}%</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={3} className="p-10 text-center">
-                      <Globe size={40} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
-                      <p className="text-text-secondary dark:text-gray-400 text-sm">
-                        No geographic data yet — this section fills in as new traffic is routed.
-                      </p>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          ) : (
+            <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 text-center py-6">
+              No active live client sessions.
+            </p>
+          )}
         </div>
       </div>
     </div>

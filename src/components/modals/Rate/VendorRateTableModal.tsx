@@ -379,10 +379,11 @@ export const VendorRateTableModal: React.FC<VendorRateTableModalProps> = ({
         return <FilterInput fieldKey="remark" placeholder="Search..." value={columnFilters["remark"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" />;
       case "effectiveFrom":
         return (
-          <div className="filter-vrt-wrapper" style={{ minWidth: "120px" }}>
+          <div className="filter-vrt-wrapper" style={{ minWidth: "135px" }}>
             <DatePicker
               label=""
               selected={columnFilters["effectiveFrom"] ? new Date(columnFilters["effectiveFrom"]) : null}
+              isClearable
               onChange={(date: Date | null) => {
                 const dateStr = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` : "";
                 handleFilterChange("effectiveFrom", dateStr);
@@ -668,14 +669,11 @@ export const VendorRateTableModal: React.FC<VendorRateTableModalProps> = ({
         .filter-vrt-wrapper > div { margin-bottom: 0 !important; }
         .filter-vrt-wrapper input, .filter-vrt-wrapper select, .filter-vrt-wrapper button {
           min-height: 28px !important; height: 28px !important; padding-top: 2px !important;
-          padding-bottom: 2px !important; padding-right: 6px !important;
+          padding-bottom: 2px !important; padding-left: 6px !important; padding-right: 6px !important;
           font-size: 12px !important; border-radius: 4px !important;
         }
-        .filter-vrt-wrapper input:not(.pl-10) {
-          padding-left: 6px !important;
-        }
-        .filter-vrt-wrapper input.pl-10 {
-          padding-left: 2rem !important;
+        .filter-vrt-wrapper .react-datepicker__input-container input {
+          padding-left: 34px !important;
         }
       `}} />
     </>

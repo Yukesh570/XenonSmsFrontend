@@ -381,10 +381,11 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
         return <FilterInput fieldKey="remark" placeholder="Search..." value={columnFilters["remark"] || ""} onChange={handleFilterChange} onEnter={handleFilterApply} minWidth="100px" />;
       case "effectiveFrom":
         return (
-          <div className="filter-crt-wrapper" style={{ minWidth: "120px" }}>
+          <div className="filter-crt-wrapper" style={{ minWidth: "135px" }}>
             <DatePicker
               label=""
               selected={columnFilters["effectiveFrom"] ? new Date(columnFilters["effectiveFrom"]) : null}
+              isClearable
               onChange={(date: Date | null) => {
                 const dateStr = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}` : "";
                 handleFilterChange("effectiveFrom", dateStr);

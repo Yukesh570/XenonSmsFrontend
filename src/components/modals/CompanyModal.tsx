@@ -18,6 +18,7 @@ import Modal from "../ui/Modal";
 import TextArea from "../ui/TextArea";
 import MultiEmailInput from "../ui/multiEmailInput";
 import { CountryFlag } from "../ui/CountryFlag";
+import ToggleSwitch from "../ui/ToggleSwitch";
 
 interface CompanyModalProps {
   isOpen: boolean;
@@ -73,6 +74,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
     allowNetting: false,
     showHlrApi: false,
     enableVendorPanel: false,
+    allowNegativeVendorCredit: false,
     accountManager: "",
   });
 
@@ -158,6 +160,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
         allowNetting: editingCompany.allowNetting,
         showHlrApi: editingCompany.showHlrApi,
         enableVendorPanel: editingCompany.enableVendorPanel,
+        allowNegativeVendorCredit: editingCompany.allowNegativeVendorCredit || false,
         accountManager: editingCompany.accountManager != null ? String(editingCompany.accountManager) : "",
       });
     } else if (isOpen) {
@@ -192,6 +195,7 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
         allowNetting: false,
         showHlrApi: false,
         enableVendorPanel: false,
+        allowNegativeVendorCredit: false,
         accountManager: "",
       });
     }
@@ -495,6 +499,30 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
               placeholder="REF-2024-001"
               disabled={isViewMode}
             />
+            
+            <div className="flex flex-col justify-start">
+              <span
+                className="mb-1.5 block text-xs font-medium text-transparent select-none pointer-events-none"
+                aria-hidden="true"
+              >
+                &nbsp;
+              </span>
+              <div className="flex items-center min-h-[34px]">
+                <ToggleSwitch
+                  label="Allow Negative Vendor Credit"
+                  description="Route traffic even if vendor has negative balance."
+                  checked={formData.allowNegativeVendorCredit}
+                  onChange={(v) =>
+                    !isViewMode &&
+                    setFormData((prev) => ({
+                      ...prev,
+                      allowNegativeVendorCredit: v,
+                    }))
+                  }
+                  disabled={isViewMode}
+                />
+              </div>
+            </div>
 
             {isViewMode && (
               <>

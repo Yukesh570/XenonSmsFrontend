@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import Select from "./Select";
 import LoadingSpinner from "./LoadingSpinner";
 import {
@@ -50,6 +51,7 @@ export interface ModalDataTableProps<T> {
   // Column Resizing & Persistence
   storageKey?: string;
   resizableColumns?: boolean;
+  defaultColumnWidths?: Record<string, number>;
 
   // Custom table max-height
   tableMaxHeight?: string | number;
@@ -62,62 +64,11 @@ const defaultRowsOptions = [
   { value: "100", label: "100" },
 ];
 
-export const getHeaderWordMinWidth = (header: string, index: number, hasSn: boolean): number => {
-  if (hasSn && index === 0) return 48;
-  const raw = String(header || "").trim();
-  const firstWord = raw.split(/[\s_.-]+/)[0] || raw;
-  const fullTextLen = raw.length;
-  const firstWordLen = firstWord.length;
-
-  const h = raw.toLowerCase().replace(/[^a-z0-9]/g, "");
-  if (h === "mcc" || h === "mnc") return 120;
-  if (h === "country" || h === "countryname") return 165;
-  if (h === "countrycode") return 165;
-  if (h === "network" || h === "networkname") return 185;
-  if (h.includes("rate") || h === "exchangerate") return 145;
-  if (h === "version") return 135;
-  if (h === "status") return 130;
-  if (h === "remark" || h === "description" || h === "remarks") return 150;
-  if (
-    h.includes("effective") ||
-    h.includes("date") ||
-    h.includes("time") ||
-    h.includes("created") ||
-    h.includes("updated") ||
-    h.includes("billing")
-  ) {
-    return 195;
-  }
-  if (h === "companyname" || h === "company") return 195;
-  if (h === "shortname") return 160;
-  if (h === "accountmanager" || h === "accountmanagername") return 205;
-  if (h === "companyemail" || h === "email") return 200;
-  if (h === "phone") return 135;
-  if (h === "currency" || h === "currencycode") return 145;
-  if (h.includes("customercredit") || h.includes("custcredit")) return 175;
-  if (h.includes("vendorcredit") || h.includes("vendcredit")) return 175;
-  if (h.includes("balancealert")) return 175;
-  if (h === "customerbalance" || h === "vendorbalance") return 185;
-  if (h === "customer" || h === "vendor" || h === "client") return 165;
-  if (h === "invoicenumber" || h === "invoice") return 165;
-  if (h.includes("credit")) return 165;
-  if (h.includes("amount") || h.includes("segments") || h.includes("tax")) return 145;
-  if (h === "id") return 75;
-  if (h === "action" || h === "actions") return 100;
-
-  // General calculated width: ensure at least first word (with grip + sort + padding) has full room,
-  // and full text is accommodated comfortably.
-  const minRequiredForFirstWord = Math.max(130, Math.ceil(firstWordLen * 11 + 65));
-  const fullTextDesired = Math.max(minRequiredForFirstWord, Math.ceil(fullTextLen * 9.5 + 65));
-
-  return fullTextDesired;
-};
-
 /**
- * Calculates the maximum limit to which a column can be decreased (minimum allowed width),
- * ensuring at least the first word of the header is fully visible with all padding and icons.
+ * Calculates the exact width needed to display the full header name on a single line,
+ * including padding, drag handle, and sort icons with no extra arbitrary padding.
  */
-export const getHeaderFirstWordMinWidth = (
+export const getHeaderFullWidth = (
   header: string,
   index?: number,
   hasSn?: boolean
@@ -137,22 +88,50 @@ export const getHeaderFirstWordMinWidth = (
     normalized === "SERIALNUMBER" ||
     normalized === "#" ||
     normalized === "NO" ||
-    normalized === "ID" ||
     normalized === "SEQ"
   ) {
     return 48;
   }
 
-  // Extract the first word (split by whitespace, underscores, hyphens, dots, slashes)
-  const firstWord = raw.split(/[\s_.\-/]+/)[0] || raw;
-  const wordLen = firstWord.length;
+  // Exact character width calculation for text-xs font-medium uppercase tracking-wider
+  let textWidth = 0;
+  for (const char of raw.toUpperCase()) {
+    if (char === " " || char === "-" || char === "_") {
+      textWidth += 4.5;
+    } else if ("IJLT1()[]|:;,'.".includes(char)) {
+      textWidth += 6.5;
+    } else if ("MWDQ@%&".includes(char)) {
+      textWidth += 11.0;
+    } else {
+      textWidth += 8.8;
+    }
+  }
 
-  // Header has px-3 padding (24px) + Grip icon (~17px) + Sort icon (~18px)
-  // Font is text-xs uppercase (approx 8.8px per char with tracking-wider)
-  const textWidth = Math.ceil(wordLen * 8.8);
-  const minWidth = textWidth + 56;
+  // Header chrome: px-3 th padding (24px) + inner px-1 (8px) + GripVertical icon (~17px) + Sort icon (~15px) + 4px safety buffer = 68px
+  const chrome = 68;
+  const calculatedWidth = Math.ceil(textWidth + chrome);
 
-  return Math.max(50, minWidth);
+  return Math.max(50, calculatedWidth);
+};
+
+export const getHeaderWordMinWidth = (
+  header: string,
+  index?: number,
+  hasSn?: boolean
+): number => {
+  return getHeaderFullWidth(header, index, hasSn);
+};
+
+/**
+ * Calculates the minimum allowed width for a column, ensuring the full header name
+ * is completely visible with all padding and icons on a single line without truncation.
+ */
+export const getHeaderFirstWordMinWidth = (
+  header: string,
+  index?: number,
+  hasSn?: boolean
+): number => {
+  return getHeaderFullWidth(header, index, hasSn);
 };
 
 export function ModalDataTable<T extends Record<string, any> = any>({
@@ -186,6 +165,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
   storageKey,
   resizableColumns = true,
+  defaultColumnWidths,
   tableMaxHeight = "58vh",
 }: ModalDataTableProps<T>) {
   const [clientPage, setClientPage] = useState(1);
@@ -213,6 +193,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     : "modal_col_widths_default";
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    let initial: Record<string, number> = defaultColumnWidths ? { ...defaultColumnWidths } : {};
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(effectiveStorageKey);
@@ -235,14 +216,14 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                 clean[key] = parsed[key];
               }
             }
-            return clean;
+            return { ...initial, ...clean };
           }
         }
       } catch (e) {
         console.error("Error loading column widths from localStorage", e);
       }
     }
-    return {};
+    return initial;
   });
 
   const saveWidths = (widths: Record<string, number>) => {
@@ -304,6 +285,95 @@ export function ModalDataTable<T extends Record<string, any> = any>({
     return () => {
       if (resizeObserver) resizeObserver.disconnect();
       else window.removeEventListener("resize", updateWidth);
+    };
+  }, []);
+
+  // Fast hover tooltip for table headers
+  const [headerTooltip, setHeaderTooltip] = useState<{
+    text: string;
+    coords: { top: number; left: number };
+    placement: "above" | "below";
+  } | null>(null);
+  const headerTooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeHeaderRef = useRef<HTMLElement | null>(null);
+
+  const clearHeaderTooltip = useCallback(() => {
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+      headerTooltipTimerRef.current = null;
+    }
+    activeHeaderRef.current = null;
+    setHeaderTooltip(null);
+  }, []);
+
+  const handleHeaderMouseOver = (e: React.MouseEvent) => {
+    if (isResizingRef.current || hasDraggedRef.current) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const target = e.target as HTMLElement;
+    const th = target.closest("th") as HTMLElement | null;
+    if (!th) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    // Skip column resize handle
+    if (target.closest(".group\\/resizer")) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    if (th === activeHeaderRef.current) return;
+
+    activeHeaderRef.current = th;
+    if (headerTooltipTimerRef.current) {
+      clearTimeout(headerTooltipTimerRef.current);
+    }
+
+    const spanEl = (th.querySelector("span[data-header-label]") || th.querySelector("span")) as HTMLElement | null;
+    const rawText = spanEl?.innerText?.trim() || th.innerText?.trim();
+    if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
+      clearHeaderTooltip();
+      return;
+    }
+
+    const text = rawText.replace(/\s+/g, " ");
+
+    headerTooltipTimerRef.current = setTimeout(() => {
+      if (!activeHeaderRef.current || !th.isConnected) return;
+      const rect = th.getBoundingClientRect();
+      const isAbove = rect.top >= 36;
+      setHeaderTooltip({
+        text,
+        coords: {
+          top: isAbove ? rect.top - 6 : rect.bottom + 6,
+          left: Math.max(12, Math.min(window.innerWidth - 12, rect.left + rect.width / 2)),
+        },
+        placement: isAbove ? "above" : "below",
+      });
+    }, 350);
+  };
+
+  useEffect(() => {
+    if (!headerTooltip) return;
+    const handleDismiss = () => clearHeaderTooltip();
+    window.addEventListener("scroll", handleDismiss, true);
+    window.addEventListener("resize", handleDismiss);
+    window.addEventListener("mousedown", handleDismiss);
+    window.addEventListener("keydown", handleDismiss);
+    return () => {
+      window.removeEventListener("scroll", handleDismiss, true);
+      window.removeEventListener("resize", handleDismiss);
+      window.removeEventListener("mousedown", handleDismiss);
+      window.removeEventListener("keydown", handleDismiss);
+    };
+  }, [headerTooltip, clearHeaderTooltip]);
+
+  useEffect(() => {
+    return () => {
+      if (headerTooltipTimerRef.current) clearTimeout(headerTooltipTimerRef.current);
     };
   }, []);
 
@@ -689,21 +759,22 @@ export function ModalDataTable<T extends Record<string, any> = any>({
       {!hideTopBar && (
         <div className="flex flex-row flex-wrap items-center justify-between border-b border-gray-200 dark:border-gray-700 px-3 py-2 gap-2 bg-white dark:bg-gray-800 relative z-10">
           <div className="flex flex-row flex-wrap items-center gap-2">
-            {/* Rows Per Page */}
-            <div className="flex items-center space-x-1.5">
-              <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
-                Rows per page:
-              </span>
-              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
-                <Select
-                  value={String(activeRows)}
-                  onChange={(val) => handleRowsChange(Number(val))}
-                  options={rowsPerPageOptions}
-                  clearable={false}
-                  placement="bottom"
-                />
+              {/* Rows Per Page */}
+              <div className="flex items-center space-x-1.5">
+                <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap">
+                  Rows per page:
+                </span>
+                <div className="w-20 sm:w-24 shrink-0 rows-per-page-select">
+                  <Select
+                    value={String(activeRows)}
+                    onChange={(val) => handleRowsChange(Number(val))}
+                    options={rowsPerPageOptions}
+                    clearable={false}
+                    placement="bottom"
+                    minMenuWidth={80}
+                  />
+                </div>
               </div>
-            </div>
 
             <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
 
@@ -804,7 +875,11 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             })}
           </colgroup>
 
-          <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-700">
+          <thead
+            className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm border-b border-gray-200 dark:border-gray-700"
+            onMouseOver={handleHeaderMouseOver}
+            onMouseLeave={clearHeaderTooltip}
+          >
             {/* Header Titles Row with Drag & Drop, Sort, and Resizing */}
             <tr>
               {headers.map((header, i) => {
@@ -881,7 +956,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                       }
                     }}
                   >
-                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -889,7 +964,8 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                         />
                       )}
                       <span
-                        className={`truncate text-center pointer-events-none select-none ${
+                        data-header-label="true"
+                        className={`whitespace-nowrap text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -1012,8 +1088,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           table-layout: fixed !important;
         }
         .app-modal-data-table table.table-resizable-active th {
-          overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: visible;
           white-space: nowrap;
           text-align: center !important;
         }
@@ -1065,6 +1140,15 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         .table-density-compact td { padding-top: 0.625rem !important; padding-bottom: 0.625rem !important; }
         .table-density-compact th { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
 
+        .app-modal-data-table .flex.justify-center,
+        .app-modal-data-table .flex.justify-end,
+        .app-modal-data-table th div,
+        .app-modal-data-table .rows-per-page-select,
+        .app-modal-data-table .rows-per-page-select div {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+        }
+
         .rows-per-page-select {
           height: 34px !important;
           display: flex !important;
@@ -1094,8 +1178,11 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           max-height: 32px !important;
           padding-top: 0 !important;
           padding-bottom: 0 !important;
+          padding-left: 0.5rem !important;
+          padding-right: 1.5rem !important;
           line-height: 32px !important;
           font-size: 0.8125rem !important;
+          text-align: center !important;
         }
         .rows-per-page-select button {
           height: 100% !important;
@@ -1132,6 +1219,19 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         `,
         }}
       />
+
+      {headerTooltip &&
+        createPortal(
+          <div
+            className={`fixed z-[99999] px-2.5 py-1 text-xs font-medium text-white bg-gray-900/95 dark:bg-gray-800/95 rounded-md shadow-lg pointer-events-none transform -translate-x-1/2 ${
+              headerTooltip.placement === "above" ? "-translate-y-full" : "translate-y-0"
+            } transition-opacity duration-100 border border-gray-700/50 backdrop-blur-sm max-w-md break-words text-center select-none`}
+            style={{ top: headerTooltip.coords.top, left: headerTooltip.coords.left }}
+          >
+            {headerTooltip.text}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

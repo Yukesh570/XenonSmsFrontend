@@ -161,7 +161,7 @@ const LiveTraffic: React.FC = () => {
     fetchAllOptions();
   }, []);
 
-const hasLoggedOpening = useRef(false);
+  const hasLoggedOpening = useRef(false);
 
   useEffect(() => {
     if (!hasLoggedOpening.current) {
@@ -170,10 +170,10 @@ const hasLoggedOpening = useRef(false);
         const activeLinks = document.querySelectorAll('aside a.active, nav a.active');
         const activeItem = activeLinks[activeLinks.length - 1] as HTMLElement;
         let moduleLabel = activeItem?.innerText?.split('\n')[0].trim() || "Module";
-        
+
         actionHelper(moduleLabel, `Opened ${moduleLabel} Module`, false);
       }, 100); // Waits 0.1 seconds
-      
+
       hasLoggedOpening.current = true;
     }
   }, []);
@@ -200,8 +200,6 @@ const hasLoggedOpening = useRef(false);
       }, */
       { key: "senderId", label: "Original Sender ID", type: "text" },
       { key: "effectiveSenderId", label: "Effective Sender ID", type: "text" },
-      { key: "senderTranslationAction", label: "Sender Translation Action", type: "text" },
-      { key: "senderTranslationRuleId", label: "Sender Translation Rule ID", type: "text" },
       { key: "messageType", label: "Message Type", type: "text" },
       {
         key: "status",
@@ -259,8 +257,6 @@ const hasLoggedOpening = useRef(false);
       { key: "msisdn", label: "MSISDN", type: "text" },
       { key: "senderId", label: "Original Sender ID", type: "text" },
       { key: "effectiveSenderId", label: "Effective Sender ID", type: "text" },
-      { key: "senderTranslationAction", label: "Translation Action", type: "text" },
-      { key: "senderTranslationRuleId", label: "Translation Rule ID", type: "text" },
       {
         key: "status",
         label: "Status",
@@ -423,7 +419,7 @@ const hasLoggedOpening = useRef(false);
             Live Traffic Monitor
           </h1>
 
-            {/* Table Columns Dropdown */}
+          {/* Table Columns Dropdown */}
           <div className="relative z-20">
             <AdvancedFilter
               columns={tableColumnsConfig}

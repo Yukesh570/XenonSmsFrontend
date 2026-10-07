@@ -3,7 +3,7 @@ import {
   Home,
   History,
   Smartphone,
-  Globe,
+  Tablet,
   Monitor,
   User,
   Phone,
@@ -44,6 +44,18 @@ const formatDate = (dateString?: string) => {
 
 const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
+const getDeviceIcon = (device?: string) => {
+  if (!device || device === "-") return null;
+  const d = device.toLowerCase();
+  if (d.includes("tab") || d.includes("ipad") || d.includes("tablet")) {
+    return <Tablet size={14} className="text-gray-500 shrink-0" />;
+  }
+  if (d.includes("mobile") || d.includes("phone") || d.includes("iphone") || d.includes("android")) {
+    return <Smartphone size={14} className="text-gray-500 shrink-0" />;
+  }
+  return <Monitor size={14} className="text-gray-500 shrink-0" />;
+};
+
 const UserLog: React.FC = () => {
   const [userData, setUserData] = useState<UserInformationData | null>(null);
   const [logs, setLogs] = useState<LogItemWithId[]>([]);
@@ -83,36 +95,25 @@ const UserLog: React.FC = () => {
     {
       key: "browser",
       label: "Browser",
-      render: (log) => (
-        <div className="flex items-center gap-2">
-          <Globe size={14} className="text-blue-400 shrink-0" />
-          {log.browser || "-"}
-        </div>
-      ),
+      render: (log) => log.browser || "-",
     },
     {
       key: "device",
       label: "Device",
-      render: (log) => (
-        <div className="flex items-center gap-2">
-          {log.device === "Desktop" ? (
-            <Monitor size={14} className="text-gray-500 shrink-0" />
-          ) : (
-            <Smartphone size={14} className="text-gray-500 shrink-0" />
-          )}
-          {log.device || "-"}
-        </div>
-      ),
+      render: (log) => {
+        const icon = getDeviceIcon(log.device);
+        return (
+          <div className="flex items-center gap-2">
+            {icon}
+            <span>{log.device || "-"}</span>
+          </div>
+        );
+      },
     },
     {
       key: "loggedAt",
       label: "Logged At",
-      render: (log) => (
-        <div className="flex items-center gap-2">
-          <History size={14} className="text-orange-400 shrink-0" />
-          {formatDate(log.loggedAt)}
-        </div>
-      ),
+      render: (log) => (log.loggedAt ? formatDateTime(log.loggedAt) : "-"),
     },
   ];
 
@@ -274,7 +275,7 @@ const UserLog: React.FC = () => {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gray-100 text-gray-600 rounded-lg dark:bg-gray-700 dark:text-gray-300">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <Hash size={20} />
               </div>
               <div>
@@ -287,7 +288,7 @@ const UserLog: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <User size={20} />
               </div>
               <div>
@@ -300,20 +301,22 @@ const UserLog: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <Shield size={20} />
               </div>
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold">
                   Role
                 </p>
-                <span className="px-2 py-0.5 rounded text-xs font-bold bg-purple-100 text-purple-800">
-                  {userData.userType}
-                </span>
+                <div className="mt-0.5">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light">
+                    {userData.userType}
+                  </span>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-50 text-green-600 rounded-lg">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <Phone size={20} />
               </div>
               <div>
@@ -326,7 +329,7 @@ const UserLog: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-red-50 text-red-600 rounded-lg">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <Mail size={20} />
               </div>
               <div>
@@ -339,7 +342,7 @@ const UserLog: React.FC = () => {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
+              <div className="p-2 bg-primary-light text-primary dark:bg-gray-700 dark:text-primary-light rounded-lg">
                 <History size={20} />
               </div>
               <div>
@@ -347,7 +350,7 @@ const UserLog: React.FC = () => {
                   Last Login
                 </p>
                 <p className="text-gray-800 dark:text-gray-200 font-medium text-sm">
-                  {formatDate(getLatestLoginDisplay())}
+                  {getLatestLoginDisplay() ? formatDate(getLatestLoginDisplay()) : "-"}
                 </p>
               </div>
             </div>

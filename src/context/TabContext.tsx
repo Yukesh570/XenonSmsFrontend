@@ -23,9 +23,9 @@ interface TabContextType {
 
 const DASHBOARD_TAB: TabItem = {
   id: "/dashboard",
-  title: "Start page",
+  title: "Overview",
   path: "/dashboard",
-  icon: "Home",
+  icon: "LayoutGrid",
   closable: false,
 };
 
@@ -51,14 +51,32 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) initialTabs = parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          initialTabs = parsed
+            .filter((t) => t.path !== "/dashboard/dashboard")
+            .map((t) =>
+              t.path === "/dashboard"
+                ? { ...t, title: "Overview", icon: "LayoutGrid" }
+                : t
+            );
+          if (!initialTabs.some((t) => t.path === "/dashboard")) {
+            initialTabs.unshift(DASHBOARD_TAB);
+          }
+        }
       } catch (err) {
         console.error("Failed to parse saved tabs", err);
       }
     }
 
-    const currentPath = window.location.pathname;
-    if (currentPath && currentPath !== "/" && currentPath !== "/login" && currentPath !== "/dashboard") {
+    const rawPath = window.location.pathname;
+    const currentPath =
+      rawPath === "/dashboard/dashboard" ? "/dashboard" : rawPath;
+    if (
+      currentPath &&
+      currentPath !== "/" &&
+      currentPath !== "/login" &&
+      currentPath !== "/dashboard"
+    ) {
       if (!initialTabs.some((t) => t.path === currentPath)) {
         initialTabs.push({
           id: currentPath,
@@ -81,8 +99,27 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     (pathname: string): { title: string; icon?: string } => {
       const cleanPath = pathname.replace(/^\//, "");
 
-      if (cleanPath === "dashboard" || cleanPath === "") {
-        return { title: "Start page", icon: "Home" };
+      if (
+        cleanPath === "dashboard" ||
+        cleanPath === "dashboard/dashboard" ||
+        cleanPath === ""
+      ) {
+        if (navItems?.results) {
+          for (const item of navItems.results) {
+            if (item.children) {
+              const child = item.children.find(
+                (c) => c.url === "dashboard" || c.url === "dashboard/dashboard"
+              );
+              if (child) {
+                return {
+                  title: child.label || "Overview",
+                  icon: child.icon || item.icon || "LayoutGrid",
+                };
+              }
+            }
+          }
+        }
+        return { title: "Overview", icon: "LayoutGrid" };
       }
       if (cleanPath === "change-password") {
         return { title: "Change Password", icon: "KeyRound" };
@@ -105,21 +142,41 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
 
-      const fallbackTitle = cleanPath
-        .split("/")
-        .pop()
-        ?.replace(/([A-Z])/g, " $1")
-        .replace(/^./, (str) => str.toUpperCase()) || "Page";
+      const fallbackTitle =
+        cleanPath
+          .split("/")
+          .pop()
+          ?.replace(/([A-Z])/g, " $1")
+          .replace(/^./, (str) => str.toUpperCase()) || "Page";
 
       return { title: fallbackTitle, icon: "FileText" };
     },
     [navItems]
   );
 
+  // Sync dashboard tab title if navItems provides a custom label (e.g. "Overview")
+  useEffect(() => {
+    if (navItems?.results && navItems.results.length > 0) {
+      const meta = findNavMeta("/dashboard");
+      setTabs((prev) =>
+        prev.map((t) =>
+          t.path === "/dashboard"
+            ? { ...t, title: meta.title, icon: meta.icon }
+            : t
+        )
+      );
+    }
+  }, [navItems, findNavMeta]);
+
   useEffect(() => {
     const currentPath = location.pathname;
 
     if (currentPath === "/login" || currentPath === "/") return;
+
+    if (currentPath === "/dashboard/dashboard") {
+      navigate("/dashboard", { replace: true });
+      return;
+    }
 
     setTabs((prevTabs) => {
       const exists = prevTabs.some((t) => t.path === currentPath);
@@ -136,11 +193,13 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return [...prevTabs, newTab];
     });
-  }, [location.pathname, findNavMeta]);
+  }, [location.pathname, findNavMeta, navigate]);
 
   const switchTab = (path: string) => {
-    if (location.pathname !== path) {
-      navigate(path);
+    const targetPath =
+      path === "/dashboard/dashboard" ? "/dashboard" : path;
+    if (location.pathname !== targetPath) {
+      navigate(targetPath);
     }
   };
 

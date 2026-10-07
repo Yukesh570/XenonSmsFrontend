@@ -8,6 +8,7 @@ interface ModalProps {
   title?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
+  contentClassName?: string;
   closeOnBackdropClick?: boolean;
 }
 
@@ -46,6 +47,7 @@ const Modal: React.FC<ModalProps> = ({
   title,
   children,
   className = "max-w-md",
+  contentClassName = "",
   closeOnBackdropClick = false,
 }) => {
   // Fast hover tooltip for modal data boxes and truncated values
@@ -239,6 +241,13 @@ const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // If an open dropdown/combobox or popover is currently active, let it close first instead of closing the modal
+        const hasOpenDropdown = document.querySelector(
+          '[role="listbox"], [role="combobox"][aria-expanded="true"]'
+        );
+        if (hasOpenDropdown) {
+          return;
+        }
         onClose();
       }
     };
@@ -313,11 +322,14 @@ const Modal: React.FC<ModalProps> = ({
             margin-bottom: 0.375rem !important;
             line-height: 1.25rem !important;
           }
-          .modal-content-body form .flex.justify-end,
-          .modal-content-body form .flex.justify-center,
-          .modal-content-body form .border-t {
+          .modal-content-body form > .flex.justify-end,
+          .modal-content-body form > .flex.justify-center,
+          .modal-content-body form > .border-t {
             margin-top: 1.25rem !important;
             padding-top: 0.75rem !important;
+          }
+          .modal-content-body {
+            overflow-x: hidden !important;
           }
         `}</style>
         {/* Header - pinned to top of modal card, never scrolls off */}
@@ -338,7 +350,7 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body - scrolls cleanly with overscroll containment */}
-        <div className="modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
+        <div className={`modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-0.5 custom-scrollbar ${contentClassName}`}>
           {children}
         </div>
       </div>

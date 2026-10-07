@@ -1,11 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Home, Download } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Home, Download, AlertCircle } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import {
   getSummariseSummaryApi,
   downloadSummariseReportCsvApi,
+  getFailureReasonsApi,
   type SummariseSummaryData,
   type SummariseTotals,
   type SummariseReportFilters,
@@ -35,6 +36,8 @@ import {
 } from "../../helper/dateFormatter";
 
 
+
+import Modal from "../../components/ui/Modal";
 
 type DatePresetKey =
   | "today"
@@ -125,6 +128,11 @@ const SummariseReport: React.FC = () => {
     x: number;
     y: number;
   } | null>(null);
+  const [contextMenuRow, setContextMenuRow] = useState<any>(null);
+
+  const [showFailureModal, setShowFailureModal] = useState(false);
+  const [failureData, setFailureData] = useState<{ failure_reason: string; count: number }[]>([]);
+  const [isLoadingFailure, setIsLoadingFailure] = useState(false);
 
   const [clientOptions, setClientOptions] = useState<
     { label: string; value: string }[]
@@ -408,9 +416,50 @@ const SummariseReport: React.FC = () => {
     }
   };
 
-  const handleContextMenu = (e: React.MouseEvent) => {
+  const handleContextMenu = (e: React.MouseEvent, row?: any) => {
     e.preventDefault();
     setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setContextMenuRow(row || null);
+  };
+
+  const handleViewFailureBreakdown = async () => {
+    if (!contextMenuRow) return;
+    setShowFailureModal(true);
+    setIsLoadingFailure(true);
+
+    const activeFilters: SummariseReportFilters = { ...filterValues };
+    if ((!activeFilters.start_date || !activeFilters.end_date) && activePreset && activePreset !== "custom") {
+      const range = getPresetDateRange(activePreset);
+      if (range) {
+        if (!activeFilters.start_date) activeFilters.start_date = range.start;
+        if (!activeFilters.end_date) activeFilters.end_date = range.end;
+      }
+    }
+
+    const rowFilters: any = { ...activeFilters };
+    if (rowFilters.start_date && !rowFilters.start_date.includes("T")) {
+      rowFilters.start_date = `${rowFilters.start_date}T00:00:00`;
+    }
+    if (rowFilters.end_date && !rowFilters.end_date.includes("T")) {
+      rowFilters.end_date = `${rowFilters.end_date}T23:59:59`;
+    }
+
+    appliedGroupBy.forEach((gb) => {
+      // Always send the filter if it exists in the row, so the backend knows what we clicked
+      if (contextMenuRow[gb] !== undefined) {
+        rowFilters[gb] = contextMenuRow[gb];
+      }
+    });
+
+    try {
+      const res = await getFailureReasonsApi({ filters: rowFilters });
+      setFailureData(res.data || []);
+    } catch (e) {
+      toast.error("Failed to load failure breakdown.");
+      setFailureData([]);
+    } finally {
+      setIsLoadingFailure(false);
+    }
   };
 
   const menuItems: ContextMenuItem[] = [
@@ -422,7 +471,18 @@ const SummariseReport: React.FC = () => {
         setContextMenuPos(null);
       },
     },
+    ...(contextMenuRow ? [
+      {
+        label: "Failure Breakdown",
+        icon: <AlertCircle size={16} />,
+        onClick: () => {
+          handleViewFailureBreakdown();
+          setContextMenuPos(null);
+        },
+      }
+    ] : [])
   ];
+
 
   const handleSearch = () => {
     fetchReports();
@@ -432,28 +492,366 @@ const SummariseReport: React.FC = () => {
     setActivePreset("today");
     setFilterValues({});
     setGroupBy([]);
+    setSortConfig(null);
     fetchReports({}, [], "today");
   };
 
-  const summaryHeaders = [
-    "S.N.",
-    ...(appliedGroupBy.length > 0
-      ? appliedGroupBy.map(
-        (gb) => groupByOptions.find((o) => o.value === gb)?.label || gb,
-      )
-      : ["Total"]),
-    "Attempts",
-    "Successful",
-    "Submitted",
-    "Delivered",
-    "Failed",
-    "Rejected",
-    `Revenue (${currencySymbol})`,
-    `Vendor Cost (${currencySymbol})`,
-    "ASR %",
-    "DLR %",
-    "Margin %",
-  ];
+  // Dynamic Column Setup for Reordering, Resizing & Sorting
+  const [columnOrder, setColumnOrder] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  useEffect(() => {
+    const defaultKeys = [
+      ...(appliedGroupBy.length > 0 ? appliedGroupBy.map((gb) => `gb_${gb}`) : ["total"]),
+      "attempts",
+      "successful",
+      "submitted",
+      "delivered",
+      "failed",
+      "undelivered",
+      "rejected",
+      "revenue",
+      "vendor_cost",
+      "asr_percent",
+      "dlr_percent",
+      "margin_percent",
+    ];
+    setColumnOrder((prev) => {
+      if (prev.length === 0) return defaultKeys;
+      const kept = prev.filter((k) => defaultKeys.includes(k));
+      const added = defaultKeys.filter((k) => !kept.includes(k));
+      const gbAdded = added.filter((k) => k.startsWith("gb_") || k === "total");
+      const metricAdded = added.filter((k) => !k.startsWith("gb_") && k !== "total");
+      return [...gbAdded, ...kept, ...metricAdded];
+    });
+    setSortConfig((prev) => {
+      if (!prev) return null;
+      if (!defaultKeys.includes(prev.key)) return null;
+      return prev;
+    });
+  }, [appliedGroupBy]);
+
+  const columnMap = useMemo(() => {
+    const map: Record<string, { label: string }> = {};
+    if (appliedGroupBy.length > 0) {
+      appliedGroupBy.forEach((gb) => {
+        map[`gb_${gb}`] = {
+          label: groupByOptions.find((o) => o.value === gb)?.label || gb,
+        };
+      });
+    } else {
+      map["total"] = { label: "Total" };
+    }
+    map["attempts"] = { label: "Attempts" };
+    map["successful"] = { label: "Successful" };
+    map["submitted"] = { label: "Submitted" };
+    map["delivered"] = { label: "Delivered" };
+    map["failed"] = { label: "Failed" };
+    map["undelivered"] = { label: "Undelivered" };
+    map["rejected"] = { label: "Rejected" };
+    map["revenue"] = { label: `Revenue (${currencySymbol})` };
+    map["vendor_cost"] = { label: `Vendor Cost (${currencySymbol})` };
+    map["asr_percent"] = { label: "ASR %" };
+    map["dlr_percent"] = { label: "DLR %" };
+    map["margin_percent"] = { label: "Margin %" };
+    return map;
+  }, [appliedGroupBy, groupByOptions, currencySymbol]);
+
+  const activeHeaders = useMemo(() => {
+    return ["S.N.", ...columnOrder.map((k) => columnMap[k]?.label || k)];
+  }, [columnOrder, columnMap]);
+
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setColumnOrder((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const handleSort = (columnIndex: number) => {
+    const colIndex = columnIndex - 1; // S.N. is at index 0
+    if (colIndex >= 0 && colIndex < columnOrder.length) {
+      const colKey = columnOrder[colIndex];
+      setSortConfig((prev) => {
+        if (prev?.key === colKey) {
+          if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+          return null;
+        }
+        return { key: colKey, direction: "asc" };
+      });
+    }
+  };
+
+  const getRowVal = (row: any, key: string) => {
+    if (key.startsWith("gb_")) {
+      const gb = key.replace("gb_", "");
+      let val = row[gb];
+      if (gb === "client_company" && val === undefined) val = row["company"];
+      if (val === null || val === undefined || val === "Unknown" || val === "-") return "";
+      if (typeof val === "number") return val;
+      const strVal = String(val).trim();
+      const num = Number(strVal);
+      if (!isNaN(num) && strVal !== "") return num;
+      return strVal.toLowerCase();
+    }
+    if (key === "total") return "grand total";
+    return Number(row[key] ?? 0);
+  };
+
+  const sortedSummaryData = useMemo(() => {
+    if (!sortConfig) return summaryData;
+    return [...summaryData].sort((a, b) => {
+      const valA = getRowVal(a, sortConfig.key);
+      const valB = getRowVal(b, sortConfig.key);
+      if (valA === "" && valB !== "") return 1;
+      if (valA !== "" && valB === "") return -1;
+      let comparison = 0;
+      if (typeof valA === "number" && typeof valB === "number") {
+        comparison = valA - valB;
+      } else {
+        comparison = String(valA).localeCompare(String(valB), undefined, { numeric: true });
+      }
+      return sortConfig.direction === "asc" ? comparison : -comparison;
+    });
+  }, [summaryData, sortConfig]);
+
+  const renderCell = (colKey: string, row: any) => {
+    if (colKey.startsWith("gb_")) {
+      const gb = colKey.replace("gb_", "");
+      let val = (row as any)[gb];
+      if (gb === "client_company" && val === undefined) {
+        val = (row as any)["company"];
+      }
+      if (val === "Unknown") {
+        val = "-";
+      } else {
+        val = val || "-";
+      }
+      const isCountry = gb.toLowerCase() === "country";
+      const iso2 = isCountry ? getCountryIso(val, row) : null;
+
+      return (
+        <td
+          key={colKey}
+          className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
+        >
+          {isCountry && val !== "-" ? (
+            <div className="flex items-center gap-2">
+              {iso2 && <CountryFlag iso2={iso2} name={String(val)} />}
+              <span>{val}</span>
+            </div>
+          ) : (
+            val
+          )}
+        </td>
+      );
+    }
+
+    if (colKey === "total") {
+      return (
+        <td
+          key={colKey}
+          className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-semibold whitespace-nowrap"
+        >
+          Grand Total
+        </td>
+      );
+    }
+
+    if (colKey === "attempts") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.attempts || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "successful") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.successful || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "submitted") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.submitted || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "delivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.delivered || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "failed") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.failed || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "undelivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.undelivered || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "rejected") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          {Number(row.rejected || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "revenue") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+          {currencySymbol}{Number(row.revenue || 0).toFixed(4)}
+        </td>
+      );
+    }
+    if (colKey === "vendor_cost") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+          {currencySymbol}{Number(row.vendor_cost || 0).toFixed(4)}
+        </td>
+      );
+    }
+    if (colKey === "asr_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+          {Number(row.asr_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+    if (colKey === "dlr_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+          {Number(row.dlr_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+    if (colKey === "margin_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+          {Number(row.margin_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+
+    return <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300">-</td>;
+  };
+
+  const firstGbKey = columnOrder.find((k) => k.startsWith("gb_") || k === "total") || "total";
+
+  const renderFooterCell = (colKey: string) => {
+    if (colKey.startsWith("gb_") || colKey === "total") {
+      return (
+        <td
+          key={colKey}
+          className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"
+        >
+          {colKey === firstGbKey ? (
+            <span className="font-bold text-primary dark:text-primary/90 text-sm">Grand Total</span>
+          ) : ""}
+        </td>
+      );
+    }
+    if (colKey === "attempts") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.attempts || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "successful") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.successful || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "submitted") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.submitted || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "delivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.delivered || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "failed") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.failed || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "undelivered") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-orange-500 dark:text-orange-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.undelivered || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "rejected") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.rejected || 0).toLocaleString()}
+        </td>
+      );
+    }
+    if (colKey === "revenue") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {currencySymbol}{Number(totals?.revenue || 0).toFixed(4)}
+        </td>
+      );
+    }
+    if (colKey === "vendor_cost") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {currencySymbol}{Number(totals?.vendor_cost || 0).toFixed(4)}
+        </td>
+      );
+    }
+    if (colKey === "asr_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.asr_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+    if (colKey === "dlr_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.dlr_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+    if (colKey === "margin_percent") {
+      return (
+        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+          {Number(totals?.margin_percent || 0).toFixed(2)}%
+        </td>
+      );
+    }
+    return <td key={colKey} className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"></td>;
+  };
 
   return (
     <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
@@ -559,13 +957,23 @@ const SummariseReport: React.FC = () => {
       {/* Reusable DataTable for Aggregated Summary */}
       <div ref={tableContainerRef} className="mt-3">
         <DataTable
-          headers={summaryHeaders}
-          data={summaryData.map((row, idx) => ({ ...row, id: idx, sn: idx + 1 }))}
-          totalItems={summaryData.length}
+          headers={activeHeaders}
+          data={sortedSummaryData.map((row, idx) => ({ ...row, id: idx, sn: idx + 1 }))}
+          totalItems={sortedSummaryData.length}
           isLoading={isLoading}
           emptyMessage="No summary data found."
           density="compact"
           tableMaxHeight={tableMaxHeight}
+          storageKey="summarise_report_table_widths"
+          resizableColumns={true}
+          onReorderColumns={handleReorderColumns}
+          onSort={handleSort}
+          sortColumnIndex={
+            sortConfig && columnOrder.indexOf(sortConfig.key) >= 0
+              ? columnOrder.indexOf(sortConfig.key) + 1
+              : null
+          }
+          sortDirection={sortConfig?.direction || null}
           rowsPerPageOptions={[
             { value: "25", label: "25" },
             { value: "50", label: "50" },
@@ -600,134 +1008,23 @@ const SummariseReport: React.FC = () => {
               <tr
                 key={idx}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                onContextMenu={handleContextMenu}
+                onContextMenu={(e) => handleContextMenu(e, row)}
               >
                 <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-400 font-medium whitespace-nowrap">
                   {sn}
                 </td>
-                {appliedGroupBy.map((gb) => {
-                  let val = (row as any)[gb];
-                  if (gb === "client_company" && val === undefined) {
-                    val = (row as any)["company"];
-                  }
-                  if (val === "Unknown") {
-                    val = "-";
-                  } else {
-                    val = val || "-";
-                  }
-                  const isCountry = gb.toLowerCase() === "country";
-                  const iso2 = isCountry ? getCountryIso(val, row) : null;
-
-                  return (
-                    <td
-                      key={gb}
-                      className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
-                    >
-                      {isCountry && val !== "-" ? (
-                        <div className="flex items-center gap-2">
-                          {iso2 && <CountryFlag iso2={iso2} name={String(val)} />}
-                          <span>{val}</span>
-                        </div>
-                      ) : (
-                        val
-                      )}
-                    </td>
-                  );
-                })}
-                {appliedGroupBy.length === 0 && (
-                  <td className="px-4 py-3 text-sm text-text-primary dark:text-gray-200 font-semibold whitespace-nowrap">
-                    Grand Total
-                  </td>
-                )}
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.attempts || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.successful || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.submitted || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.delivered || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.failed || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                  {Number(row.rejected || 0).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {currencySymbol}
-                  {Number(row.revenue || 0).toFixed(4)}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {currencySymbol}
-                  {Number(row.vendor_cost || 0).toFixed(4)}
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.asr_percent || 0).toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.dlr_percent || 0).toFixed(2)}%
-                </td>
-                <td className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
-                  {Number(row.margin_percent || 0).toFixed(2)}%
-                </td>
+                {columnOrder.map((colKey) => renderCell(colKey, row))}
               </tr>
             );
           }}
           footerContent={
-            totals && !isLoading && summaryData.length > 0 && appliedGroupBy.length > 0
+            totals && !isLoading && sortedSummaryData.length > 0 && appliedGroupBy.length > 0
               ? (
                 <tr className="bg-gray-50 dark:bg-gray-800 border-none">
                   {/* S.N. column empty cell in footer */}
                   <td className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"></td>
-                  {/* Group-by label cells */}
-                  {appliedGroupBy.map((gb, i) => (
-                    <td
-                      key={gb}
-                      className="px-4 py-3 whitespace-nowrap bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20"
-                    >
-                      {i === 0 ? (
-                        <span className="font-bold text-primary dark:text-primary/90 text-sm">Grand Total</span>
-                      ) : ""}
-                    </td>
-                  ))}
-                  {/* Metric cells */}
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.attempts).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.successful).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.submitted || 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-emerald-600 dark:text-emerald-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.delivered).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.failed).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold text-red-500 dark:text-red-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.rejected || 0).toLocaleString()}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {currencySymbol}{Number(totals.revenue).toFixed(4)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {currencySymbol}{Number(totals.vendor_cost).toFixed(4)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.asr_percent).toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.dlr_percent).toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
-                    {Number(totals.margin_percent).toFixed(2)}%
-                  </td>
+                  {/* Dynamically aligned footer cells */}
+                  {columnOrder.map((colKey) => renderFooterCell(colKey))}
                 </tr>
               )
               : undefined
@@ -741,6 +1038,55 @@ const SummariseReport: React.FC = () => {
         onClose={() => setContextMenuPos(null)}
         items={menuItems}
       />
+
+      <Modal
+        isOpen={showFailureModal}
+        onClose={() => setShowFailureModal(false)}
+        title="Failure Breakdown"
+        className="max-w-xl w-full h-[500px] max-h-[85vh] flex flex-col"
+        contentClassName="flex flex-col flex-1 min-h-0 !overflow-hidden"
+      >
+        <div className="flex-1 min-h-0 flex flex-col h-full py-1">
+          {isLoadingFailure ? (
+            <div className="flex-1 flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : failureData.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center py-8 text-gray-500 dark:text-gray-400">
+              No failure data found for this selection.
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col bg-white dark:bg-gray-900 shadow-sm">
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                        Failure Reason
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 w-28 whitespace-nowrap">
+                        Count
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-800">
+                    {failureData.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-200 break-words">
+                          {item.failure_reason || "Unknown"}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-semibold text-gray-900 dark:text-gray-100 text-right whitespace-nowrap">
+                          {item.count.toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
-import { Home } from "lucide-react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { Home, ArrowUp, ArrowDown, ArrowUpDown, GripVertical } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -13,6 +13,7 @@ import { getPresetDateRangeOnly as getPresetDateRange, formatLocalDate } from ".
 import { getAnalyticsDataApi } from "../../api/reportApi/analyticsReportApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 import { CountryFlag } from "../../components/ui/CountryFlag";
+import { getHeaderFullWidth } from "../../components/ui/ModalDataTable";
 
 type FilterColumnType =
   | "number"
@@ -151,21 +152,77 @@ const MarginPctCell: React.FC<{ pct: number }> = ({ pct = 0 }) => {
   );
 };
 
-const getTableHeaders = (symbol: string) => [
-  "Entity",
-  "Attempts",
-  "Successful",
-  "Submitted",
-  "ASR %",
-  "DLR %",
-  "Delivered",
-  "Failed",
-  "Rejected",
-  `Revenue (${symbol})`,
-  `Vendor Cost (${symbol})`,
-  `Margin (${symbol})`,
-  "Margin %",
+export type AnalyticsColKey =
+  | "entity"
+  | "attempts"
+  | "successful"
+  | "submitted"
+  | "asrPct"
+  | "dlrPct"
+  | "delivered"
+  | "failed"
+  | "undelivered"
+  | "rejected"
+  | "revenue"
+  | "vendorCost"
+  | "marginUsd"
+  | "marginPct";
+
+const DEFAULT_ANALYTICS_COLUMNS: AnalyticsColKey[] = [
+  "entity",
+  "attempts",
+  "successful",
+  "submitted",
+  "asrPct",
+  "dlrPct",
+  "delivered",
+  "failed",
+  "undelivered",
+  "rejected",
+  "revenue",
+  "vendorCost",
+  "marginUsd",
+  "marginPct",
 ];
+
+const ENTITY_COL_WIDTH = 280;
+
+const DEFAULT_COL_WIDTHS: Record<AnalyticsColKey, number> = {
+  entity: 280,
+  attempts: 140,
+  successful: 155,
+  submitted: 150,
+  asrPct: 130,
+  dlrPct: 130,
+  delivered: 150,
+  failed: 130,
+  undelivered: 140,
+  rejected: 145,
+  revenue: 165,
+  vendorCost: 185,
+  marginUsd: 160,
+  marginPct: 140,
+};
+
+const getColumnLabel = (key: AnalyticsColKey, symbol: string): string => {
+  switch (key) {
+    case "entity": return "Entity";
+    case "attempts": return "Attempts";
+    case "successful": return "Successful";
+    case "submitted": return "Submitted";
+    case "asrPct": return "ASR %";
+    case "dlrPct": return "DLR %";
+    case "delivered": return "Delivered";
+    case "failed": return "Failed";
+    case "undelivered": return "Undelivered";
+    case "rejected": return "Rejected";
+    case "revenue": return `Revenue (${symbol})`;
+    case "vendorCost": return `Vendor Cost (${symbol})`;
+    case "marginUsd": return `Margin (${symbol})`;
+    case "marginPct": return "Margin %";
+    default: return key;
+  }
+};
 
 type DatePresetKey = "today" | "yesterday" | "last7" | "last30" | "last60" | "last90" | "lastMonth" | "custom";
 
@@ -210,6 +267,12 @@ const AnalyticsReport: React.FC = () => {
   }, [searchColumns]);
 
   const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: AnalyticsColKey;
+    direction: "asc" | "desc";
+  } | null>(null);
 
   const [expandedAms, setExpandedAms] = useState<Record<string, boolean>>({});
   const [expandedCompanies, setExpandedCompanies] = useState<Record<string, boolean>>({});
@@ -267,7 +330,8 @@ const AnalyticsReport: React.FC = () => {
 
   const getActiveFilterParams = (
     customFilters?: Record<string, string>,
-    presetOverride?: DatePresetKey
+    presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null
   ) => {
     const params: Record<string, any> = {};
     const activeFilters = customFilters || filterValues;
@@ -309,8 +373,13 @@ const AnalyticsReport: React.FC = () => {
       params.start_date = range.start;
       params.end_date = range.end;
       if (currentPreset === "today") {
-          params.today = "true";
+        params.today = "true";
       }
+    }
+
+    const finalSortBy = overrideSortBy !== undefined ? overrideSortBy : sortBy;
+    if (finalSortBy) {
+      params.sort_by = finalSortBy;
     }
 
     return params;
@@ -320,7 +389,8 @@ const AnalyticsReport: React.FC = () => {
     page: number = 1,
     append: boolean = false,
     customFilters?: Record<string, string>,
-    presetOverride?: DatePresetKey
+    presetOverride?: DatePresetKey,
+    overrideSortBy?: string | null
   ) => {
     if (abortControllerRef.current) abortControllerRef.current.abort();
     const newController = new AbortController();
@@ -330,7 +400,7 @@ const AnalyticsReport: React.FC = () => {
     else setIsLoading(true);
 
     try {
-      const filterParams = getActiveFilterParams(customFilters, presetOverride);
+      const filterParams = getActiveFilterParams(customFilters, presetOverride, overrideSortBy);
       const searchParams: Record<string, any> = {
         group_by: "account_manager",
         page: page,
@@ -367,6 +437,7 @@ const AnalyticsReport: React.FC = () => {
           dlrPct: m.dlr_percent || 0,
           delivered: m.delivered || 0,
           failed: m.failed || 0,
+          undelivered: m.undelivered || 0,
           rejected: m.rejected || 0,
           revenue: m.revenue || 0,
           vendorCost: m.vendor_cost || 0,
@@ -504,17 +575,13 @@ const AnalyticsReport: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.date;
-      delete next.date__gt_lt;
-      updatedFilters = next;
-      return next;
-    });
+    const nextFilters = { ...filterValues };
+    delete nextFilters.date;
+    delete nextFilters.date__gt_lt;
+    setFilterValues(nextFilters);
 
     resetTreeState();
-    fetchCompanyData(1, false, updatedFilters, presetKey);
+    fetchCompanyData(1, false, nextFilters, presetKey);
   };
 
   const handleFilterChange = (key: string, value: string) => {
@@ -537,10 +604,426 @@ const AnalyticsReport: React.FC = () => {
     fetchCompanyData(1, false, {}, "today");
   };
 
+  const getBackendSortKey = (colKey: AnalyticsColKey): string | null => {
+    const map: Record<AnalyticsColKey, string> = {
+      entity: "account_manager",
+      attempts: "attempts",
+      successful: "successful",
+      submitted: "submitted",
+      asrPct: "asr_percent",
+      dlrPct: "dlr_percent",
+      delivered: "delivered",
+      failed: "failed",
+      undelivered: "undelivered",
+      rejected: "rejected",
+      revenue: "revenue",
+      vendorCost: "vendor_cost",
+      marginUsd: "margin_usd",
+      marginPct: "margin_percent",
+    };
+    return map[colKey] || null;
+  };
+
+  const handleSort = (colKey: AnalyticsColKey) => {
+    let newDirection: "asc" | "desc" | null = "desc";
+    if (sortConfig?.key === colKey) {
+      if (sortConfig.direction === "desc") newDirection = "asc";
+      else if (sortConfig.direction === "asc") newDirection = null;
+    }
+
+    setSortConfig(newDirection ? { key: colKey, direction: newDirection } : null);
+
+    const backendKey = getBackendSortKey(colKey);
+    if (!newDirection || !backendKey) {
+      setSortBy(null);
+      resetTreeState();
+      fetchCompanyData(1, false, undefined, undefined, null);
+    } else {
+      const prefix = newDirection === "desc" ? "-" : "";
+      const newSortBy = `${prefix}${backendKey}`;
+      setSortBy(newSortBy);
+      resetTreeState();
+      fetchCompanyData(1, false, undefined, undefined, newSortBy);
+    }
+  };
+
   const paginationLabel = `${totalItems === 0 ? 0 : 1}-${Math.min(companyRows.length, totalItems)} of ${totalItems}`;
 
   const maxAttempts = Math.max(...companyRows.map((d) => d.attempts || 1), 100);
   const maxRevenue = Math.max(...companyRows.map((d) => d.revenue || 1), 10);
+
+  // Container width observer for responsive table column layout
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!scrollContainerRef.current) return;
+    const updateWidth = () => {
+      if (scrollContainerRef.current) {
+        setContainerWidth(scrollContainerRef.current.clientWidth);
+      }
+    };
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(scrollContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Dynamic Column Resizing, Reordering & Sorting
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("table_col_widths_analytics_report");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && typeof parsed === "object") return parsed;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    return {};
+  });
+
+  const [resizingColKey, setResizingColKey] = useState<AnalyticsColKey | null>(null);
+
+  const getColMinWidth = (key: AnalyticsColKey): number => {
+    if (key === "entity") return ENTITY_COL_WIDTH;
+    const label = getColumnLabel(key, currencySymbol);
+    return Math.max(getHeaderFullWidth(label), 100);
+  };
+
+  const getColWidth = (key: AnalyticsColKey): number => {
+    if (key === "entity") return ENTITY_COL_WIDTH;
+    const minW = getColMinWidth(key);
+    const userW = columnWidths[key];
+    if (userW && userW >= minW) return userW;
+    return Math.max(DEFAULT_COL_WIDTHS[key] || 120, minW);
+  };
+
+  const thRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
+  const isResizingRef = useRef(false);
+
+  const handleResizeStart = (e: React.MouseEvent, key: AnalyticsColKey) => {
+    if (key === "entity") return; // Entity column is locked
+    e.stopPropagation();
+    e.preventDefault();
+    const thEl = thRefs.current[key];
+    if (!thEl) return;
+
+    isResizingRef.current = true;
+    setResizingColKey(key);
+    const startX = e.clientX;
+    const startWidth = thEl.getBoundingClientRect().width;
+    const minWidth = getColMinWidth(key);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const newWidth = Math.max(minWidth, Math.round(startWidth + deltaX));
+      setColumnWidths((prev) => ({
+        ...prev,
+        [key]: newWidth,
+      }));
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      setResizingColKey(null);
+
+      setColumnWidths((prev) => {
+        try {
+          localStorage.setItem("table_col_widths_analytics_report", JSON.stringify(prev));
+        } catch (err) { }
+        return prev;
+      });
+
+      setTimeout(() => {
+        isResizingRef.current = false;
+      }, 100);
+    };
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  };
+
+  const [orderedColumnKeys, setOrderedColumnKeys] = useState<AnalyticsColKey[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("table_col_order_analytics_report");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length === DEFAULT_ANALYTICS_COLUMNS.length) {
+            const withoutEntity = parsed.filter((c: any) => c !== "entity");
+            return ["entity", ...withoutEntity];
+          }
+        }
+      } catch (e) { }
+    }
+    return DEFAULT_ANALYTICS_COLUMNS;
+  });
+
+  const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null);
+  const [dragOverColIdx, setDragOverColIdx] = useState<number | null>(null);
+  const [dropSide, setDropSide] = useState<"left" | "right" | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (index === 0 || isResizingRef.current || resizingColKey) {
+      e.preventDefault();
+      return; // Entity is fixed at index 0
+    }
+    setDraggedColIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (index === 0 || draggedColIdx === null || draggedColIdx === index) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midpoint = rect.left + rect.width / 2;
+    const side = e.clientX < midpoint ? "left" : "right";
+    if (dragOverColIdx !== index || dropSide !== side) {
+      setDragOverColIdx(index);
+      setDropSide(side);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedColIdx !== null && targetIndex > 0 && draggedColIdx !== targetIndex) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const midpoint = rect.left + rect.width / 2;
+      const side = e.clientX < midpoint ? "left" : "right";
+
+      let toIdx = targetIndex;
+      if (draggedColIdx < targetIndex) {
+        toIdx = side === "left" ? targetIndex - 1 : targetIndex;
+      } else if (draggedColIdx > targetIndex) {
+        toIdx = side === "left" ? targetIndex : targetIndex + 1;
+      }
+
+      // Entity is locked at index 0, so never place anything before index 1
+      toIdx = Math.max(1, toIdx);
+
+      if (toIdx !== draggedColIdx && toIdx > 0) {
+        setOrderedColumnKeys((prev) => {
+          const next = [...prev];
+          const [moved] = next.splice(draggedColIdx, 1);
+          next.splice(toIdx, 0, moved);
+          try {
+            localStorage.setItem("table_col_order_analytics_report", JSON.stringify(next));
+          } catch (err) { }
+          return next;
+        });
+      }
+    }
+    setDraggedColIdx(null);
+    setDragOverColIdx(null);
+    setDropSide(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedColIdx(null);
+    setDragOverColIdx(null);
+    setDropSide(null);
+  };
+
+  // sortConfig moved to top
+
+  const getColValue = (row: any, key: AnalyticsColKey): number | string => {
+    if (key === "entity") {
+      return String(
+        row.account_manager ||
+        row.accountManager ||
+        row.client_company ||
+        row.client ||
+        row.country ||
+        row.country_name ||
+        row.vendor_company ||
+        row.vendor ||
+        ""
+      ).toLowerCase();
+    }
+    if (key === "asrPct") return Number(row.asrPct ?? row.asr_percent ?? 0);
+    if (key === "dlrPct") return Number(row.dlrPct ?? row.dlr_percent ?? 0);
+    if (key === "vendorCost") return Number(row.vendorCost ?? row.vendor_cost ?? 0);
+    if (key === "marginUsd") return Number(row.marginUsd ?? row.margin_usd ?? 0);
+    if (key === "marginPct") return Number(row.marginPct ?? row.margin_percent ?? 0);
+    return Number(row[key] ?? 0);
+  };
+
+  const sortedCompanyRows = useMemo(() => {
+    if (!sortConfig) return companyRows;
+    return [...companyRows].sort((a, b) => {
+      const valA = getColValue(a, sortConfig.key);
+      const valB = getColValue(b, sortConfig.key);
+      let cmp = 0;
+      if (typeof valA === "number" && typeof valB === "number") {
+        cmp = valA - valB;
+      } else {
+        cmp = String(valA).localeCompare(String(valB));
+      }
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  }, [companyRows, sortConfig]);
+
+  const getSortedSubRows = (rows: any[]) => {
+    if (!sortConfig || !rows || rows.length <= 1) return rows;
+    return [...rows].sort((a, b) => {
+      const valA = getColValue(a, sortConfig.key);
+      const valB = getColValue(b, sortConfig.key);
+      let cmp = 0;
+      if (typeof valA === "number" && typeof valB === "number") {
+        cmp = valA - valB;
+      } else {
+        cmp = String(valA).localeCompare(String(valB));
+      }
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  };
+
+  const totalRequestedWidth = useMemo(() => {
+    return orderedColumnKeys.reduce((sum, key) => sum + getColWidth(key), 0);
+  }, [orderedColumnKeys, columnWidths, currencySymbol]);
+
+  const getEffectiveColWidth = (key: AnalyticsColKey): number => {
+    if (key === "entity") return ENTITY_COL_WIDTH;
+
+    if (containerWidth && totalRequestedWidth < containerWidth) {
+      const nonEntityCols = orderedColumnKeys.filter((k) => k !== "entity");
+      const unresizedCols = nonEntityCols.filter((k) => !columnWidths[k]);
+      const isExplicitlyResized = Boolean(columnWidths[key]);
+
+      if (unresizedCols.length > 0) {
+        if (isExplicitlyResized) {
+          return getColWidth(key);
+        }
+        const explicitlyResizedSum = nonEntityCols.reduce((sum, k) => {
+          return columnWidths[k] ? sum + getColWidth(k) : sum;
+        }, 0);
+        const spaceForUnresized = Math.max(0, containerWidth - ENTITY_COL_WIDTH - explicitlyResizedSum);
+        const unresizedDefaultSum = unresizedCols.reduce((sum, k) => sum + getColMinWidth(k), 0);
+
+        if (unresizedDefaultSum > 0) {
+          const defaultW = getColMinWidth(key);
+          return Math.max(defaultW, Math.round((defaultW / unresizedDefaultSum) * spaceForUnresized));
+        }
+      } else {
+        const lastColKey = orderedColumnKeys[orderedColumnKeys.length - 1];
+        if (key === lastColKey) {
+          const otherColsSum = orderedColumnKeys.reduce((sum, k) => {
+            if (k === lastColKey) return sum;
+            return sum + (k === "entity" ? ENTITY_COL_WIDTH : getColWidth(k));
+          }, 0);
+          return Math.max(getColWidth(key), containerWidth - otherColsSum);
+        }
+        return getColWidth(key);
+      }
+    }
+
+    return getColWidth(key);
+  };
+
+  const totalTableWidth = useMemo(() => {
+    return orderedColumnKeys.reduce((sum, key) => sum + getEffectiveColWidth(key), 0);
+  }, [orderedColumnKeys, columnWidths, containerWidth, totalRequestedWidth]);
+
+  const renderMetricCell = (
+    key: AnalyticsColKey,
+    row: any,
+    level: "am" | "company" | "country" | "vendor"
+  ) => {
+    const pad = level === "am" ? "px-2 py-2" : "px-2 py-1.5";
+    switch (key) {
+      case "attempts":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.attempts} max={maxAttempts} />
+          </td>
+        );
+      case "successful":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.successful} max={maxAttempts} />
+          </td>
+        );
+      case "submitted":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.submitted} max={maxAttempts} />
+          </td>
+        );
+      case "asrPct":
+        return (
+          <td key={key} className={pad}>
+            <DlrCell pct={row.asrPct ?? row.asr_percent} />
+          </td>
+        );
+      case "dlrPct":
+        return (
+          <td key={key} className={pad}>
+            <DlrCell pct={row.dlrPct ?? row.dlr_percent} />
+          </td>
+        );
+      case "delivered":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.delivered} max={maxAttempts} type="success" />
+          </td>
+        );
+      case "failed":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.failed} max={maxAttempts} type="danger" />
+          </td>
+        );
+      case "undelivered":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.undelivered || 0} max={maxAttempts} type="danger" />
+          </td>
+        );
+      case "rejected":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.rejected || 0} max={maxAttempts} type="danger" />
+          </td>
+        );
+      case "revenue":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} />
+          </td>
+        );
+      case "vendorCost":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.vendorCost ?? row.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} />
+          </td>
+        );
+      case "marginUsd":
+        return (
+          <td key={key} className={pad}>
+            <DataBarCell value={row.marginUsd ?? row.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} />
+          </td>
+        );
+      case "marginPct":
+        return (
+          <td key={key} className={pad}>
+            <MarginPctCell pct={row.marginPct ?? row.margin_percent} />
+          </td>
+        );
+      default:
+        return <td key={key} className={pad}>-</td>;
+    }
+  };
 
   const visibleSearchFields = allColumns.filter((col) => searchColumns.includes(col.key));
   const getBaseLabel = (label: string) => label.split(" (")[0].trim();
@@ -686,15 +1169,15 @@ const AnalyticsReport: React.FC = () => {
       {/* DataTable-Matching Container */}
       <div
         ref={tableWrapperRef}
-        className="mt-6 rounded-xl bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col relative z-0 app-data-table"
+        className="mt-6 rounded-xl bg-white shadow-card overflow-hidden dark:bg-gray-800 border border-gray-100 dark:border-gray-700 flex flex-col relative z-0 app-data-table table-density-compact"
       >
         {/* Top Bar: Pagination Count on Left & Date Pills Aligned to the Right */}
-        <div className="flex flex-wrap items-center justify-between border-b border-gray-200 dark:border-gray-700 px-4 py-3 bg-white dark:bg-gray-800 relative z-10 gap-3">
-          <span className="text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">
+        <div className="flex flex-wrap items-center justify-between border-b border-gray-200 dark:border-gray-700 px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-white dark:bg-gray-800 relative z-10 gap-2">
+          <span className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 whitespace-nowrap">
             {paginationLabel}
           </span>
 
-          <div className="flex flex-wrap gap-2 items-center justify-end ml-auto">
+          <div className="flex flex-wrap gap-1.5 items-center justify-end ml-auto">
             {DATE_PRESETS.map((preset) => {
               const isActive = activePreset === preset.key;
               return (
@@ -702,7 +1185,7 @@ const AnalyticsReport: React.FC = () => {
                   key={preset.key}
                   type="button"
                   onClick={() => handlePresetClick(preset.key)}
-                  className={`px-3 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
+                  className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-all duration-200 focus:outline-none shadow-xs ${isActive
                     ? "bg-primary text-white border-primary dark:bg-primary dark:border-primary"
                     : "bg-white text-text-secondary border-gray-200 hover:border-primary hover:text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:border-primary"
                     }`}
@@ -715,25 +1198,138 @@ const AnalyticsReport: React.FC = () => {
         </div>
 
         {/* Scrollable Data Table with Sticky Header */}
-        <div className="overflow-auto max-h-[65vh] min-h-[300px] relative z-0 custom-scrollbar">
-          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0">
+        <div
+          ref={scrollContainerRef}
+          className="overflow-auto max-h-[65vh] min-h-[300px] relative z-0 custom-scrollbar"
+        >
+          <table
+            className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-separate border-spacing-0"
+            style={{
+              tableLayout: "fixed",
+              width: totalTableWidth < (containerWidth || 0)
+                ? "100%"
+                : `${totalTableWidth}px`,
+              minWidth: "100%",
+            }}
+          >
+            <colgroup>
+              {orderedColumnKeys.map((colKey) => {
+                const isEntity = colKey === "entity";
+                const w = getEffectiveColWidth(colKey);
+                return (
+                  <col
+                    key={colKey}
+                    style={{
+                      width: isEntity ? `${ENTITY_COL_WIDTH}px` : `${w}px`,
+                      minWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : `${getColMinWidth(colKey)}px`,
+                      maxWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : undefined,
+                    }}
+                  />
+                );
+              })}
+            </colgroup>
             <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-30 shadow-xs">
-              <tr>
-                {getTableHeaders(currencySymbol).map((header, i) => (
-                  <th
-                    key={i}
-                    className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 whitespace-nowrap min-w-[120px]"
-                  >
-                    {header}
-                  </th>
-                ))}
+              <tr className="h-9">
+                {orderedColumnKeys.map((colKey, i) => {
+                  const isEntity = colKey === "entity";
+                  const isSorted = sortConfig?.key === colKey;
+                  const isBeingDragged = draggedColIdx === i;
+                  const isDragOver = dragOverColIdx === i;
+                  const colWidth = getEffectiveColWidth(colKey);
+                  const isBeingResized = resizingColKey === colKey;
+
+                  return (
+                    <th
+                      key={colKey}
+                      ref={(el) => {
+                        thRefs.current[colKey] = el;
+                      }}
+                      draggable={!isEntity && !isBeingResized}
+                      onDragStart={(e) => handleDragStart(e, i)}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDragLeave={() => {
+                        if (dragOverColIdx === i) {
+                          setDragOverColIdx(null);
+                          setDropSide(null);
+                        }
+                      }}
+                      onDrop={(e) => handleDrop(e, i)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => handleSort(colKey)}
+                      style={{
+                        width: isEntity ? `${ENTITY_COL_WIDTH}px` : `${colWidth}px`,
+                        minWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : `${getColMinWidth(colKey)}px`,
+                        maxWidth: isEntity ? `${ENTITY_COL_WIDTH}px` : undefined,
+                      }}
+                      className={`relative px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap select-none transition-colors group cursor-pointer h-9 ${isEntity
+                        ? "w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900"
+                        : ""
+                        } ${isSorted
+                          ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
+                          : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
+                        } hover:bg-gray-100 dark:hover:bg-gray-800 ${isBeingDragged ? "opacity-40 bg-gray-200 dark:bg-gray-700" : ""
+                        } ${isDragOver
+                          ? dropSide === "left"
+                            ? "border-l-2 border-primary"
+                            : "border-r-2 border-primary"
+                          : ""
+                        }`}
+                    >
+                      <div className="flex items-center justify-between gap-1.5 min-w-0 h-full">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {!isEntity && (
+                            <span
+                              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 opacity-40 group-hover:opacity-100 transition-opacity shrink-0"
+                              title="Drag to reorder column"
+                            >
+                              <GripVertical size={13} />
+                            </span>
+                          )}
+                          <span className="whitespace-nowrap font-medium text-xs">
+                            {getColumnLabel(colKey, currencySymbol)}
+                          </span>
+                        </div>
+                        <div className="shrink-0 flex items-center">
+                          {isSorted ? (
+                            sortConfig.direction === "asc" ? (
+                              <ArrowUp size={13} className="text-primary font-bold" />
+                            ) : (
+                              <ArrowDown size={13} className="text-primary font-bold" />
+                            )
+                          ) : (
+                            <ArrowUpDown
+                              size={12}
+                              className="text-gray-400 opacity-0 group-hover:opacity-70 transition-opacity"
+                            />
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Single Boundary Line that acts as Column Resizer */}
+                      {!isEntity && (
+                        <div
+                          onMouseDown={(e) => handleResizeStart(e, colKey)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-20 flex items-center justify-end group/resizer select-none"
+                        >
+                          <div
+                            className={`w-px h-full transition-all ${isBeingResized
+                              ? "bg-primary w-[2px]"
+                              : "bg-gray-200 dark:bg-gray-700/90 group-hover/resizer:bg-primary group-hover/resizer:w-[2px]"
+                              }`}
+                          />
+                        </div>
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-800">
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={orderedColumnKeys.length}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     Loading analytics data...
@@ -742,190 +1338,205 @@ const AnalyticsReport: React.FC = () => {
               ) : companyRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={orderedColumnKeys.length}
                     className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
                   >
                     No analytics records found.
                   </td>
                 </tr>
               ) : (
-                companyRows.map((amRow: any, aIdx: number) => {
+                sortedCompanyRows.map((amRow: any, aIdx: number) => {
                   const amName = amRow.account_manager || amRow.accountManager || `Account Manager ${aIdx + 1}`;
                   const isAmExpanded = !!expandedAms[amName];
                   const isAmLoading = !!nodeLoading[amName];
                   const companies = companyData[amName] || [];
+                  const sortedCompanies = getSortedSubRows(companies);
 
                   return (
                     <React.Fragment key={amName}>
                       {/* LEVEL 0: AM ROW */}
                       <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors font-semibold">
-                        <td className="px-4 py-2.5 whitespace-nowrap min-w-[260px]">
-                          <button
-                            type="button"
-                            onClick={() => toggleAm(amName)}
-                            className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-200 hover:text-primary focus:outline-none group"
-                          >
-                            <ExpandButton isExpanded={isAmExpanded} />
-                            <span className="text-xs font-semibold">{amName}</span>
-                            <span className="text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded ml-1">
-                              AM
-                            </span>
-                          </button>
-                        </td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.attempts} max={maxAttempts} /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.successful} max={maxAttempts} /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.submitted} max={maxAttempts} /></td>
-                        <td className="px-2 py-2"><DlrCell pct={amRow.asrPct} /></td>
-                        <td className="px-2 py-2"><DlrCell pct={amRow.dlrPct} /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.delivered} max={maxAttempts} type="success" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.failed} max={maxAttempts} type="danger" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.rejected} max={maxAttempts} type="danger" /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.vendorCost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                        <td className="px-2 py-2"><DataBarCell value={amRow.marginUsd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                        <td className="px-2 py-2"><MarginPctCell pct={amRow.marginPct} /></td>
+                        {orderedColumnKeys.map((colKey) => {
+                          if (colKey === "entity") {
+                            return (
+                              <td
+                                key="entity"
+                                style={{
+                                  width: `${ENTITY_COL_WIDTH}px`,
+                                  minWidth: `${ENTITY_COL_WIDTH}px`,
+                                  maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                }}
+                                className="px-4 py-2.5 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                              >
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAm(amName)}
+                                  className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-200 hover:text-primary focus:outline-none group"
+                                >
+                                  <ExpandButton isExpanded={isAmExpanded} />
+                                  <span className="text-xs font-semibold">{amName}</span>
+                                  <span className="text-[10px] font-bold tracking-wider uppercase text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/60 px-1.5 py-0.5 rounded ml-1">
+                                    AM
+                                  </span>
+                                </button>
+                              </td>
+                            );
+                          }
+                          return renderMetricCell(colKey, amRow, "am");
+                        })}
                       </tr>
 
                       {/* LEVEL 1: COMPANY ROWS */}
                       {isAmExpanded && (
                         isAmLoading ? (
                           <tr>
-                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
+                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-10 text-xs text-gray-500 italic">Loading companies...</td>
                           </tr>
-                        ) : companies.length === 0 ? (
+                        ) : sortedCompanies.length === 0 ? (
                           <tr>
-                            <td colSpan={13} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
+                            <td colSpan={orderedColumnKeys.length} className="py-2 pl-10 text-xs text-gray-400 italic">No company data found.</td>
                           </tr>
                         ) : (
-                          companies.map((companyRow: any, cIdx: number) => {
+                          sortedCompanies.map((companyRow: any, cIdx: number) => {
                             const companyName = companyRow.client_company || companyRow.client || `Company ${cIdx + 1}`;
                             const companyKey = `${amName}__${companyName}`;
                             const isCompanyExpanded = !!expandedCompanies[companyKey];
                             const isCompanyLoading = !!nodeLoading[companyKey];
                             const countries = countryData[companyKey] || [];
+                            const sortedCountries = getSortedSubRows(countries);
 
                             return (
                               <React.Fragment key={companyKey}>
                                 <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-700 dark:text-gray-300">
-                                  <td className="px-4 py-2 pl-10 whitespace-nowrap min-w-[260px]">
-                                    <button
-                                      type="button"
-                                      onClick={() => toggleCompany(amName, companyName)}
-                                      className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-indigo-600 focus:outline-none group"
-                                    >
-                                      <ExpandButton isExpanded={isCompanyExpanded} />
-                                      <span className="text-xs font-semibold">{companyName}</span>
-                                      <span className="text-[10px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.5 rounded ml-1">
-                                        COMPANY
-                                      </span>
-                                    </button>
-                                  </td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.attempts} max={maxAttempts} /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.successful} max={maxAttempts} /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.submitted} max={maxAttempts} /></td>
-                                  <td className="px-2 py-1.5"><DlrCell pct={companyRow.asr_percent} /></td>
-                                  <td className="px-2 py-1.5"><DlrCell pct={companyRow.dlr_percent} /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.delivered} max={maxAttempts} type="success" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.failed} max={maxAttempts} type="danger" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.rejected || 0} max={maxAttempts} type="danger" /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                  <td className="px-2 py-1.5"><DataBarCell value={companyRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                  <td className="px-2 py-1.5"><MarginPctCell pct={companyRow.margin_percent} /></td>
+                                  {orderedColumnKeys.map((colKey) => {
+                                    if (colKey === "entity") {
+                                      return (
+                                        <td
+                                          key="entity"
+                                          style={{
+                                            width: `${ENTITY_COL_WIDTH}px`,
+                                            minWidth: `${ENTITY_COL_WIDTH}px`,
+                                            maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                          }}
+                                          className="px-4 py-2 pl-10 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleCompany(amName, companyName)}
+                                            className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-indigo-600 focus:outline-none group"
+                                          >
+                                            <ExpandButton isExpanded={isCompanyExpanded} />
+                                            <span className="text-xs font-semibold">{companyName}</span>
+                                            <span className="text-[10px] font-bold tracking-wider uppercase text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 px-1.5 py-0.5 rounded ml-1">
+                                              COMPANY
+                                            </span>
+                                          </button>
+                                        </td>
+                                      );
+                                    }
+                                    return renderMetricCell(colKey, companyRow, "company");
+                                  })}
                                 </tr>
 
                                 {/* LEVEL 2: COUNTRY ROWS */}
                                 {isCompanyExpanded && (
                                   isCompanyLoading ? (
                                     <tr>
-                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
+                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-14 text-xs text-gray-500 italic">Loading countries...</td>
                                     </tr>
-                                  ) : countries.length === 0 ? (
+                                  ) : sortedCountries.length === 0 ? (
                                     <tr>
-                                      <td colSpan={13} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
+                                      <td colSpan={orderedColumnKeys.length} className="py-2 pl-14 text-xs text-gray-400 italic">No country data found.</td>
                                     </tr>
                                   ) : (
-                                    countries.map((countryRow: any, coIdx: number) => {
+                                    sortedCountries.map((countryRow: any, coIdx: number) => {
                                       const countryName = countryRow.country || countryRow.country_name || `Country ${coIdx + 1}`;
                                       const countryKey = `${amName}__${companyName}__${countryName}`;
                                       const isCountryExpanded = !!expandedCountries[countryKey];
                                       const isCountryLoading = !!nodeLoading[countryKey];
                                       const vendors = vendorData[countryKey] || [];
+                                      const sortedVendors = getSortedSubRows(vendors);
                                       const match = countryOptions.find((opt) => opt.label === countryName);
 
                                       return (
                                         <React.Fragment key={countryKey}>
                                           <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-gray-600 dark:text-gray-400">
-                                            <td className="px-4 py-2 pl-14 whitespace-nowrap min-w-[260px]">
-                                              <button
-                                                type="button"
-                                                onClick={() => toggleCountry(amName, companyName, countryName)}
-                                                className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-amber-600 focus:outline-none group"
-                                              >
-                                                <ExpandButton isExpanded={isCountryExpanded} />
-                                                <div className="flex items-center gap-1.5">
-                                                  {match?.iso2 && <CountryFlag iso2={match.iso2} />}
-                                                  <span className="text-xs font-medium">{countryName}</span>
-                                                </div>
-                                                <span className="text-[10px] font-bold tracking-wider uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded ml-1">
-                                                  COUNTRY
-                                                </span>
-                                              </button>
-                                            </td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.attempts} max={maxAttempts} /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.successful} max={maxAttempts} /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.submitted} max={maxAttempts} /></td>
-                                            <td className="px-2 py-1"><DlrCell pct={countryRow.asr_percent} /></td>
-                                            <td className="px-2 py-1"><DlrCell pct={countryRow.dlr_percent} /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.delivered} max={maxAttempts} type="success" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.failed} max={maxAttempts} type="danger" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.rejected || 0} max={maxAttempts} type="danger" /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                            <td className="px-2 py-1"><DataBarCell value={countryRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                            <td className="px-2 py-1"><MarginPctCell pct={countryRow.margin_percent} /></td>
+                                            {orderedColumnKeys.map((colKey) => {
+                                              if (colKey === "entity") {
+                                                return (
+                                                  <td
+                                                    key="entity"
+                                                    style={{
+                                                      width: `${ENTITY_COL_WIDTH}px`,
+                                                      minWidth: `${ENTITY_COL_WIDTH}px`,
+                                                      maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                                    }}
+                                                    className="px-4 py-2 pl-14 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                                  >
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => toggleCountry(amName, companyName, countryName)}
+                                                      className="inline-flex items-center space-x-2 text-text-primary dark:text-gray-300 hover:text-amber-600 focus:outline-none group"
+                                                    >
+                                                      <ExpandButton isExpanded={isCountryExpanded} />
+                                                      <div className="flex items-center gap-1.5">
+                                                        {match?.iso2 && <CountryFlag iso2={match.iso2} />}
+                                                        <span className="text-xs font-medium">{countryName}</span>
+                                                      </div>
+                                                      <span className="text-[10px] font-bold tracking-wider uppercase text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-1.5 py-0.5 rounded ml-1">
+                                                        COUNTRY
+                                                      </span>
+                                                    </button>
+                                                  </td>
+                                                );
+                                              }
+                                              return renderMetricCell(colKey, countryRow, "country");
+                                            })}
                                           </tr>
 
                                           {/* LEVEL 3: VENDOR ROWS */}
                                           {isCountryExpanded && (
                                             isCountryLoading ? (
                                               <tr>
-                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
+                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-20 text-xs text-gray-500 italic">Loading vendors...</td>
                                               </tr>
-                                            ) : vendors.length === 0 ? (
+                                            ) : sortedVendors.length === 0 ? (
                                               <tr>
-                                                <td colSpan={13} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
+                                                <td colSpan={orderedColumnKeys.length} className="py-2 pl-20 text-xs text-gray-400 italic">No vendors found.</td>
                                               </tr>
                                             ) : (
-                                              vendors.map((vendorRow: any, vIdx: number) => {
+                                              sortedVendors.map((vendorRow: any, vIdx: number) => {
                                                 const vendorName = vendorRow.vendor_company || vendorRow.vendor || `Vendor ${vIdx + 1}`;
                                                 return (
                                                   <tr
                                                     key={`${countryKey}__${vendorName}_${vIdx}`}
                                                     className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-xs text-text-secondary dark:text-gray-400"
                                                   >
-                                                    <td className="px-4 py-2 pl-20 whitespace-nowrap min-w-[260px]">
-                                                      <div className="inline-flex items-center space-x-2">
-                                                        <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
-                                                          {vendorName}
-                                                        </span>
-                                                        <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded ml-1">
-                                                          VENDOR
-                                                        </span>
-                                                      </div>
-                                                    </td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.attempts} max={maxAttempts} /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.successful} max={maxAttempts} /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.submitted} max={maxAttempts} /></td>
-                                                    <td className="px-2 py-1"><DlrCell pct={vendorRow.asr_percent} /></td>
-                                                    <td className="px-2 py-1"><DlrCell pct={vendorRow.dlr_percent} /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.delivered} max={maxAttempts} type="success" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.failed} max={maxAttempts} type="danger" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.rejected || 0} max={maxAttempts} type="danger" /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.revenue} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.vendor_cost} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                                    <td className="px-2 py-1"><DataBarCell value={vendorRow.margin_usd} max={maxRevenue} type="currency" symbol={currencySymbol} /></td>
-                                                    <td className="px-2 py-1"><MarginPctCell pct={vendorRow.margin_percent} /></td>
+                                                    {orderedColumnKeys.map((colKey) => {
+                                                      if (colKey === "entity") {
+                                                        return (
+                                                          <td
+                                                            key="entity"
+                                                            style={{
+                                                              width: `${ENTITY_COL_WIDTH}px`,
+                                                              minWidth: `${ENTITY_COL_WIDTH}px`,
+                                                              maxWidth: `${ENTITY_COL_WIDTH}px`,
+                                                            }}
+                                                            className="px-4 py-2 pl-20 whitespace-nowrap w-[280px] min-w-[280px] max-w-[280px] border-r border-gray-200 dark:border-gray-700"
+                                                          >
+                                                            <div className="inline-flex items-center space-x-2">
+                                                              <span className="font-mono text-xs text-gray-700 dark:text-gray-300">
+                                                                {vendorName}
+                                                              </span>
+                                                              <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 px-1.5 py-0.5 rounded ml-1">
+                                                                VENDOR
+                                                              </span>
+                                                            </div>
+                                                          </td>
+                                                        );
+                                                      }
+                                                      return renderMetricCell(colKey, vendorRow, "vendor");
+                                                    })}
                                                   </tr>
                                                 );
                                               })
@@ -954,6 +1565,33 @@ const AnalyticsReport: React.FC = () => {
           </div>
         )}
       </div>
+
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        .table-density-compact th {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+          height: 36px !important;
+          font-size: 0.75rem !important;
+          line-height: 1rem !important;
+        }
+        .table-density-compact th * {
+          font-size: 0.75rem !important;
+        }
+        .table-density-compact td {
+          padding-top: 0.5rem !important;
+          padding-bottom: 0.5rem !important;
+        }
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        `,
+        }}
+      />
     </div>
   );
 };

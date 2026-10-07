@@ -46,6 +46,7 @@ interface DataTableProps<T> {
   // Column Resizing & Persistence
   storageKey?: string;
   resizableColumns?: boolean;
+  defaultColumnWidths?: Record<string, number>;
 
   // Optional footer rendered inside <tfoot> of the same <table> for pixel-perfect column alignment
   footerContent?: React.ReactNode;
@@ -89,6 +90,7 @@ export function DataTable<T extends { id?: number | string }>({
   errorMessage,
   storageKey,
   resizableColumns = true,
+  defaultColumnWidths,
   footerContent,
   tableMaxHeight,
 }: DataTableProps<T>) {
@@ -118,6 +120,7 @@ export function DataTable<T extends { id?: number | string }>({
       : "table_col_widths_default");
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    let initial: Record<string, number> = defaultColumnWidths ? { ...defaultColumnWidths } : {};
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem(effectiveStorageKey);
@@ -140,14 +143,14 @@ export function DataTable<T extends { id?: number | string }>({
                 clean[key] = parsed[key];
               }
             }
-            return clean;
+            return { ...initial, ...clean };
           }
         }
       } catch (e) {
         console.error("Error loading column widths from localStorage", e);
       }
     }
-    return {};
+    return initial;
   });
 
   const saveWidths = (widths: Record<string, number>) => {
@@ -316,7 +319,7 @@ export function DataTable<T extends { id?: number | string }>({
       clearTimeout(headerTooltipTimerRef.current);
     }
 
-    const spanEl = th.querySelector("span.truncate") as HTMLElement | null;
+    const spanEl = (th.querySelector("span[data-header-label]") || th.querySelector("span")) as HTMLElement | null;
     const rawText = spanEl?.innerText?.trim() || th.innerText?.trim();
     if (!rawText || rawText === "-" || rawText === "" || rawText.length === 0) {
       clearHeaderTooltip();
@@ -670,7 +673,7 @@ export function DataTable<T extends { id?: number | string }>({
               <span className="text-xs text-text-secondary dark:text-gray-400 whitespace-nowrap min-[540px]:hidden">
                 Rows:
               </span>
-              <div className="w-16 sm:w-20 shrink-0 rows-per-page-select">
+              <div className="w-20 sm:w-24 shrink-0 rows-per-page-select">
                 <Select
                   value={String(activeRows)}
                   onChange={(val) => handleRowsChange(Number(val))}
@@ -693,7 +696,7 @@ export function DataTable<T extends { id?: number | string }>({
               {/* Previous Button */}
               <button
                 type="button"
-                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
+                className="shrink-0 h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
                 onClick={handlePrev}
                 disabled={activePage === 1 || isLoading}
                 title="Previous Page"
@@ -723,7 +726,7 @@ export function DataTable<T extends { id?: number | string }>({
               {/* Next Button */}
               <button
                 type="button"
-                className="h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
+                className="shrink-0 h-full px-1.5 sm:px-2 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
                 onClick={handleNext}
                 disabled={
                   activePage >= totalPages || activeTotal === 0 || isLoading
@@ -858,7 +861,7 @@ export function DataTable<T extends { id?: number | string }>({
                       }
                     }}
                   >
-                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1 overflow-hidden">
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full px-1">
                       {isDraggable && !isSn && (
                         <GripVertical
                           size={13}
@@ -866,7 +869,8 @@ export function DataTable<T extends { id?: number | string }>({
                         />
                       )}
                       <span
-                        className={`truncate text-center pointer-events-none select-none ${
+                        data-header-label="true"
+                        className={`whitespace-nowrap text-center pointer-events-none select-none ${
                           isSorted ? "font-semibold text-primary dark:text-white" : ""
                         }`}
                       >
@@ -989,8 +993,7 @@ export function DataTable<T extends { id?: number | string }>({
           table-layout: fixed !important;
         }
         .app-data-table table.table-resizable-active th {
-          overflow: hidden;
-          text-overflow: ellipsis;
+          overflow: visible;
           white-space: nowrap;
           text-align: center !important;
         }
@@ -1067,6 +1070,15 @@ export function DataTable<T extends { id?: number | string }>({
           margin-right: auto !important;
           display: block !important;
           width: 100% !important;
+        }
+
+        .app-data-table .flex.justify-center,
+        .app-data-table .flex.justify-end,
+        .app-data-table th div,
+        .app-data-table .rows-per-page-select,
+        .app-data-table .rows-per-page-select div {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
         }
 
         .rows-per-page-select {

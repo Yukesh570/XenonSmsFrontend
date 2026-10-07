@@ -114,15 +114,11 @@ const RejectedSMSLog: React.FC = () => {
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
-    let updatedFilters: Record<string, string> = {};
-    setFilterValues((prev) => {
-      const next = { ...prev };
-      delete next.timestamp;
-      delete next.timestamp__range;
-      updatedFilters = next;
-      return next;
-    });
-    fetchEvents(updatedFilters, 1, false, presetKey);
+    const nextFilters = { ...filterValues };
+    delete nextFilters.timestamp;
+    delete nextFilters.timestamp__range;
+    setFilterValues(nextFilters);
+    fetchEvents(nextFilters, 1, false, presetKey);
   };
 
   const fetchEvents = async (

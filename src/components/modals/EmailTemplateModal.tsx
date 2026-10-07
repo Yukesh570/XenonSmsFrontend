@@ -107,24 +107,56 @@ export const EmailTemplateModal: React.FC<EmailTemplateModalProps> = ({
     setFormData((prev) => ({ ...prev, emailServer: value ? Number(value) : null }));
   };
 
-  const handleInsertVariable = (tagString: string) => {
-    if (!tagString || !quillRef.current) return;
+  // Track which field was last focused so we know where to insert the variable
+  const [lastFocusedField, setLastFocusedField] = useState<"subject" | "content">("content");
 
-    const editor = quillRef.current.getEditor();
-    if (editor) {
-      // FIXED: Use the memorized cursor position, or default to the end if they never clicked in the box
-      const position = cursorPosition !== null ? cursorPosition : editor.getLength();
+  const handleInsertVariable = (tagString: string) => {
+    if (!tagString) return;
+
+    if (lastFocusedField === "subject") {
+      const subjectInput = document.getElementById("subject") as HTMLInputElement;
+      const currentSubject = formData.subject;
       
-      // Insert the variable tag
-      editor.insertText(position, tagString);
-      
-      // Calculate new position after the inserted text
-      const newPosition = position + tagString.length;
-      
-      // Update our memorized state, tell Quill to move the cursor there, and force focus back!
-      setCursorPosition(newPosition);
-      editor.setSelection(newPosition);
-      editor.focus();
+      if (subjectInput) {
+        // Insert at cursor position if possible
+        const startPos = subjectInput.selectionStart || currentSubject.length;
+        const endPos = subjectInput.selectionEnd || currentSubject.length;
+        
+        const newSubject = 
+          currentSubject.substring(0, startPos) + 
+          tagString + 
+          currentSubject.substring(endPos);
+          
+        setFormData((prev) => ({ ...prev, subject: newSubject }));
+        
+        // Restore focus to subject
+        setTimeout(() => {
+          subjectInput.focus();
+          subjectInput.setSelectionRange(startPos + tagString.length, startPos + tagString.length);
+        }, 10);
+      } else {
+        // Fallback: just append
+        setFormData((prev) => ({ ...prev, subject: prev.subject + tagString }));
+      }
+    } else {
+      // Default to content
+      if (!quillRef.current) return;
+      const editor = quillRef.current.getEditor();
+      if (editor) {
+        // FIXED: Use the memorized cursor position, or default to the end if they never clicked in the box
+        const position = cursorPosition !== null ? cursorPosition : editor.getLength();
+        
+        // Insert the variable tag
+        editor.insertText(position, tagString);
+        
+        // Calculate new position after the inserted text
+        const newPosition = position + tagString.length;
+        
+        // Update our memorized state, tell Quill to move the cursor there, and force focus back!
+        setCursorPosition(newPosition);
+        editor.setSelection(newPosition);
+        editor.focus();
+      }
     }
   };
 
@@ -249,6 +281,7 @@ export const EmailTemplateModal: React.FC<EmailTemplateModalProps> = ({
               placeholder="Enter Email Subject"
               required
               disabled={isViewMode}
+              onFocus={() => setLastFocusedField("subject")}
             />
           </div>
           
@@ -284,6 +317,7 @@ export const EmailTemplateModal: React.FC<EmailTemplateModalProps> = ({
                     setCursorPosition(range.index);
                   }
                 }}
+                onFocus={() => setLastFocusedField("content")}
                 readOnly={isViewMode}
               />
             ) : (
