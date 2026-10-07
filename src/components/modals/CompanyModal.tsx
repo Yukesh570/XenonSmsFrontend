@@ -500,15 +500,28 @@ export const CompanyModal: React.FC<CompanyModalProps> = ({
               disabled={isViewMode}
             />
             
-            <div className="flex flex-col justify-center h-[54px] pt-4">
-              <ToggleSwitch
-                label="Allow Negative Vendor Credit"
-                checked={formData.allowNegativeVendorCredit}
-                onChange={(v) => setFormData((prev) => ({ ...prev, allowNegativeVendorCredit: v }))}
-              />
-              <span className="text-xs text-gray-500 mt-1">
-                Route traffic even if vendor has negative balance.
+            <div className="flex flex-col justify-start">
+              <span
+                className="mb-1.5 block text-xs font-medium text-transparent select-none pointer-events-none"
+                aria-hidden="true"
+              >
+                &nbsp;
               </span>
+              <div className="flex items-center min-h-[34px]">
+                <ToggleSwitch
+                  label="Allow Negative Vendor Credit"
+                  description="Route traffic even if vendor has negative balance."
+                  checked={formData.allowNegativeVendorCredit}
+                  onChange={(v) =>
+                    !isViewMode &&
+                    setFormData((prev) => ({
+                      ...prev,
+                      allowNegativeVendorCredit: v,
+                    }))
+                  }
+                  disabled={isViewMode}
+                />
+              </div>
             </div>
 
             {isViewMode && (

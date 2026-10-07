@@ -1358,7 +1358,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                       <div className="w-32">
                         <Select label="Status" value={newConfigStatus} onChange={setNewConfigStatus} options={statusOptions} />
                       </div>
-                      <div className="flex items-center gap-2 mb-[2px] ml-2">
+                      <div className="flex items-center h-[34px] ml-2">
                         <ToggleSwitch
                           label="Low Cost Policy"
                           checked={newLowCostPolicy}
@@ -1369,9 +1369,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         />
                       </div>
                       {newLowCostPolicy && (
-                        <div className="w-40">
+                        <div className="w-44">
                           <Input
-                            label="Limit (Max Loss)"
+                            label="Low Cost Policy Limit"
                             name="lowCostPolicyLimit"
                             type="number"
                             value={newLowCostPolicyLimit}
@@ -1626,37 +1626,42 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         >
                           {isPercentage ? "Percentage" : "Priority"}
                         </span>
-                        {canUpdate && (
-                          <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center gap-2">
-                            {section.config.lowCostPolicy && (
-                              <input
-                                type="number"
-                                className="w-40 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-                                placeholder="lowCostPolicyLimit"
-                                min="0"
-                                max="100"
-                                step="0.01"
-                                defaultValue={Number(section.config.lowCostPolicyLimit) === 0 ? "" : (section.config.lowCostPolicyLimit || "")}
-                                onBlur={(e) => {
-                                  const currentValStr = Number(section.config.lowCostPolicyLimit) === 0 ? "" : String(section.config.lowCostPolicyLimit || "");
-                                  if (e.target.value !== currentValStr) {
-                                    handleUpdateLowCostPolicyLimit(section.config, e.target.value);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") {
-                                    e.currentTarget.blur();
-                                  }
-                                }}
-                              />
-                            )}
-                            <ToggleSwitch
-                              label="LCP"
-                              checked={section.config.lowCostPolicy || false}
-                              onChange={(val) => handleToggleLowCostPolicy(section.config, val)}
+                        <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center gap-2">
+                          <ToggleSwitch
+                            label="LCP"
+                            checked={section.config.lowCostPolicy || false}
+                            onChange={(val) => canUpdate && handleToggleLowCostPolicy(section.config, val)}
+                            disabled={!canUpdate}
+                            className="translate-y-[3px]"
+                          />
+                          {section.config.lowCostPolicy && (
+                            <input
+                              type="number"
+                              disabled={!canUpdate}
+                              className={`w-40 h-7 px-2.5 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all shadow-sm ${
+                                !canUpdate ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-gray-800" : ""
+                              }`}
+                              placeholder="Low Cost Policy Limit"
+                              title="Low Cost Policy Limit (Max Loss)"
+                              min="0"
+                              max="100"
+                              step="0.01"
+                              defaultValue={Number(section.config.lowCostPolicyLimit) === 0 ? "" : (section.config.lowCostPolicyLimit || "")}
+                              onBlur={(e) => {
+                                if (!canUpdate) return;
+                                const currentValStr = Number(section.config.lowCostPolicyLimit) === 0 ? "" : String(section.config.lowCostPolicyLimit || "");
+                                if (e.target.value !== currentValStr) {
+                                  handleUpdateLowCostPolicyLimit(section.config, e.target.value);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.currentTarget.blur();
+                                }
+                              }}
                             />
-                          </div>
-                        )}
+                          )}
+                        </div>
 
                         {section.routes.length > 0 && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">

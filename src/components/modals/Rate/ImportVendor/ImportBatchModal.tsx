@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
 import api from "../../../../api/axiosInstance";
 import { updateImportBatchApi, type ImportBatchData } from "../../../../api/rateApi/ImportVendor/importBatchApi";
@@ -7,8 +7,9 @@ import Input from "../../../ui/Input";
 import Button from "../../../ui/Button";
 import Select from "../../../ui/Select";
 import Modal from "../../../ui/Modal";
-import { formatDateTime } from "../../../../helper/dateFormatter";
-import { AlertTriangle, Download, FileText, ChevronLeft, ChevronRight } from "lucide-react";
+import ModalDataTable from "../../../ui/ModalDataTable";
+import { StatusBadge } from "../../../ui/StatusBadge";
+import { AlertTriangle, Download } from "lucide-react";
 
 interface ImportBatchModalProps {
   isOpen: boolean;
@@ -38,6 +39,188 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
   const [rowsPage, setRowsPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalRowsCount, setTotalRowsCount] = useState(0);
+
+  // Dynamic columns for drag & drop, sorting, resizing
+  const [columns, setColumns] = useState<string[]>([
+    "rowNo",
+    "destination",
+    "mccMnc",
+    "importedRate",
+    "rowStatus",
+  ]);
+
+  const COLUMN_LABELS: Record<string, string> = {
+    rowNo: "Row",
+    destination: "Dest/Country",
+    mccMnc: "MCC/MNC",
+    importedRate: "Rate",
+    rowStatus: "Status",
+  };
+
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  // Sorting
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>(null);
+
+  const handleSort = (columnIndex: number) => {
+    const colKey = columns[columnIndex];
+    setSortConfig((prev) => {
+      if (prev?.key === colKey) {
+        if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+        return null;
+      }
+      return { key: colKey, direction: "asc" };
+    });
+  };
+
+  const sortedRows = useMemo(() => {
+    if (!sortConfig) return parsedRows;
+    return [...parsedRows].sort((a, b) => {
+      let aVal: any = "";
+      let bVal: any = "";
+
+      if (sortConfig.key === "rowNo") {
+        aVal = a.rowNo ?? 0;
+        bVal = b.rowNo ?? 0;
+      } else if (sortConfig.key === "destination") {
+        aVal = a.rawDestination || a.rawCountryCode || "";
+        bVal = b.rawDestination || b.rawCountryCode || "";
+      } else if (sortConfig.key === "mccMnc") {
+        aVal = `${a.rawMcc || ""} / ${a.rawMnc || ""}`;
+        bVal = `${b.rawMcc || ""} / ${b.rawMnc || ""}`;
+      } else if (sortConfig.key === "importedRate") {
+        aVal = Number(a.importedRate) || 0;
+        bVal = Number(b.importedRate) || 0;
+      } else if (sortConfig.key === "rowStatus") {
+        aVal = a.rowStatus || "";
+        bVal = b.rowStatus || "";
+      }
+
+      if (aVal === bVal) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+      }
+
+      const cmp = String(aVal).localeCompare(String(bVal), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      });
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  }, [parsedRows, sortConfig]);
+
+  const handleDownloadAttachment = async () => {
+    if (!editingData?.attachment) return;
+    try {
+      const response = await api.get(
+        `/vendorRateImportAttachment/${editingData.attachment}/download/`,
+        {
+          responseType: "blob",
+        }
+      );
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `attachment_${editingData.attachment}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        toast.error(
+          "File no longer exists on the server. It may have been cleaned up automatically."
+        );
+      } else {
+        toast.error("Failed to download attachment.");
+      }
+    }
+  };
+
+  const renderCell = (colKey: string, row: ImportRowData) => {
+    switch (colKey) {
+      case "rowNo":
+        return (
+          <td
+            key={colKey}
+            className="py-2.5 px-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+          >
+            {row.rowNo ?? "-"}
+          </td>
+        );
+      case "destination":
+        return (
+          <td
+            key={colKey}
+            className="py-2.5 px-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
+          >
+            {row.rawDestination || row.rawCountryCode || "-"}
+          </td>
+        );
+      case "mccMnc":
+        return (
+          <td
+            key={colKey}
+            className="py-2.5 px-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+          >
+            {row.rawMcc || row.rawMnc
+              ? `${row.rawMcc || ""} / ${row.rawMnc || ""}`
+              : "-"}
+          </td>
+        );
+      case "importedRate":
+        return (
+          <td
+            key={colKey}
+            className="py-2.5 px-3 text-sm text-text-primary dark:text-gray-200 font-medium whitespace-nowrap"
+          >
+            {row.importedRate ?? "-"}
+          </td>
+        );
+      case "rowStatus": {
+        const val = (row.rowStatus || "").toUpperCase();
+        let colorKey = "PENDING";
+        if (["VALID", "NEW", "UPDATED", "PUBLISHED", "ACTIVE"].includes(val)) {
+          colorKey = "ACTIVE";
+        } else if (["INVALID", "FAILED"].includes(val)) {
+          colorKey = "FAILED";
+        } else if (["UNMAPPED", "SUSPENDED"].includes(val)) {
+          colorKey = "SUSPENDED";
+        } else if (["UNCHANGED"].includes(val)) {
+          colorKey = "UNKNOWN";
+        } else if (val) {
+          colorKey = val;
+        }
+
+        return (
+          <td key={colKey} className="py-2.5 px-3 whitespace-nowrap">
+            <StatusBadge status={colorKey} customText={row.rowStatus || "-"} />
+          </td>
+        );
+      }
+      default:
+        return (
+          <td
+            key={colKey}
+            className="py-2.5 px-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+          >
+            {(row as any)[colKey] ?? "-"}
+          </td>
+        );
+    }
+  };
 
   const fetchRows = (page: number, size: number = rowsPerPage) => {
     if (editingData?.id) {
@@ -69,20 +252,6 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
       }
     }
   }, [isOpen, editingData, isViewMode]);
-
-  const handleNextPage = () => {
-    const nextPage = rowsPage + 1;
-    setRowsPage(nextPage);
-    fetchRows(nextPage, rowsPerPage);
-  };
-
-  const handlePrevPage = () => {
-    if (rowsPage > 1) {
-      const prevPage = rowsPage - 1;
-      setRowsPage(prevPage);
-      fetchRows(prevPage, rowsPerPage);
-    }
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -136,7 +305,7 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
       title={isViewMode ? `Import Batch Details - ${editingData?.subject || 'N/A'}` : "Edit Import Batch Status"}
       className={isViewMode ? "max-w-5xl" : "max-w-2xl"}
     >
-      <form onSubmit={handleSubmit} className="space-y-6 px-1 max-h-[85vh] overflow-y-auto custom-scrollbar">
+      <form onSubmit={handleSubmit} className="space-y-6 px-1">
         
         {isViewMode && editingData?.failureReason && (
           <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start gap-3">
@@ -185,177 +354,89 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
               </div>
             </fieldset>
 
-            <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <legend className="text-sm font-semibold text-primary px-2 m-0">Original Attachment</legend>
-                <Button 
-                  variant="secondary"
-                  size="sm"
-                  onClick={async () => {
-                    try {
-                      const response = await api.get(`/vendorRateImportAttachment/${editingData?.attachment}/download/`, {
-                        responseType: 'blob',
-                      });
-                      const url = window.URL.createObjectURL(new Blob([response.data]));
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.setAttribute('download', `attachment_${editingData?.attachment}.csv`);
-                      document.body.appendChild(link);
-                      link.click();
-                      link.remove();
-                    } catch (err: any) {
-                      if (err.response?.status === 404) {
-                        toast.error("File no longer exists on the server. It may have been cleaned up automatically.");
-                      } else {
-                        toast.error("Failed to download attachment.");
-                      }
-                    }
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <Download size={16} /> Download Source File
-                </Button>
-              </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
-                <FileText size={24} className="text-gray-400" />
-                <span>Attachment ID: {editingData?.attachment || "N/A"}</span>
-              </div>
-            </fieldset>
-
-            <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 min-w-0 max-w-full overflow-hidden">
               <legend className="text-sm font-semibold text-primary px-2">Parsed Rates Preview</legend>
-              {isLoadingRows && parsedRows.length === 0 ? (
-                <p className="text-sm text-gray-500">Loading parsed rows...</p>
-              ) : parsedRows.length > 0 ? (
-                <div className="overflow-x-auto flex flex-col">
-                  <div className="flex flex-row flex-wrap items-center gap-2.5 mb-3 pb-3 border-b border-gray-100 dark:border-gray-700">
-                    {/* Rows Per Page */}
-                    <div className="flex items-center space-x-2 h-[34px]">
-                      <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        Rows per page:
-                      </span>
-                      <div className="w-20 shrink-0">
-                        <Select
-                          value={String(rowsPerPage > 0 ? rowsPerPage : 10)}
-                          onChange={(val) => {
-                            const size = Number(val);
-                            if (size > 0) {
-                              setRowsPerPage(size);
-                              setRowsPage(1);
-                              fetchRows(1, size);
-                            }
-                          }}
-                          options={[
-                            { label: "10", value: "10" },
-                            { label: "25", value: "25" },
-                            { label: "50", value: "50" },
-                            { label: "100", value: "100" }
-                          ]}
-                          clearable={false}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Subtle Divider */}
-                    <div className="h-5 w-px bg-gray-200 dark:bg-gray-700 hidden min-[540px]:block" />
-                    
-                    {/* Combined Pagination Bar */}
-                    <div className="h-[34px] inline-flex items-center rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs sm:text-sm text-gray-500 dark:text-gray-300 shadow-sm overflow-hidden">
-                      <span className="px-2 sm:px-2.5 font-medium whitespace-nowrap border-r border-gray-200 dark:border-gray-700 h-full flex items-center select-none text-[11px] sm:text-xs">
-                        {totalRowsCount === 0 ? 0 : (rowsPage - 1) * (rowsPerPage > 0 ? rowsPerPage : 10) + 1}-{Math.min(rowsPage * (rowsPerPage > 0 ? rowsPerPage : 10), totalRowsCount)} of {totalRowsCount}
-                      </span>
-                      
-                      <button
+              <div className="w-full min-w-0">
+                <ModalDataTable
+                  serverSide={true}
+                  data={sortedRows}
+                  totalItems={totalRowsCount}
+                  currentPage={rowsPage}
+                  rowsPerPage={rowsPerPage}
+                  onPageChange={(page) => {
+                    setRowsPage(page);
+                    fetchRows(page, rowsPerPage);
+                  }}
+                  onRowsPerPageChange={(rows) => {
+                    setRowsPerPage(rows);
+                    setRowsPage(1);
+                    fetchRows(1, rows);
+                  }}
+                  rowsPerPageOptions={[
+                    { value: "10", label: "10" },
+                    { value: "25", label: "25" },
+                    { value: "50", label: "50" },
+                    { value: "100", label: "100" },
+                  ]}
+                  isLoading={isLoadingRows}
+                  headerActions={
+                    editingData?.attachment ? (
+                      <Button
                         type="button"
-                        className="w-8 shrink-0 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-r border-gray-200 dark:border-gray-700"
-                        onClick={handlePrevPage}
-                        disabled={rowsPage === 1 || isLoadingRows}
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleDownloadAttachment}
+                        leftIcon={<Download size={15} />}
                       >
-                        <ChevronLeft size={16} />
-                      </button>
-
-                      <div className="flex items-center gap-1 px-1.5 sm:px-2 h-full">
-                        <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 select-none">Page</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={Math.ceil(totalRowsCount / (rowsPerPage > 0 ? rowsPerPage : 10)) || 1}
-                          value={rowsPage}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value);
-                            const safeRowsPerPage = rowsPerPage > 0 ? rowsPerPage : 10;
-                            const maxPage = Math.ceil(totalRowsCount / safeRowsPerPage) || 1;
-                            if (!isNaN(val) && val >= 1 && val <= maxPage) {
-                              setRowsPage(val);
-                              fetchRows(val, safeRowsPerPage);
-                            }
-                          }}
-                          className="w-10 sm:w-12 h-6 text-center text-xs font-semibold rounded border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/60 text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-                        />
-                        <span className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 select-none">
-                          of {Math.ceil(totalRowsCount / (rowsPerPage > 0 ? rowsPerPage : 10)) || 1}
-                        </span>
-                      </div>
-
-                      <button
-                        type="button"
-                        className="w-8 shrink-0 h-full flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-primary hover:bg-gray-50 dark:hover:bg-gray-700/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors border-l border-gray-200 dark:border-gray-700"
-                        onClick={handleNextPage}
-                        disabled={rowsPage * (rowsPerPage > 0 ? rowsPerPage : 10) >= totalRowsCount || isLoadingRows}
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <table className="w-full text-left text-sm text-gray-500 dark:text-gray-400">
-                    <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
-                      <tr>
-                        <th className="px-4 py-2">Row</th>
-                        <th className="px-4 py-2">Dest/Country</th>
-                        <th className="px-4 py-2">MCC/MNC</th>
-                        <th className="px-4 py-2">Rate</th>
-                        <th className="px-4 py-2">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedRows.map((row) => (
-                        <tr key={row.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                          <td className="px-4 py-2">{row.rowNo}</td>
-                          <td className="px-4 py-2">{row.rawDestination || row.rawCountryCode}</td>
-                          <td className="px-4 py-2">{row.rawMcc} / {row.rawMnc}</td>
-                          <td className="px-4 py-2 font-medium">{row.importedRate}</td>
-                          <td className="px-4 py-2">
-                            <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                              row.rowStatus === 'VALID' || row.rowStatus === 'NEW' ? 'bg-green-100 text-green-800' : 
-                              row.rowStatus === 'INVALID' || row.rowStatus === 'UNMAPPED' ? 'bg-red-100 text-red-800' : 
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {row.rowStatus}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-sm text-gray-500 italic">No parsed rows found for this batch.</p>
-              )}
+                        Download Source File
+                      </Button>
+                    ) : undefined
+                  }
+                  headers={columns.map((c) => COLUMN_LABELS[c] || c)}
+                  columnKeys={columns}
+                  onReorderColumns={handleReorderColumns}
+                  onSort={handleSort}
+                  sortColumnIndex={
+                    sortConfig
+                      ? columns.findIndex((c) => c === sortConfig.key)
+                      : null
+                  }
+                  sortDirection={sortConfig?.direction || null}
+                  defaultColumnWidths={{
+                    "Row": 90,
+                    "Dest/Country": 220,
+                    "MCC/MNC": 160,
+                    "Rate": 140,
+                    "Status": 130,
+                  }}
+                  storageKey="parsed_rates_preview_modal_table"
+                  tableMaxHeight="360px"
+                  density="compact"
+                  emptyMessage="No parsed rows found for this batch."
+                  renderRow={(item, index) => (
+                    <tr
+                      key={item.id ?? index}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 transition-colors"
+                    >
+                      {columns.map((colKey) => renderCell(colKey, item))}
+                    </tr>
+                  )}
+                />
+              </div>
             </fieldset>
           </>
         )}
 
-        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900 z-10 pb-2">
-          <Button type="button" variant="secondary" onClick={onClose} className={isViewMode ? "" : "mr-2"}>
-            {isViewMode ? "Close Details" : "Cancel"}
-          </Button>
-          {!isViewMode && (
+        {!isViewMode && (
+          <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900 z-10 pb-2">
+            <Button type="button" variant="secondary" onClick={onClose} className="mr-2">
+              Cancel
+            </Button>
             <Button type="submit" variant="primary" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Update Status"}
             </Button>
-          )}
-        </div>
+          </div>
+        )}
       </form>
     </Modal>
   );

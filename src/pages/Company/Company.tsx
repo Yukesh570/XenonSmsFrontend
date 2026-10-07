@@ -6,7 +6,6 @@ import { toast } from "react-toastify";
 import {
   getCompaniesApi,
   deleteCompanyApi,
-  updateVendorCreditPolicyApi,
   type CompanyData,
 } from "../../api/companyApi/companyApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -34,7 +33,6 @@ import ContextMenu, {
 import { actionHelper } from "../../helper/action";
 import { CountryFlag } from "../../components/ui/CountryFlag";
 import { formatDateTime } from "../../helper/dateFormatter";
-import ToggleSwitch from "../../components/ui/ToggleSwitch";
 
 interface Option {
   label: string;
@@ -58,6 +56,11 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+const booleanOptions: Option[] = [
+  { label: "True", value: "true" },
+  { label: "False", value: "false" },
+];
+
 const DEFAULT_SEARCH_COLUMNS = ["name", "country", "currency"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
@@ -68,6 +71,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "currency",
   "customerCreditLimit",
   "vendorCreditLimit",
+  "allowNegativeVendorCredit",
 ];
 
 const CompanyList: React.FC = () => {
@@ -239,21 +243,12 @@ const CompanyList: React.FC = () => {
       key: "allowNegativeVendorCredit",
       label: "Allow Negative Vendor Credit",
       type: "boolean",
+      options: booleanOptions,
       filterKey: "allowNegativeVendorCredit",
-      render: (c: any) => (
-        <ToggleSwitch
-          checked={c.allowNegativeVendorCredit}
-          onChange={async (checked) => {
-            try {
-              await updateVendorCreditPolicyApi(c.id, checked);
-              toast.success("Vendor credit policy updated successfully!");
-              fetchCompanies();
-            } catch (err) {
-              toast.error("Failed to update vendor credit policy.");
-            }
-          }}
-        />
-      ),
+      render: (c: any) =>
+        c.allowNegativeVendorCredit === true || c.allowNegativeVendorCredit === "true"
+          ? "true"
+          : "false",
     },
     {
       key: "updatedBy",
