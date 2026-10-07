@@ -791,9 +791,20 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (needsScroll && trafficScrollRef.current) {
-      trafficScrollRef.current.scrollLeft = trafficScrollRef.current.scrollWidth;
+      const scrollToRight = () => {
+        if (trafficScrollRef.current) {
+          trafficScrollRef.current.scrollLeft = trafficScrollRef.current.scrollWidth;
+        }
+      };
+      scrollToRight();
+      const id = requestAnimationFrame(scrollToRight);
+      const timer = setTimeout(scrollToRight, 120);
+      return () => {
+        cancelAnimationFrame(id);
+        clearTimeout(timer);
+      };
     }
-  }, [trafficData, needsScroll]);
+  }, [trafficData, needsScroll, isTrafficLoading, activeRange]);
 
   const monthlyTicks = React.useMemo(() => {
     if (activeRange !== "365d" && activeRange !== "all") return undefined;
@@ -896,32 +907,32 @@ const Dashboard: React.FC = () => {
       {/* Row 1: KPI Cards — SMS stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-2.5 sm:gap-3 mb-2.5 sm:mb-3">
         <StatCard
-          title={`Total SMS (${activeRangeLabel})`}
+          title="Total SMS"
           value={isStatsLoading ? "…" : totalSms}
           icon={<MessageSquare size={21} />}
         />
         <StatCard
-          title={`Delivered (${activeRangeLabel})`}
+          title="Delivered"
           value={isStatsLoading ? "…" : deliveredCount}
           icon={<Activity size={21} />}
         />
         <StatCard
-          title={`Failed (${activeRangeLabel})`}
+          title="Failed"
           value={isStatsLoading ? "…" : failedCount}
           icon={<XCircle size={21} />}
         />
         <StatCard
-          title={`Undelivered (${activeRangeLabel})`}
+          title="Undelivered"
           value={isStatsLoading ? "…" : undeliveredCount}
           icon={<XCircle size={21} />}
         />
         <StatCard
-          title={`Rejected (${activeRangeLabel})`}
+          title="Rejected"
           value={isStatsLoading ? "…" : rejectedCount}
           icon={<AlertTriangle size={21} />}
         />
         <StatCard
-          title={`Delivery Rate (${activeRangeLabel})`}
+          title="Delivery Rate"
           value={isStatsLoading ? "…" : deliveryRate}
           icon={<Activity size={21} />}
         />
@@ -989,7 +1000,7 @@ const Dashboard: React.FC = () => {
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart
                         data={trafficData}
-                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                        margin={{ top: 10, right: 30, left: needsScroll ? 16 : 0, bottom: 0 }}
                       >
                         <defs>
                           <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
@@ -1069,9 +1080,9 @@ const Dashboard: React.FC = () => {
                   <Pie
                     data={dlrData}
                     cx="50%"
-                    cy="42%"
-                    innerRadius={50}
-                    outerRadius={75}
+                    cy="44%"
+                    innerRadius={45}
+                    outerRadius={68}
                     paddingAngle={2}
                     dataKey="value"
                     stroke="none"
@@ -1099,21 +1110,21 @@ const Dashboard: React.FC = () => {
                       const rejected = dlrData.find((d) => d.name === "Rejected") || { name: "Rejected", value: 0, color: DLR_COLORS.Rejected };
 
                       const renderLegendItem = (item: { name: string; value: number; color: string }) => (
-                        <div key={item.name} className="inline-flex items-center gap-1.5 text-xs text-text-secondary dark:text-gray-300">
-                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <div key={item.name} className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-text-secondary dark:text-gray-300 shrink-0 whitespace-nowrap">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                           <span>{item.name}</span>
                           <span className="font-medium text-text-primary dark:text-white">({item.value}%)</span>
                         </div>
                       );
 
                       return (
-                        <div className="flex flex-col items-center gap-1.5 pt-2">
-                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
+                        <div className="flex flex-col items-center justify-center gap-1 pt-1 w-full select-none">
+                          <div className="flex items-center justify-center flex-nowrap gap-2 sm:gap-3.5 max-w-full">
                             {renderLegendItem(delivered)}
                             {renderLegendItem(failed)}
                             {renderLegendItem(undelivered)}
                           </div>
-                          <div className="flex items-center justify-center flex-wrap gap-3 sm:gap-6">
+                          <div className="flex items-center justify-center flex-nowrap gap-2 sm:gap-3.5 max-w-full">
                             {renderLegendItem(pending)}
                             {renderLegendItem(rejected)}
                           </div>
