@@ -86,7 +86,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 
-const DEFAULT_SEARCH_COLUMNS = ["destination", "event_type", "vendorMessageId"];
+const DEFAULT_SEARCH_COLUMNS = ["client_msg_id", "destination", "event_type", "vendorMessageId"];
 const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendorMessageId", "event_type", "segment_number", "status_code", "received_at"];
 
 const BATCH_SIZE = 100;
@@ -109,17 +109,29 @@ const DLREvent: React.FC = () => {
   const [viewLog, setViewLog] = useState<DLREventData | null>(null);
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
-    const saved = localStorage.getItem("dlr_event_search_columns_v3");
-    try {
-      return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
-    } catch (e) {
-      return DEFAULT_SEARCH_COLUMNS;
+    const saved = localStorage.getItem("dlr_event_search_columns_v4");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return DEFAULT_SEARCH_COLUMNS;
+      }
     }
+    const oldSaved = localStorage.getItem("dlr_event_search_columns_v3");
+    if (oldSaved) {
+      try {
+        const parsed = JSON.parse(oldSaved);
+        if (Array.isArray(parsed)) {
+          return Array.from(new Set([...DEFAULT_SEARCH_COLUMNS, ...parsed]));
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SEARCH_COLUMNS;
   });
 
   useEffect(() => {
     localStorage.setItem(
-      "dlr_event_search_columns_v3",
+      "dlr_event_search_columns_v4",
       JSON.stringify(searchColumns),
     );
   }, [searchColumns]);
@@ -139,7 +151,13 @@ const DLREvent: React.FC = () => {
   const tableWrapperRef = useRef<HTMLDivElement>(null);
 
   const allColumns: ColumnConfig[] = [
-    { key: "client_msg_id", label: "Message ID", type: "text", isSearchable: false, render: (data: any) => data.client_msg_id },
+    {
+      key: "client_msg_id",
+      label: "Message ID",
+      type: "text",
+      filterKey: "segment__client_msg_id",
+      render: (data: any) => data.client_msg_id,
+    },
     { key: "destination", label: "Destination", type: "text", filterKey: "message__destination__icontains" },
     { key: "segment", label: "Segment ID", type: "text", isSearchable: false, render: (data: any) => data.segment || "-" },
     { key: "vendorMessageId", label: "Vendor Message ID", type: "text", filterKey: "vendorMessageId__icontains" },
@@ -209,7 +227,9 @@ const DLREvent: React.FC = () => {
       const cleanParams: Record<string, string> = {};
 
       searchColumns.forEach((key) => {
-        const value = activeFilters[key];
+        const rawValue = activeFilters[key];
+        if (!rawValue) return;
+        const value = typeof rawValue === "string" ? rawValue.trim() : rawValue;
         if (!value) return;
         const colDef = allColumns.find((c) => c.key === key);
 

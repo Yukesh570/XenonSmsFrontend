@@ -15,6 +15,7 @@ import {
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+import { getCompaniesApi } from "../../api/companyApi/companyApi";
 
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -122,6 +123,7 @@ const SummariseReport: React.FC = () => {
   const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
   const [filterValues, setFilterValues] = useState<SummariseReportFilters>({});
+  const filterValuesRef = useRef<SummariseReportFilters>(filterValues);
   const [groupBy, setGroupBy] = useState<string[]>([]);
   const [appliedGroupBy, setAppliedGroupBy] = useState<string[]>([]);
   const [contextMenuPos, setContextMenuPos] = useState<{
@@ -134,6 +136,9 @@ const SummariseReport: React.FC = () => {
   const [failureData, setFailureData] = useState<{ failure_reason: string; count: number }[]>([]);
   const [isLoadingFailure, setIsLoadingFailure] = useState(false);
 
+  const [companyOptions, setCompanyOptions] = useState<
+    { label: string; value: string }[]
+  >([]);
   const [clientOptions, setClientOptions] = useState<
     { label: string; value: string }[]
   >([]);
@@ -177,12 +182,24 @@ const SummariseReport: React.FC = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const [clientsRes, vendorsRes, countriesRes] = await Promise.all([
+        const [clientsRes, vendorsRes, countriesRes, companiesRes] = await Promise.all([
           getClientsApi("client", 1, 1000),
           getVendorsApi("vendor", 1, 1000),
           getCountriesApi("country", 1, 1000),
+          getCompaniesApi("company", 1, 1000),
         ]);
 
+        const compOpts =
+          companiesRes.results?.map((item: any) => ({
+            label: item.name,
+            value: item.name,
+          })) ||
+          (Array.isArray(companiesRes)
+            ? companiesRes.map((item: any) => ({
+                label: item.name,
+                value: item.name,
+              }))
+            : []);
         const cOpts =
           clientsRes.results?.map((item: any) => ({
             label: item.name,
@@ -203,6 +220,7 @@ const SummariseReport: React.FC = () => {
           icon: item.iso2 ? <CountryFlag iso2={item.iso2} /> : undefined,
         }));
 
+        setCompanyOptions(compOpts);
         setClientOptions(cOpts);
         setVendorOptions(vOpts);
         setCountryOptions(cntOpts);
@@ -258,16 +276,21 @@ const SummariseReport: React.FC = () => {
     if (key === "start_date" || key === "end_date") {
       setActivePreset("custom");
     }
-    setFilterValues((prev) => ({ ...prev, [key]: value }));
+    setFilterValues((prev) => {
+      const updated = { ...prev, [key]: value };
+      filterValuesRef.current = updated;
+      return updated;
+    });
   };
 
   const handlePresetClick = (presetKey: DatePresetKey) => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
 
-    const nextFilters = { ...filterValues };
+    const nextFilters = { ...filterValuesRef.current };
     delete nextFilters.start_date;
     delete nextFilters.end_date;
+    filterValuesRef.current = nextFilters;
     setFilterValues(nextFilters);
 
     fetchReports(nextFilters, undefined, presetKey);
@@ -286,7 +309,7 @@ const SummariseReport: React.FC = () => {
 
     try {
       const activeFilters: SummariseReportFilters = {
-        ...(overrideFilters || filterValues),
+        ...(overrideFilters || filterValuesRef.current),
       };
       const currentPreset =
         presetOverride !== undefined ? presetOverride : activePreset;
@@ -365,7 +388,7 @@ const SummariseReport: React.FC = () => {
   const handleDownloadCSV = async () => {
     try {
       const toastId = toast.loading("Downloading CSV...");
-      const activeFilters: SummariseReportFilters = { ...filterValues };
+      const activeFilters: SummariseReportFilters = { ...(filterValuesRef.current || filterValues) };
       if (
         (!activeFilters.start_date || !activeFilters.end_date) &&
         activePreset &&
@@ -491,6 +514,7 @@ const SummariseReport: React.FC = () => {
   const handleClearFilters = () => {
     setActivePreset("today");
     setFilterValues({});
+    filterValuesRef.current = {};
     setGroupBy([]);
     setSortConfig(null);
     fetchReports({}, [], "today");
@@ -905,12 +929,22 @@ const SummariseReport: React.FC = () => {
           placeholder="Select End Date"
         />
         <Select
+          label="Company"
+          value={filterValues.client_company || ""}
+          onChange={(val) => handleFilterChange("client_company", val)}
+          options={companyOptions}
+          placeholder="Select Company"
+          clearable={true}
+          allowCustomValue={true}
+        />
+        <Select
           label="Client"
           value={filterValues.client || ""}
           onChange={(val) => handleFilterChange("client", val)}
           options={clientOptions}
           placeholder="Select Client"
           clearable={true}
+          allowCustomValue={true}
         />
         <Select
           label="Vendor"
@@ -919,6 +953,7 @@ const SummariseReport: React.FC = () => {
           options={vendorOptions}
           placeholder="Select Vendor"
           clearable={true}
+          allowCustomValue={true}
         />
         <Select
           label="Status"
@@ -927,6 +962,7 @@ const SummariseReport: React.FC = () => {
           options={statusOptions}
           placeholder="Select Status"
           clearable={true}
+          allowCustomValue={true}
         />
         <Select
           label="Country"
@@ -935,6 +971,7 @@ const SummariseReport: React.FC = () => {
           options={countryOptions}
           placeholder="Select Country"
           clearable={true}
+          allowCustomValue={true}
         />
         <Input
           label="Sender ID"

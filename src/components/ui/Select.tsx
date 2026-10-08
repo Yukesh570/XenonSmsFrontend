@@ -253,6 +253,9 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
         if (allowCustomValue && trimmedQuery !== "") {
           isSelectingOptionRef.current = true;
           onChange(trimmedQuery);
+          if (inputRef.current) {
+            inputRef.current.value = trimmedQuery;
+          }
           setQuery("");
           setIsTyping(false);
           setHighlightedIndex(null);
@@ -315,7 +318,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
         if (allowCustomValue) {
           const inputEl = e.currentTarget;
           const currentVal = inputEl.value.trim();
-          if (currentVal !== "" && currentVal !== value) {
+          if (currentVal !== value) {
             onChange(currentVal);
           }
           setTimeout(() => {
