@@ -4,6 +4,7 @@ export interface MarginReportFilters {
   start_date?: string;
   end_date?: string;
   client?: string;
+  client_company?: string;
   vendor?: string;
   [key: string]: any;
 }
