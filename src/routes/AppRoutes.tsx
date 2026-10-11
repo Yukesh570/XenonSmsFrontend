@@ -73,6 +73,8 @@ import SummariseReport from "../pages/Report/SummariseReport";
 import MarginReport from "../pages/Report/MarginReport";
 import ReplacementListModule from "../pages/SenderIdTranslation/ReplacementListModule";
 import SenderPoolModule from "../pages/SenderIdTranslation/SenderPoolModule";
+import CreditPaymentOverviewPage from "../pages/Finance/Overview/CreditPaymentOverviewPage";
+import PendingApprovalsPage from "../pages/Finance/Overview/PendingApprovalsPage";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -147,6 +149,8 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   marginReport: MarginReport,
   replacementList: ReplacementListModule,
   senderPool: SenderPoolModule,
+  overview: CreditPaymentOverviewPage,
+  approvals: PendingApprovalsPage,
 };
 
 export const getComponentByPath = (pathname: string): React.ComponentType<any> => {

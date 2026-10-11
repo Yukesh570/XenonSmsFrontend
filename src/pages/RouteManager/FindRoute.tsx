@@ -122,8 +122,7 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
 
 const FindRoute: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [mcc, setMcc] = useState("");
-  const [mnc, setMnc] = useState("");
+  const [mccMnc, setMccMnc] = useState("");
   const [networkName, setNetworkName] = useState("");
   const [country, setCountry] = useState("");
   const [selectedClientId, setSelectedClientId] = useState("");
@@ -202,8 +201,8 @@ const FindRoute: React.FC = () => {
       try {
         const countryRes: any = await getCountriesApi("country", 1, 1000);
         const countryList = countryRes.results || (Array.isArray(countryRes) ? countryRes : []);
-        setCountryOptions(countryList.map((c: any) => ({ 
-          label: c.name, 
+        setCountryOptions(countryList.map((c: any) => ({
+          label: c.name,
           value: String(c.id), // We can use ID since the API handles ID or Name for country
           ...(c.iso2 ? { icon: <CountryFlag iso2={c.iso2} /> } : {})
         })));
@@ -217,8 +216,8 @@ const FindRoute: React.FC = () => {
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
-    if (!phoneNumber.trim() && !mcc.trim() && !country.trim()) {
-      toast.error("Please enter a phone number, an MCC, or a Country to search.");
+    if (!phoneNumber.trim() && !mccMnc.trim() && !country.trim()) {
+      toast.error("Please enter a phone number, an MCC/MNC, or a Country to search.");
       return;
     }
 
@@ -231,8 +230,8 @@ const FindRoute: React.FC = () => {
         {
           number: phoneNumber.trim(),
           clientId: selectedClientId || undefined,
-          mcc: mcc.trim(),
-          mnc: mnc.trim(),
+          mcc: mccMnc.trim().substring(0, 3),
+          mnc: mccMnc.trim().substring(3),
           network_name: networkName.trim(),
           country: country.trim()
         }
@@ -311,8 +310,7 @@ const FindRoute: React.FC = () => {
 
   const handleClear = () => {
     setPhoneNumber("");
-    setMcc("");
-    setMnc("");
+    setMccMnc("");
     setNetworkName("");
     setCountry("");
     setSelectedClientId("");
@@ -389,28 +387,31 @@ const FindRoute: React.FC = () => {
       {/* Sleek, Compact Search Box */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5 mb-6">
         <form onSubmit={handleSearch} className="flex flex-col md:flex-row flex-wrap items-end gap-4">
-          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Input
               label="Phone Number"
-              placeholder="e.g. 579102200043"
+              placeholder="Phone Number"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
             />
             <Input
-              label="MCC"
-              placeholder="e.g. 505"
-              value={mcc}
-              onChange={(e) => setMcc(e.target.value)}
-            />
-            <Input
-              label="MNC"
-              placeholder="e.g. 01"
-              value={mnc}
-              onChange={(e) => setMnc(e.target.value)}
+              label="MCCMNC"
+              placeholder="MCCMNC"
+              value={mccMnc}
+              onChange={(e) => setMccMnc(e.target.value)}
+              onBlur={() => {
+                if (mccMnc.length > 3) {
+                  const mccPart = mccMnc.substring(0, 3);
+                  const mncPart = mccMnc.substring(3);
+                  if (mncPart.length < 3) {
+                    setMccMnc(mccPart + mncPart.padStart(3, "0"));
+                  }
+                }
+              }}
             />
             <Input
               label="Network Name"
-              placeholder="e.g. Telstra"
+              placeholder="Network Name"
               value={networkName}
               onChange={(e) => setNetworkName(e.target.value)}
             />
@@ -456,7 +457,7 @@ const FindRoute: React.FC = () => {
         <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-2.5 text-blue-700 dark:text-blue-400 text-xs sm:text-sm mb-6">
           <Info size={16} className="shrink-0 text-blue-500 dark:text-blue-400" />
           <p>
-            <span className="font-semibold">Instruction:</span> Please enter a Phone Number, MCC, OR Country, then click <span className="font-semibold">Search</span> to perform a route lookup.
+            <span className="font-semibold">Instruction:</span> Please enter a Phone Number, MCC/MNC, OR Country, then click <span className="font-semibold">Search</span> to perform a route lookup.
           </p>
         </div>
       )}
