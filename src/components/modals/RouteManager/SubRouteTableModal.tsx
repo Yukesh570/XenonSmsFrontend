@@ -1960,12 +1960,12 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                         {canUpdate && section.isOpen && sectionHasChanges && (
                           <Button
                             type="button"
-                            variant="secondary"
+                            variant="primary"
                             size="xs"
                             onClick={() => saveGroupRows(countryId)}
                             disabled={section.saving || !canSaveInCountry}
-                            leftIcon={section.saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                            className="!h-7 text-xs !py-0 !px-2.5 font-medium shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white border-none transition-all"
+                            leftIcon={section.saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                            className="!h-7 text-xs !py-0 !px-2.5 bg-primary text-white hover:opacity-90 shadow-sm transition-all font-medium"
                             title={
                               !canSaveInCountry
                                 ? `Cannot save: ${countryValidationError}`
