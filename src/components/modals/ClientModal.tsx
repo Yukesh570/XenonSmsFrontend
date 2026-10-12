@@ -115,6 +115,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     { label: "WhatsApp", value: "WHATSAPP" },
     { label: "Bulk", value: "BULK" },
     { label: "Casino", value: "CASINO" },
+    { label: "SS7", value: "SS7" },
   ];
 
   const paymentTermOptions = [

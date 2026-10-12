@@ -267,7 +267,9 @@ const Client: React.FC = () => {
     { label: "MKT", value: "MKT" },
     { label: "Local By Pass", value: "LOCAL_BY_PASS" },
     { label: "WhatsApp", value: "WHATSAPP" },
-    { label: "Bulk", value: "BULK" }
+    { label: "Bulk", value: "BULK" },
+    { label: "Casino", value: "CASINO" },
+    { label: "SS7", value: "SS7" },
   ];
 
   const paymentTermOptions: Option[] = [
