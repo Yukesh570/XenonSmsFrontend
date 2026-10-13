@@ -352,10 +352,10 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       toast.error("SMPP Username is required.");
       return;
     }
-    if (formData.smppUsername.length > 8) {
-      toast.error("SMPP Username must not exceed 8 characters.");
-      return;
-    }
+    // if (formData.smppUsername.length > 8) {
+    //   toast.error("SMPP Username must not exceed 8 characters.");
+    //   return;
+    // }
 
     if (!formData.smppPassword.trim()) {
       toast.error("SMPP Password is required.");
