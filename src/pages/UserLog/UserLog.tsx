@@ -34,6 +34,9 @@ interface ColumnConfig {
   label: string;
   render: (log: LogItemWithId) => React.ReactNode;
   filterKey?: string;
+  isSearchable?: boolean;
+  tableLabel?: string;
+  type?: string;
 }
 
 const DEFAULT_TABLE_COLUMNS = ["ipAddress", "browser", "device", "loggedAt", "updatedAt"];
