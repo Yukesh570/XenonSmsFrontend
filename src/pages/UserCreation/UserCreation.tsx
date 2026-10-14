@@ -57,7 +57,7 @@ const userTypeOptions: Option[] = [
 ];
 
 const DEFAULT_SEARCH_COLUMNS = ["username", "email", "phone", "userType"];
-const DEFAULT_TABLE_COLUMNS = ["username", "email", "phone", "userType", "date_joined"];
+const DEFAULT_TABLE_COLUMNS = ["username", "email", "phone", "userType", "date_joined", "updatedAt"];
 
 const UserCreation: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -169,6 +169,15 @@ const UserCreation: React.FC = () => {
       type: "date_range",
       isSearchOnly: true,
       render: () => null,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

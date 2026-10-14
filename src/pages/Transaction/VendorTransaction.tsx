@@ -60,7 +60,7 @@ const transactionTypeOptions: Option[] = [
 ];
 
 const DEFAULT_SEARCH_COLUMNS = ["vendorProfileName", "message_id", "transactionType"];
-const DEFAULT_TABLE_COLUMNS = ["message_id", "vendorProfileName", "transactionType", "segments", "amount", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["message_id", "vendorProfileName", "transactionType", "segments", "amount", "createdAt", "updatedAt",];
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
 
@@ -165,6 +165,15 @@ const VendorTransaction: React.FC = () => {
 
     { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt__range", isSearchable: false, render: (log) => (<span>{log.createdAt ? formatDateTime(log.createdAt) : "-"}</span>) },
     { key: "createdAt__range", label: "Created At (From / To)", type: "date_range", filterKey: "createdAt__range", isSearchOnly: true },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);

@@ -139,7 +139,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["parent_message_destination", "submit_status", "vendor_msg_id"];
-const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at"];
+const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at", "updated_at"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -364,13 +364,6 @@ const SmsMessagePart: React.FC = () => {
       type: "date",
       filterKey: "updated_at",
       render: (data: any) => data.updated_at ? formatDateTime(data.updated_at) : "-"
-    },
-    {
-      key: "updated_at__gt_lt",
-      label: "Updated At (From / To)",
-      type: "date_gt_lt",
-      filterKey: "updated_at",
-      isSearchOnly: true
     },
     {
       key: "last_submit_at",
@@ -598,7 +591,16 @@ const SmsMessagePart: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchSegments(undefined, 1, false);
+          const hasActiveFilters = Object.values(filterValues).some(
+            (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+          );
+          if (!hasActiveFilters) {
+            setActivePreset("today");
+            fetchSegments(undefined, 1, false, "today");
+          } else {
+            setActivePreset("custom");
+            fetchSegments(undefined, 1, false, "custom");
+          }
         }}
         onClear={() => {
           setActivePreset("today");

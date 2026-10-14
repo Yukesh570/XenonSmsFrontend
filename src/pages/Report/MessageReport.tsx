@@ -110,7 +110,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "vendorName",
   "segmentNumber",
   "failure_reason",
-  "createdAt",
+  "createdAt", "updatedAt",
   "effectiveSenderId",
 ];
 
@@ -443,6 +443,15 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
     ],
     [countryOptions],
   );
@@ -650,7 +659,16 @@ const MessageReport: React.FC = () => {
 
   const handleSearch = () => {
     setAppliedFilters(filterValues);
-    fetchLogs(filterValues, 1, false);
+    const hasActiveFilters = Object.values(filterValues).some(
+      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+    );
+    if (!hasActiveFilters) {
+      setActivePreset("today");
+      fetchLogs(filterValues, 1, false, false, "today");
+    } else {
+      setActivePreset("custom");
+      fetchLogs(filterValues, 1, false, false, "custom");
+    }
   };
 
   const handleClearFilters = () => {

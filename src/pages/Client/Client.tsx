@@ -65,8 +65,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "invoicePolicy",
   "status",
   "bindStatus",
-  "route",
-];
+  "route", "updatedAt"];
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -382,6 +381,15 @@ const Client: React.FC = () => {
     },
     { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt", isSearchable: false, render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
     { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", isSearchOnly: true },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);

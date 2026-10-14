@@ -84,6 +84,7 @@ export const FastTooltip: React.FC<FastTooltipProps> = ({
   return (
     <div
       ref={containerRef}
+      data-fast-tooltip="true"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onMouseDown={handleInteraction}
@@ -96,7 +97,7 @@ export const FastTooltip: React.FC<FastTooltipProps> = ({
           <div
             className={`fixed z-[99999] px-2.5 py-1 text-xs font-medium text-white bg-gray-900/95 dark:bg-gray-800/95 rounded-md shadow-lg pointer-events-none transform -translate-x-1/2 ${
               placement === "above" ? "-translate-y-full" : "translate-y-0"
-            } transition-opacity duration-150 border border-gray-700/50 backdrop-blur-sm max-w-sm break-words text-center select-none`}
+            } transition-opacity duration-150 border border-gray-700/50 backdrop-blur-sm max-w-lg break-all text-center select-none font-mono`}
             style={{ top: coords.top, left: coords.left }}
           >
             {text}

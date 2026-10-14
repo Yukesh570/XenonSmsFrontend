@@ -41,7 +41,10 @@ const TabPane: React.FC<{
       </div>
     );
   },
-  (prev, next) => prev.isActive === next.isActive && prev.tabPath === next.tabPath
+  (prev, next) =>
+    prev.isActive === next.isActive &&
+    prev.tabPath === next.tabPath &&
+    prev.Component === next.Component
 );
 
 const Layout: React.FC = () => {
@@ -221,6 +224,7 @@ const Layout: React.FC = () => {
               );
             })}
           </main>
+          <div id="page-modal-root" className="pointer-events-none absolute inset-0 z-40 overflow-hidden" />
         </div>
       </div>
     </div>

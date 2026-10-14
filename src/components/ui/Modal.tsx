@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useContext } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { X } from "lucide-react";
+import { TabContext } from "../../context/TabContext";
 
 interface ModalProps {
   isOpen: boolean;
@@ -12,10 +14,9 @@ interface ModalProps {
   closeOnBackdropClick?: boolean;
 }
 
-// Global counter for active modals to lock/unlock background page scroll
+// Global counter for active modals to lock/unlock background main content scroll
 let activeModalsCount = 0;
 let originalMainOverflow = "";
-let originalBodyOverflow = "";
 
 const lockBackgroundScroll = () => {
   if (activeModalsCount === 0) {
@@ -24,8 +25,6 @@ const lockBackgroundScroll = () => {
       originalMainOverflow = mainEl.style.overflow;
       mainEl.style.overflow = "hidden";
     }
-    originalBodyOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
   }
   activeModalsCount++;
 };
@@ -37,7 +36,6 @@ const unlockBackgroundScroll = () => {
     if (mainEl) {
       mainEl.style.overflow = originalMainOverflow;
     }
-    document.body.style.overflow = originalBodyOverflow;
   }
 };
 
@@ -50,6 +48,44 @@ const Modal: React.FC<ModalProps> = ({
   contentClassName = "",
   closeOnBackdropClick = false,
 }) => {
+  const [modalRoot, setModalRoot] = useState<HTMLElement | null>(() => {
+    if (typeof document !== "undefined") {
+      return document.getElementById("page-modal-root") || document.body;
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      const root = document.getElementById("page-modal-root") || document.body;
+      if (modalRoot !== root) {
+        setModalRoot(root);
+      }
+    }
+  }, [modalRoot]);
+
+  const location = useLocation();
+  const tabContext = useContext(TabContext);
+
+  const normalizePath = (p?: string) => {
+    if (!p) return "";
+    const cleaned = p.split("?")[0].split("#")[0].replace(/\/+$/, "");
+    return cleaned === "" || cleaned === "/dashboard/dashboard" ? "/dashboard" : cleaned;
+  };
+
+  const currentNormalized = normalizePath(location.pathname);
+  const activeTabNormalized = normalizePath(tabContext?.activeTabPath);
+
+  const isTabActive =
+    !activeTabNormalized ||
+    currentNormalized === activeTabNormalized ||
+    (activeTabNormalized !== "/dashboard" &&
+      currentNormalized.startsWith(`${activeTabNormalized}/`)) ||
+    (currentNormalized !== "/dashboard" &&
+      activeTabNormalized.startsWith(`${currentNormalized}/`));
+
+  const shouldRender = Boolean(isOpen && isTabActive && modalRoot);
+
   // Fast hover tooltip for modal data boxes and truncated values
   const [modalTooltip, setModalTooltip] = useState<{
     text: string;
@@ -71,8 +107,8 @@ const Modal: React.FC<ModalProps> = ({
 
   const handleMouseOver = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    // Don't show tooltip on close button, action buttons, links, or field labels
-    if (target.closest("button, .close-btn, a, [role='button'], label, legend")) {
+    // Don't show tooltip on close button, action buttons, links, field labels, or elements handled by FastTooltip
+    if (target.closest("button, .close-btn, a, [role='button'], label, legend, [data-fast-tooltip]")) {
       clearTooltip();
       return;
     }
@@ -126,6 +162,10 @@ const Modal: React.FC<ModalProps> = ({
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    if (target.closest("[data-fast-tooltip]")) {
+      if (activeBoxRef.current) clearTooltip();
+      return;
+    }
     const box = target.closest(
       ".truncate, [data-cell-title], input:not([type='password']):not([type='checkbox']):not([type='radio']), textarea"
     );
@@ -137,7 +177,7 @@ const Modal: React.FC<ModalProps> = ({
 
   // Strip native title attributes from all elements in Modal and set title="" on truncated items to suppress browser tooltips
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender) return;
     const el = modalDialogRef.current;
     if (!el) return;
 
@@ -201,7 +241,7 @@ const Modal: React.FC<ModalProps> = ({
       observer.disconnect();
       el.removeEventListener("mouseover", handleCaptureOver, { capture: true });
     };
-  }, [isOpen]);
+  }, [shouldRender]);
 
   // Dismiss tooltip on scroll, resize, mousedown, or keydown
   useEffect(() => {
@@ -225,19 +265,19 @@ const Modal: React.FC<ModalProps> = ({
     };
   }, []);
 
-  // Lock background scroll when modal is active
+  // Lock background main scroll only when modal is active and tab is visible
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender) return;
 
     lockBackgroundScroll();
     return () => {
       unlockBackgroundScroll();
     };
-  }, [isOpen]);
+  }, [shouldRender]);
 
   // Support ESC key to close modal
   useEffect(() => {
-    if (!isOpen) return;
+    if (!shouldRender) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -255,24 +295,28 @@ const Modal: React.FC<ModalProps> = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [shouldRender, onClose]);
 
-  if (!isOpen || typeof document === "undefined") return null;
+  if (!shouldRender || typeof document === "undefined" || !modalRoot) return null;
+
+  const isScoped = modalRoot.id === "page-modal-root";
 
   const content = (
     <div
       role="dialog"
       aria-modal="true"
-      className="page-modal-wrapper fixed inset-0 z-[50000] flex items-center justify-center p-3 sm:p-5 pointer-events-none overflow-hidden select-none-when-closed"
+      className={`page-modal-wrapper ${
+        isScoped ? "absolute inset-0 z-40" : "fixed inset-0 z-[50000]"
+      } flex items-center justify-center p-2.5 sm:p-5 pointer-events-none overflow-hidden select-none-when-closed`}
     >
-      {/* Full-viewport Backdrop - covers entire window (including sidebar, navbar, and tabs) */}
+      {/* Scoped Backdrop - strictly confined to the page content area underneath modal */}
       <div
-        className="absolute inset-0 bg-black/25 dark:bg-black/60 backdrop-blur-sm pointer-events-auto"
+        className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm pointer-events-auto"
         aria-hidden="true"
         onClick={closeOnBackdropClick ? onClose : undefined}
       />
 
-      {/* Centering Dialog Box - constrained within viewport, pinned header, locked in place */}
+      {/* Centering Dialog Box - constrained within container, pinned header, locked in place */}
       <div
         ref={modalDialogRef}
         onMouseOver={handleMouseOver}
@@ -328,9 +372,6 @@ const Modal: React.FC<ModalProps> = ({
             margin-top: 1.25rem !important;
             padding-top: 0.75rem !important;
           }
-          .modal-content-body {
-            overflow-x: hidden !important;
-          }
         `}</style>
         {/* Header - pinned to top of modal card, never scrolls off */}
         <div className="flex items-center justify-between mb-4 sm:mb-5 shrink-0 min-w-0">
@@ -370,7 +411,7 @@ const Modal: React.FC<ModalProps> = ({
     </div>
   );
 
-  return createPortal(content, document.body);
+  return createPortal(content, modalRoot);
 };
 
 export default Modal;

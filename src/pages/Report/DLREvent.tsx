@@ -87,7 +87,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["client_msg_id", "destination", "event_type", "vendorMessageId"];
-const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendorMessageId", "event_type", "segment_number", "status_code", "received_at"];
+const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendorMessageId", "event_type", "segment_number", "status_code", "received_at", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -191,6 +191,15 @@ const DLREvent: React.FC = () => {
     },
 
     { key: "raw_payload", label: "Raw Payload", type: "text", render: (data: any) => data.raw_payload ? "{...}" : "-", isSearchable: false },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -403,7 +412,16 @@ const DLREvent: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchEvents(undefined, 1, false);
+          const hasActiveFilters = Object.values(filterValues).some(
+            (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+          );
+          if (!hasActiveFilters) {
+            setActivePreset("today");
+            fetchEvents(undefined, 1, false, "today");
+          } else {
+            setActivePreset("custom");
+            fetchEvents(undefined, 1, false, "custom");
+          }
         }}
         onClear={() => {
           setActivePreset("today");

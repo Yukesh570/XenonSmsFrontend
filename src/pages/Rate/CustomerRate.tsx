@@ -56,7 +56,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "status"];
-const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "createdAt", "updatedAt"];
 
 const GroupModal = ({ isOpen, onClose, onSuccess, moduleName, editingGroup }: any) => {
   const [formData, setFormData] = useState({ name: "", status: "ACTIVE" });
@@ -226,6 +226,16 @@ const CustomerRate: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => (c.updatedAt ? formatDateTime(c.updatedAt) : "-")
     },
   ];
 

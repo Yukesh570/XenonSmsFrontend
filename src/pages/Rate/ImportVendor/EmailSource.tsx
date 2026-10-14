@@ -67,7 +67,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "allowedDomain",
   "subjectPattern",
   "active",
-  "createdAt",
+  "createdAt", "updatedAt",
 ];
 
 const EmailSource: React.FC = () => {
@@ -238,6 +238,15 @@ const EmailSource: React.FC = () => {
       type: "date_gt_lt", 
       filterKey: "createdAt", 
       isSearchOnly: true 
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

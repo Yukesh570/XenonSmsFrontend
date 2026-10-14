@@ -89,7 +89,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["destination", "provider", "status", "vendorMessageId"];
-const DEFAULT_TABLE_COLUMNS = ["id", "attempt_number", "provider", "vendorMessageId", "status", "started_at"];
+const DEFAULT_TABLE_COLUMNS = ["id", "attempt_number", "provider", "vendorMessageId", "status", "started_at", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -194,6 +194,15 @@ const MessageAttempt: React.FC = () => {
     
     { key: "request_payload", label: "Request Payload", type: "text", render: (data: any) => data.request_payload ? "{...}" : "-", isSearchable: false },
     { key: "response_payload", label: "Response Payload", type: "text", render: (data: any) => data.response_payload ? "{...}" : "-", isSearchable: false },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -401,7 +410,16 @@ const MessageAttempt: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchAttempts(undefined, 1, false);
+          const hasActiveFilters = Object.values(filterValues).some(
+            (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+          );
+          if (!hasActiveFilters) {
+            setActivePreset("today");
+            fetchAttempts(undefined, 1, false, "today");
+          } else {
+            setActivePreset("custom");
+            fetchAttempts(undefined, 1, false, "custom");
+          }
         }}
         onClear={() => {
           setActivePreset("today");

@@ -43,7 +43,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["action", "actionBy", "vendorProfileName"];
-const DEFAULT_TABLE_COLUMNS = ["action", "actionBy", "actionTime", "batch", "notes"];
+const DEFAULT_TABLE_COLUMNS = ["action", "actionBy", "actionTime", "batch", "notes", "updatedAt"];
 
 const ImportAudit: React.FC = () => {
   const [data, setData] = useState<ImportAuditData[]>([]);
@@ -140,6 +140,15 @@ const ImportAudit: React.FC = () => {
       type: "date_gt_lt", 
       filterKey: "actionTime", 
       isSearchOnly: true 
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 
