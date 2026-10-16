@@ -27,6 +27,29 @@ interface VendorCampaignModalProps {
   isViewMode?: boolean;
 }
 
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "color",
+  "list",
+  "link",
+  "clean",
+];
+
 export const VendorCampaignModal: React.FC<VendorCampaignModalProps> = ({
   isOpen,
   onClose,
@@ -470,6 +493,8 @@ export const VendorCampaignModal: React.FC<VendorCampaignModalProps> = ({
                 theme="snow"
                 value={quillContent}
                 onChange={setQuillContent}
+                modules={quillModules}
+                formats={quillFormats}
                 readOnly={isViewMode}
               />
             ) : (

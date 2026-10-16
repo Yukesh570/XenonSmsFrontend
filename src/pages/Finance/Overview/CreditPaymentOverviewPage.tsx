@@ -124,7 +124,7 @@ const CreditPaymentOverviewPage: React.FC = () => {
     "Company Name & Category",
     "Prepaid Wallet",
     "Postpaid Limit",
-    "Outstanding Debt",
+    "Used Credit",
     "Available Credit",
   ];
 
@@ -281,8 +281,8 @@ const CreditPaymentOverviewPage: React.FC = () => {
           icon={<CreditCard size={18} className="text-blue-600 dark:text-blue-400" />}
         />
         <StatCard
-          title="Postpaid Outstanding"
-          value={Number(summary?.totalPostpaidOutstanding || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          title="Postpaid Used Credit"
+          value={Number((summary?.totalPostpaidUsedCredit || summary?.totalPostpaidOutstanding) || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           icon={<AlertCircle size={18} className="text-rose-600 dark:text-rose-400" />}
         />
         <StatCard
@@ -365,7 +365,7 @@ const CreditPaymentOverviewPage: React.FC = () => {
                   {!isPrepaid ? Number(side?.creditLimit ?? 0).toFixed(4) : <span className="text-gray-400 dark:text-gray-500">N/A</span>}
                 </td>
                 <td className="px-4 py-3 text-red-500 dark:text-red-400 font-medium">
-                  {!isPrepaid ? Number(side?.outstanding ?? 0).toFixed(4) : <span className="text-gray-400 dark:text-gray-500">N/A</span>}
+                  {!isPrepaid ? Number(side?.usedCredit ?? side?.outstanding ?? 0).toFixed(4) : <span className="text-gray-400 dark:text-gray-500">N/A</span>}
                 </td>
                 <td className="px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-400">
                   {Number(side?.availableCredit ?? 0).toFixed(4)}
