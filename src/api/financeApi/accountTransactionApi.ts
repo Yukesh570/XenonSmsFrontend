@@ -145,6 +145,7 @@ export interface AccountOverviewRow {
   customer: {
     mode: "PREPAID" | "POSTPAID" | string;
     creditLimit?: string;
+    usedCredit?: string;
     outstanding?: string;
     availableCredit: string;
     prepaidBalance?: string;
@@ -152,6 +153,7 @@ export interface AccountOverviewRow {
   vendor: {
     mode: "PREPAID" | "POSTPAID" | string;
     creditLimit?: string;
+    usedCredit?: string;
     outstanding?: string;
     availableCredit: string;
     prepaidBalance?: string;
@@ -163,6 +165,7 @@ export interface AccountOverviewRow {
 
 export interface AccountOverviewSummary {
   totalPostpaidCreditLimit: string;
+  totalPostpaidUsedCredit?: string;
   totalPostpaidOutstanding: string;
   postpaidAvailableCredit: string;
   totalPrepaidAvailableBalance: string;
