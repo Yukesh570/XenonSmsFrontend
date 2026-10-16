@@ -1086,8 +1086,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   };
 
   const handleLocalRouteSave = (updatedData: {
-    trafficPercentage: number;
-    terminatingVendor: number;
+    trafficPercentage?: number;
+    terminatingVendor?: number;
     status: string;
   }) => {
     if (!editingRouteData || !selectedRouteCountryId) return;
@@ -1102,8 +1102,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             r.id === editingRouteData.id
               ? {
                 ...r,
-                trafficPercentage: updatedData.trafficPercentage,
-                terminatingVendor: updatedData.terminatingVendor,
+                ...(updatedData.trafficPercentage !== undefined ? { trafficPercentage: updatedData.trafficPercentage } : {}),
+                ...(updatedData.terminatingVendor !== undefined ? { terminatingVendor: updatedData.terminatingVendor } : {}),
                 status: updatedData.status as any,
                 isModified: true,
               }

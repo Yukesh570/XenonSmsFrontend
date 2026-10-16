@@ -894,7 +894,7 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
               <>
                 <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-visible">
                   <legend className="text-sm font-semibold text-primary px-2">
-                    Destination
+                    {editingRoute || isFieldDisabled ? "Destination (Read Only)" : "Destination"}
                   </legend>
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                     <div className="lg:col-span-3">
@@ -1011,7 +1011,7 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
         {!!editingRoute && (
           <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50/50 dark:bg-gray-800/30">
             <legend className="text-sm font-semibold text-primary px-2">
-              Rates & Margins (Read-Only)
+              Rates & Margins (Read Only)
             </legend>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Input

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit, Trash2 } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -557,7 +557,8 @@ const CustomRoute: React.FC = () => {
         ? [
           {
             label: "Delete Route Group",
-            icon: <Trash2 size={16} color="red" />,
+            icon: <Trash size={16} />,
+            variant: "danger" as const,
             onClick: handleDeleteGroup,
           },
         ]

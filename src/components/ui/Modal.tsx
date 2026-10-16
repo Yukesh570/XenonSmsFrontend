@@ -4,6 +4,8 @@ import { useLocation } from "react-router-dom";
 import { X } from "lucide-react";
 import { TabContext } from "../../context/TabContext";
 
+import LoadingSpinner from "./LoadingSpinner";
+
 interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -12,6 +14,8 @@ interface ModalProps {
   className?: string;
   contentClassName?: string;
   closeOnBackdropClick?: boolean;
+  isLoading?: boolean;
+  loadingText?: string;
 }
 
 // Global counter for active modals to lock/unlock background main content scroll
@@ -47,6 +51,8 @@ const Modal: React.FC<ModalProps> = ({
   className = "max-w-md",
   contentClassName = "",
   closeOnBackdropClick = false,
+  isLoading = false,
+  loadingText = "Loading...",
 }) => {
   const [modalRoot, setModalRoot] = useState<HTMLElement | null>(() => {
     if (typeof document !== "undefined") {
@@ -281,6 +287,7 @@ const Modal: React.FC<ModalProps> = ({
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        if (isLoading) return;
         // If an open dropdown/combobox or popover is currently active, let it close first instead of closing the modal
         const hasOpenDropdown = document.querySelector(
           '[role="listbox"], [role="combobox"][aria-expanded="true"]'
@@ -295,7 +302,7 @@ const Modal: React.FC<ModalProps> = ({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [shouldRender, onClose]);
+  }, [shouldRender, onClose, isLoading]);
 
   if (!shouldRender || typeof document === "undefined" || !modalRoot) return null;
 
@@ -305,15 +312,16 @@ const Modal: React.FC<ModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
+      aria-busy={isLoading}
       className={`page-modal-wrapper ${
-        isScoped ? "absolute inset-0 z-40" : "fixed inset-0 z-[50000]"
+        isScoped ? "absolute inset-0 z-40" : "fixed inset-0 z-50"
       } flex items-center justify-center p-2.5 sm:p-5 pointer-events-none overflow-hidden select-none-when-closed`}
     >
       {/* Scoped Backdrop - strictly confined to the page content area underneath modal */}
       <div
         className="absolute inset-0 bg-black/30 dark:bg-black/60 backdrop-blur-sm pointer-events-auto"
         aria-hidden="true"
-        onClick={closeOnBackdropClick ? onClose : undefined}
+        onClick={closeOnBackdropClick && !isLoading ? onClose : undefined}
       />
 
       {/* Centering Dialog Box - constrained within container, pinned header, locked in place */}
@@ -336,6 +344,13 @@ const Modal: React.FC<ModalProps> = ({
         ${className}`}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Full Modal Loading Overlay - locks entire modal */}
+        {isLoading && (
+          <div className="absolute inset-0 z-50 bg-white/80 dark:bg-gray-800/85 backdrop-blur-[2px] flex flex-col items-center justify-center rounded-xl pointer-events-auto select-none">
+            <LoadingSpinner size="lg" text={loadingText} />
+          </div>
+        )}
+
         <style>{`
           /* Balanced Modal Form Spacing with Natural Breathing Room */
           .modal-dialog-panel > .flex.items-center.justify-between {
@@ -382,7 +397,10 @@ const Modal: React.FC<ModalProps> = ({
           )}
           <button
             type="button"
-            className="rounded-md p-1.5 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors ml-auto shrink-0"
+            disabled={isLoading}
+            className={`rounded-md p-1.5 text-gray-400 hover:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none transition-colors ml-auto shrink-0 ${
+              isLoading ? "opacity-30 cursor-not-allowed pointer-events-none" : ""
+            }`}
             onClick={onClose}
           >
             <span className="sr-only">Close</span>

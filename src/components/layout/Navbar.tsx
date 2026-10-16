@@ -291,7 +291,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
   return (
     <>
-      <header className="h-16 flex justify-between items-center px-6 relative z-40 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
+      <header className="h-16 flex justify-between items-center px-6 relative z-[60] bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
         <div className="flex items-center">
           <Button variant="ghost" onClick={onToggleSidebar} className="mr-2">
             <Menu className="text-gray-900 dark:text-white transition-colors duration-300" size={24} />
@@ -509,7 +509,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 dark:border-gray-700">
+              <HeadlessMenu.Items className="absolute right-0 z-[100] mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 dark:border-gray-700">
                 <div className="px-1 py-1">
                   <HeadlessMenu.Item>
                     {({ active }) => (
@@ -543,7 +543,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
       {/* Theme Modal */}
       <Transition appear show={isThemeModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setIsThemeModalOpen(false)}>
+        <Dialog as="div" className="relative z-[100]" onClose={() => setIsThemeModalOpen(false)}>
           <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
             <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
           </Transition.Child>

@@ -228,9 +228,9 @@ const VendorCampaign: React.FC = () => {
         const firstNumber = contactsList[0];
 
         return (
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="!inline-flex items-center gap-1.5 whitespace-nowrap">
             {firstNumber ? (
-              <span className="font-mono text-xs text-text-primary dark:text-white font-medium flex items-center gap-1">
+              <span className="font-mono text-xs text-text-primary dark:text-white font-medium !inline-flex items-center gap-1 shrink-0">
                 <Phone size={12} className="text-primary shrink-0 opacity-70" />
                 {firstNumber}
               </span>
@@ -243,7 +243,7 @@ const VendorCampaign: React.FC = () => {
                   setSelectedCampaignForContacts(c);
                   setIsContactsModalOpen(true);
                 }}
-                className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary-light transition-colors"
+                className="!inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary-light transition-colors shrink-0 whitespace-nowrap"
                 title="Click to view all phone numbers"
               >
                 +{count - (firstNumber ? 1 : 0)} more

@@ -34,8 +34,8 @@ interface CustomRoutePercentModalProps {
   allowedCountryIds?: string[];
   otherRoutesTotal?: number;
   onSaveLocal?: (updatedData: {
-    trafficPercentage: number;
-    terminatingVendor: number;
+    trafficPercentage?: number;
+    terminatingVendor?: number;
     status: string;
   }) => void;
 }
@@ -255,7 +255,9 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           }
 
           // Vendor Rate
-          const currentTerminatingVendor = vendorRows.length > 0 ? vendorRows[0].terminatingVendor : null;
+          const currentTerminatingVendor = (vendorRows.length > 0 && vendorRows[0].terminatingVendor)
+            ? vendorRows[0].terminatingVendor
+            : (editingRoute ? String(editingRoute.terminatingVendor || "") : null);
           if (currentTerminatingVendor) {
             try {
               const vendRes = await findVendorRateApi({
@@ -600,25 +602,17 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isExceeded) return toast.error("Total percentage cannot exceed 100%");
-
-    for (const row of vendorRows) {
-      if (!row.terminatingVendor) return toast.error("All vendors must be selected.");
-      if (!row.percentage) return toast.error("Traffic percentage is required.");
-    }
 
     if (isEditMode) {
       setIsSubmitting(true);
       try {
-        const row = vendorRows[0];
         const cleanMnc = extractCleanMncString(formData.MNC);
 
         const payload: any = {
           name: formData.name,
           status: formData.status || "ACTIVE",
           country: Number(formData.country),
-          terminatingVendor: Number(row.terminatingVendor),
-          trafficPercentage: Number(row.percentage)
+          terminatingVendor: Number(editingRoute?.terminatingVendor || vendorRows[0]?.terminatingVendor),
         };
 
         const mncArray = Array.isArray(formData.MNC) ? formData.MNC : [];
@@ -654,13 +648,12 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           await import("../../../api/routeManagerApi/customRouteApi").then(api =>
             api.updateCustomRouteApi(editingRoute.id!, payload, moduleName)
           );
-          toast.success("Percentage route updated successfully!");
+          toast.success("Route updated successfully!");
         }
 
         if (onSaveLocal) {
           onSaveLocal({
-            trafficPercentage: Number(row.percentage),
-            terminatingVendor: Number(row.terminatingVendor),
+            terminatingVendor: Number(editingRoute?.terminatingVendor || vendorRows[0]?.terminatingVendor),
             status: formData.status || "ACTIVE"
           });
         }
@@ -682,6 +675,13 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
         setIsSubmitting(false);
       }
       return;
+    }
+
+    if (isExceeded) return toast.error("Total percentage cannot exceed 100%");
+
+    for (const row of vendorRows) {
+      if (!row.terminatingVendor) return toast.error("All vendors must be selected.");
+      if (!row.percentage) return toast.error("Traffic percentage is required.");
     }
 
     // CREATE MODE ONLY: Submit new routes via API
@@ -785,7 +785,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-visible">
           <legend className="text-sm font-semibold text-primary px-2">
-            Destination
+            {isEditMode ? "Destination (Read Only)" : "Destination"}
           </legend>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-3">
@@ -859,89 +859,91 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           </div>
         </fieldset>
 
-        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <legend className="text-sm font-semibold text-primary px-2">Vendor Distribution</legend>
-            {!isEditMode && grandTotal < 100 && (
-              <Button type="button" variant="secondary" onClick={addVendorRow} className="py-1 px-3 text-xs" leftIcon={<Plus size={14} />}>
-                Add Vendor
-              </Button>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {vendorRows.map((row, index) => {
-              const selectedVendors = vendorRows
-                .filter((_, i) => i !== index)
-                .map((r) => r.terminatingVendor)
-                .filter(Boolean);
-
-              const availableVendorOptions = vendorOptions.map((option) => ({
-                ...option,
-                disabled: selectedVendors.includes(option.value),
-              }));
-
-              return (
-                <div key={index} className="flex items-end gap-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
-                  <div className="flex-1">
-                    <Select
-                      label="Terminating Vendor"
-                      value={row.terminatingVendor}
-                      options={availableVendorOptions}
-                      onChange={(v) => updateVendorRow(index, "terminatingVendor", v)}
-                      placeholder="Select Vendor"
-                      placement="top"
-                    />
-                  </div>
-                  <div className="w-32">
-                    <Input label="Percent (%)" name={`percentage-${index}`} type="number" value={row.percentage} onChange={(e) => updateVendorRow(index, "percentage", e.target.value)} placeholder="0-100" />
-                  </div>
-                  {!isEditMode && vendorRows.length > 1 && (
-                    <button type="button" onClick={() => removeVendorRow(index)} className="p-2.5 mb-[2px] text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* DYNAMIC CALCULATION BANNER */}
-          <div
-            className={`mt-4 p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between border gap-2 ${grandTotal === 100
-              ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
-              : isExceeded
-                ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
-                : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
-              }`}
-          >
-            <div className="flex items-center gap-2">
-              {grandTotal === 100 ? (
-                <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 shrink-0" />
-              ) : (
-                <AlertCircle size={18} className="shrink-0" />
+        {!isEditMode && (
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <legend className="text-sm font-semibold text-primary px-2">Vendor Distribution</legend>
+              {grandTotal < 100 && (
+                <Button type="button" variant="secondary" onClick={addVendorRow} className="py-1 px-3 text-xs" leftIcon={<Plus size={14} />}>
+                  Add Vendor
+                </Button>
               )}
-              <span className="text-sm font-semibold">
-                {isExceeded ? (
-                  <>Error: Total is {grandTotal}% (Exceeds limit by {grandTotal - 100}%)</>
-                ) : grandTotal < 100 ? (
-                  <>Warning: Total is {grandTotal}% ({100 - grandTotal}% remaining)</>
+            </div>
+
+            <div className="space-y-3">
+              {vendorRows.map((row, index) => {
+                const selectedVendors = vendorRows
+                  .filter((_, i) => i !== index)
+                  .map((r) => r.terminatingVendor)
+                  .filter(Boolean);
+
+                const availableVendorOptions = vendorOptions.map((option) => ({
+                  ...option,
+                  disabled: selectedVendors.includes(option.value),
+                }));
+
+                return (
+                  <div key={index} className="flex items-end gap-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                    <div className="flex-1">
+                      <Select
+                        label="Terminating Vendor"
+                        value={row.terminatingVendor}
+                        options={availableVendorOptions}
+                        onChange={(v) => updateVendorRow(index, "terminatingVendor", v)}
+                        placeholder="Select Vendor"
+                        placement="top"
+                      />
+                    </div>
+                    <div className="w-32">
+                      <Input label="Percent (%)" name={`percentage-${index}`} type="number" value={row.percentage} onChange={(e) => updateVendorRow(index, "percentage", e.target.value)} placeholder="0-100" />
+                    </div>
+                    {vendorRows.length > 1 && (
+                      <button type="button" onClick={() => removeVendorRow(index)} className="p-2.5 mb-[2px] text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DYNAMIC CALCULATION BANNER */}
+            <div
+              className={`mt-4 p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between border gap-2 ${grandTotal === 100
+                ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
+                : isExceeded
+                  ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
+                  : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                {grandTotal === 100 ? (
+                  <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 shrink-0" />
                 ) : (
-                  <>Valid: Total is 100%</>
+                  <AlertCircle size={18} className="shrink-0" />
                 )}
+                <span className="text-sm font-semibold">
+                  {isExceeded ? (
+                    <>Error: Total is {grandTotal}% (Exceeds limit by {grandTotal - 100}%)</>
+                  ) : grandTotal < 100 ? (
+                    <>Warning: Total is {grandTotal}% ({100 - grandTotal}% remaining)</>
+                  ) : (
+                    <>Valid: Total is 100%</>
+                  )}
+                </span>
+              </div>
+              <span className="text-xs font-mono opacity-90">
+                (This Route: {currentModalTotal}% + Other Vendors: {otherRoutesTotal}%)
               </span>
             </div>
-            <span className="text-xs font-mono opacity-90">
-              (This Route: {currentModalTotal}% + Other Vendors: {otherRoutesTotal}%)
-            </span>
-          </div>
-        </fieldset>
+          </fieldset>
+        )}
 
         {/* Read-Only Rates & Margins inside Modal */}
         {isEditMode && (
           <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50/50 dark:bg-gray-800/30">
             <legend className="text-sm font-semibold text-primary px-2">
-              Rates & Margins (Read-Only)
+              Rates & Margins (Read Only)
             </legend>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Input
@@ -996,7 +998,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || isExceeded}>
+          <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || (!isEditMode && isExceeded)}>
             Save
           </Button>
         </div>
