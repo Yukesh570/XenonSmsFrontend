@@ -27,6 +27,29 @@ interface EmailTemplateModalProps {
 
 type FormData = Omit<EmailTemplateData, "id">;
 
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "color",
+  "list",
+  "link",
+  "clean",
+];
+
 export const EmailTemplateModal: React.FC<EmailTemplateModalProps> = ({
   isOpen,
   onClose,
@@ -311,6 +334,8 @@ export const EmailTemplateModal: React.FC<EmailTemplateModalProps> = ({
                 theme="snow"
                 value={quillContent}
                 onChange={setQuillContent}
+                modules={quillModules}
+                formats={quillFormats}
                 // FIXED: Actively memorize the cursor position whenever they type or click inside the editor!
                 onChangeSelection={(range: any) => {
                   if (range && typeof range.index === "number") {
