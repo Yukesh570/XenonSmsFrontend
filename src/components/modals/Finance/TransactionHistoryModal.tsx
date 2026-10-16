@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Modal from "../../ui/Modal";
 import DataTable from "../../ui/DataTable";
+import Select, { type SelectOption } from "../../ui/Select";
+import DatePicker from "../../ui/DatePicker";
 import { StatusBadge } from "../../ui/StatusBadge";
 import { getTransactionHistoryApi } from "../../../api/financeApi/accountTransactionApi";
+import { X } from "lucide-react";
 
 interface TransactionHistoryModalProps {
   isOpen: boolean;
@@ -34,6 +37,8 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
 }) => {
   const [history, setHistory] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedType, setSelectedType] = useState<string>("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Column reordering & sorting state
   const [tableColumnKeys, setTableColumnKeys] = useState<string[]>(DEFAULT_COLUMN_KEYS);
@@ -54,6 +59,9 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       setSortConfig(null);
       setTableColumnKeys(DEFAULT_COLUMN_KEYS);
       fetchHistory();
+    } else if (!isOpen) {
+      setSelectedType("");
+      setSelectedDate(null);
     }
   }, [isOpen, company, viewMode]);
 
@@ -61,7 +69,8 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     setIsLoading(true);
     try {
       const accountType = viewMode === "customer" ? "CLIENT" : "VENDOR";
-      const res = await getTransactionHistoryApi(company.id, accountType);
+      const compId = company.id || company.companyId;
+      const res = await getTransactionHistoryApi(compId, accountType);
       setHistory(res.results || res.data || res || []);
     } catch (error) {
       console.error("Failed to fetch history", error);
@@ -93,11 +102,49 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     });
   };
 
+  const typeOptions: SelectOption[] = useMemo(() => {
+    const rawTypes = history
+      .map((r) => r.transactionType)
+      .filter((t): t is string => Boolean(t && typeof t === "string"));
+
+    const uniqueTypes = Array.from(new Set(rawTypes));
+
+    return [
+      { value: "", label: "All Types" },
+      ...uniqueTypes.map((t) => ({
+        value: t,
+        label: t,
+      })),
+    ];
+  }, [history]);
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((row) => {
+      if (selectedType) {
+        const rowType = String(row.transactionType || "").toLowerCase();
+        const search = selectedType.toLowerCase().trim();
+        if (!rowType.includes(search)) return false;
+      }
+
+      if (selectedDate) {
+        const rowDate = new Date(row.transactionDate || row.createdAt);
+        if (isNaN(rowDate.getTime())) return false;
+        const isSameDate =
+          rowDate.getFullYear() === selectedDate.getFullYear() &&
+          rowDate.getMonth() === selectedDate.getMonth() &&
+          rowDate.getDate() === selectedDate.getDate();
+        if (!isSameDate) return false;
+      }
+
+      return true;
+    });
+  }, [history, selectedType, selectedDate]);
+
   const sortedHistory = useMemo(() => {
-    if (!sortConfig) return history;
+    if (!sortConfig) return filteredHistory;
     const { key, direction } = sortConfig;
 
-    return [...history].sort((a, b) => {
+    return [...filteredHistory].sort((a, b) => {
       let valA: any = "";
       let valB: any = "";
 
@@ -134,7 +181,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
       if (valA > valB) return direction === "asc" ? 1 : -1;
       return 0;
     });
-  }, [history, sortConfig]);
+  }, [filteredHistory, sortConfig]);
 
   if (!isOpen || !company) return null;
 
@@ -142,14 +189,15 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Transaction History - ${company.name}`}
-      className="max-w-4xl"
+      title={`Transaction History - ${company.companyName || company.name || "Company"}`}
+      className="max-w-5xl w-full"
     >
-      <div className="mt-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow mt-4">
         <DataTable
           headers={headers}
           isLoading={isLoading}
           data={sortedHistory}
+          emptyMessage="No transaction history found."
           density="compact"
           onSort={handleSort}
           sortColumnIndex={
@@ -159,6 +207,44 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
           }
           sortDirection={sortConfig?.direction || null}
           onReorderColumns={handleReorderColumns}
+          headerActions={
+            <div className="flex items-center gap-2">
+              <div className="w-36 sm:w-44">
+                <Select
+                  label=""
+                  value={selectedType}
+                  onChange={(val) => setSelectedType(val || "")}
+                  options={typeOptions}
+                  placeholder="Filter Type..."
+                  clearable={true}
+                  allowCustomValue={true}
+                  placement="bottom"
+                />
+              </div>
+              <div className="w-36 sm:w-44">
+                <DatePicker
+                  label=""
+                  selected={selectedDate}
+                  onChange={(date) => setSelectedDate(date)}
+                  placeholder="Filter Date..."
+                  isClearable={true}
+                />
+              </div>
+              {(selectedType || selectedDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedType("");
+                    setSelectedDate(null);
+                  }}
+                  className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  title="Clear filters"
+                >
+                  <X size={15} />
+                </button>
+              )}
+            </div>
+          }
           renderRow={(row, index) => {
             const dateObj = new Date(row.transactionDate || row.createdAt);
             const dateStr = !isNaN(dateObj.getTime())

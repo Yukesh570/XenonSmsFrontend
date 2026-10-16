@@ -430,7 +430,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} pr-12 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${isEffectivelyDisabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
+                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} ${clearable ? "pr-12" : "pr-7"} outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${isEffectivelyDisabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
                   }`}
                 displayValue={(val: string) => {
                   if (isOptionsLoading) return "Loading...";

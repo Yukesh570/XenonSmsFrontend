@@ -16,19 +16,19 @@ const TabPane: React.FC<{
   Component: React.ComponentType<any>;
 }> = React.memo(
   ({ tabPath, tabId, isActive, Component }) => {
-    const scopedLocationValue = useMemo(
-      () => ({
+    const scopedLocationValue = useMemo(() => {
+      const [pathPart, searchPart] = tabPath.split("?");
+      return {
         location: {
-          pathname: tabPath,
-          search: "",
+          pathname: pathPart,
+          search: searchPart ? `?${searchPart}` : "",
           hash: "",
           state: null,
           key: tabId,
         },
         navigationType: "PUSH" as any,
-      }),
-      [tabPath, tabId]
-    );
+      };
+    }, [tabPath, tabId]);
 
     return (
       <div

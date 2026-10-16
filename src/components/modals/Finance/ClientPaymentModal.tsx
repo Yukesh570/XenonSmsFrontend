@@ -47,7 +47,8 @@ export const ClientPaymentModal: React.FC<ClientPaymentModalProps> = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Failed to submit payment.");
+      const msg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit payment.";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

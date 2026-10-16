@@ -384,7 +384,7 @@ const CustomerRate: React.FC = () => {
   const menuItems: ContextMenuItem[] = selectedRowGroup ? [
     { label: "Manage Rates", icon: <Layers size={16} />, onClick: () => openSubTableModal(selectedRowGroup) },
     { label: "Download CSV", icon: <Download size={16} />, onClick: () => { handleDownloadCSV(selectedRowGroup.id!); setContextMenuPos(null); } },
-    { label: "Export Logs", icon: <FileText size={16} />, onClick: () => { setIsExportLogModalOpen(true); setContextMenuPos(null); } },
+    { label: "RN Logs", icon: <FileText size={16} />, onClick: () => { setIsExportLogModalOpen(true); setContextMenuPos(null); } },
     ...(canUpdate ? [{ label: "Edit Group", icon: <Edit size={16} />, onClick: () => { setEditingGroup(selectedRowGroup); setIsCreateModalOpen(true); } }] : []),
     ...(canDelete ? [{ label: "Delete Group", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedRowGroup.id!) }] : []),
   ] : [];
@@ -517,15 +517,15 @@ const CustomerRate: React.FC = () => {
         countryMap={countryMap}
       />
 
-      <DeleteModal 
-        isOpen={!!deleteId} 
+      <DeleteModal
+        isOpen={!!deleteId}
         onClose={() => {
           setDeleteId(null);
           setSelectedRowGroup(null);
-        }} 
-        onConfirm={handleDelete} 
-        title="Delete Rate Group" 
-        message={`Are you sure you want to delete rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`} 
+        }}
+        onConfirm={handleDelete}
+        title="Delete Rate Group"
+        message={`Are you sure you want to delete rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`}
       />
 
       <CustomerRateExportLogModal

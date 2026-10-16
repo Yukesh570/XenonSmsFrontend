@@ -31,6 +31,7 @@ export interface SenderIdTranslationRule {
 export interface TestTranslationData {
   sender_id: string;
   destination: string;
+  source_sender_id?: string;
 }
 
 export interface TestTranslationResponse {
@@ -41,8 +42,13 @@ export interface TestTranslationResponse {
   matched_rule_id: number | null;
   matched_rule_description?: string | null;
   country_id: number | null;
+  country_name?: string | null;
   source: string;
   is_system_error: boolean;
+  input_sender_id?: string;
+  output_sender_id?: string;
+  action_applied?: string;
+  reason?: string;
 }
 
 export const getSenderTranslationPolicyApi = async (clientId: number) => {

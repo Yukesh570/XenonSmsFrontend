@@ -48,7 +48,8 @@ export const ChangeVendorLimitModal: React.FC<ChangeVendorLimitModalProps> = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Failed to submit limit change.");
+      const msg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit limit change.";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }

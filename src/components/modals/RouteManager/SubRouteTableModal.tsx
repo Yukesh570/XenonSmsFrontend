@@ -1154,8 +1154,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         toast.error(errorMsg);
         return;
       }
-      if (isPercentage && (!row.trafficPercentage || Number(row.trafficPercentage) <= 0)) {
-        const errorMsg = `Row #${rowNum}: Traffic Percentage is required.`;
+      if (isPercentage && (row.trafficPercentage == null || String(row.trafficPercentage).trim() === "" || isNaN(Number(row.trafficPercentage)) || Number(row.trafficPercentage) < 0 || Number(row.trafficPercentage) > 100)) {
+        const errorMsg = `Row #${rowNum}: Traffic Percentage is required (0 to 100).`;
         setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
         toast.error(errorMsg);
         return;
@@ -1173,8 +1173,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
       const routeLabel = route.name || vendorMatch?.label || `Route #${route.id}`;
 
-      if (isPercentage && (!route.trafficPercentage || Number(route.trafficPercentage) <= 0)) {
-        const errorMsg = `${routeLabel}: Traffic Percentage is required.`;
+      if (isPercentage && (route.trafficPercentage == null || String(route.trafficPercentage).trim() === "" || isNaN(Number(route.trafficPercentage)) || Number(route.trafficPercentage) < 0 || Number(route.trafficPercentage) > 100)) {
+        const errorMsg = `${routeLabel}: Traffic Percentage is required (0 to 100).`;
         setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
         toast.error(errorMsg);
         return;
@@ -1188,16 +1188,16 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     }
 
     if (isPercentage) {
-      // In Percentage mode, all active groups in the entire country must sum to 100% and have valid percentages
+      // In Percentage mode, all active groups in the entire country must sum to 100% and have valid percentages (0 to 100)
       const allActiveRoutesInCountry = section.routes.filter(r => r.status === "ACTIVE");
       const allNewRowsInCountry = section.newRows.filter(r => r.status !== "INACTIVE");
 
       for (const route of allActiveRoutesInCountry) {
-        if (!route.trafficPercentage || Number(route.trafficPercentage) <= 0) {
+        if (route.trafficPercentage == null || String(route.trafficPercentage).trim() === "" || isNaN(Number(route.trafficPercentage)) || Number(route.trafficPercentage) < 0 || Number(route.trafficPercentage) > 100) {
           const groupLabel = formatGroupKeyLabel(normalizeKey(route.MCC, route.MNC));
           const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
           const routeLabel = route.name || vendorMatch?.label || `Route #${route.id}`;
-          const errorMsg = `${groupLabel} (${routeLabel}): Traffic percentage is required (> 0%).`;
+          const errorMsg = `${groupLabel} (${routeLabel}): Traffic percentage is required (0% to 100%).`;
           setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
           toast.error(errorMsg);
           return;
@@ -1206,9 +1206,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
       for (let idx = 0; idx < allNewRowsInCountry.length; idx++) {
         const row = allNewRowsInCountry[idx];
-        if (!row.trafficPercentage || Number(row.trafficPercentage) <= 0) {
+        if (row.trafficPercentage == null || String(row.trafficPercentage).trim() === "" || isNaN(Number(row.trafficPercentage)) || Number(row.trafficPercentage) < 0 || Number(row.trafficPercentage) > 100) {
           const groupLabel = formatGroupKeyLabel(normalizeKey(row.MCC, row.MNC));
-          const errorMsg = `${groupLabel} (New Row #${idx + 1}): Traffic percentage is required (> 0%).`;
+          const errorMsg = `${groupLabel} (New Row #${idx + 1}): Traffic percentage is required (0% to 100%).`;
           setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
           toast.error(errorMsg);
           return;
@@ -1326,7 +1326,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       if (targetNewRows.length > 0) {
         const payloads = targetNewRows.map((row) => ({
           name: routeGroup,
-          routeGroup: routeGroup,
+          routeGroup: routeGroupId || undefined,
           country: Number(countryId),
           MCC: row.MCC,
           MNC: row.MNC,
@@ -1394,7 +1394,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         );
         errorMsg = formattedErrs.join(" | ");
       } else if (typeof data === "string") {
-        errorMsg = data;
+        if (data.includes("<!DOCTYPE") || data.includes("<html")) {
+          const match = data.match(/<title>(.*?)<\/title>/i);
+          errorMsg = match
+            ? match[1].replace(/&quot;/g, '"').replace(/&#x27;/g, "'")
+            : "Server error occurred while saving routes.";
+        } else {
+          errorMsg = data;
+        }
       }
 
       setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
@@ -1764,10 +1771,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                   if (isPercentage) {
                     const hasEmptyPct = activeItems.some(item => {
                       const r = "isNew" in item ? item.row : item;
-                      return !r.trafficPercentage || Number(r.trafficPercentage) <= 0;
+                      return r.trafficPercentage == null || String(r.trafficPercentage).trim() === "" || isNaN(Number(r.trafficPercentage)) || Number(r.trafficPercentage) < 0 || Number(r.trafficPercentage) > 100;
                     });
                     if (hasEmptyPct) {
-                      countryValidationError = `${gLabel}: All active routes must have traffic percentage specified (> 0%).`;
+                      countryValidationError = `${gLabel}: All active routes must have traffic percentage specified (0% to 100%).`;
                       break;
                     }
                     if (gData.total !== 100) {
@@ -2080,9 +2087,9 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                   if (isPercentage) {
                                     if (activeGroupItems.some(item => {
                                       const r = "isNew" in item ? item.row : item;
-                                      return !r.trafficPercentage || Number(r.trafficPercentage) <= 0;
+                                      return r.trafficPercentage == null || String(r.trafficPercentage).trim() === "" || isNaN(Number(r.trafficPercentage)) || Number(r.trafficPercentage) < 0 || Number(r.trafficPercentage) > 100;
                                     })) {
-                                      groupValidationError = "All active routes in this group must have traffic percentage specified (> 0%).";
+                                      groupValidationError = "All active routes in this group must have traffic percentage specified (0% to 100%).";
                                     } else if (groupData.total !== 100) {
                                       groupValidationError = `Group traffic percentage must equal 100% (currently ${groupData.total}%).`;
                                     }
@@ -2278,7 +2285,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   <Input
                                                     label=""
                                                     type="number"
-                                                    value={isPercentage ? row.trafficPercentage : row.priority}
+                                                    value={isPercentage ? (row.trafficPercentage != null ? String(row.trafficPercentage) : "") : (row.priority != null ? String(row.priority) : "")}
                                                     onChange={(e) =>
                                                       updateRow(countryId, row._id, isPercentage ? "trafficPercentage" : "priority", e.target.value)
                                                     }
@@ -2393,7 +2400,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   <Input
                                                     label=""
                                                     type="number"
-                                                    value={isPercentage ? route.trafficPercentage || "" : route.priority || ""}
+                                                    value={isPercentage ? (route.trafficPercentage != null ? String(route.trafficPercentage) : "") : (route.priority != null ? String(route.priority) : "")}
                                                     onChange={(e) => updateExistingRoute(countryId, route.id!, isPercentage ? "trafficPercentage" : "priority", e.target.value)}
                                                     placeholder={isPercentage ? "0–100" : "Priority"}
                                                     isClearable={false}

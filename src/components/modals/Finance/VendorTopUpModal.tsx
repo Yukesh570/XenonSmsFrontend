@@ -47,7 +47,8 @@ export const VendorTopUpModal: React.FC<VendorTopUpModalProps> = ({
       onSuccess();
       onClose();
     } catch (error: any) {
-      toast.error("Failed to submit Top-Up.");
+      const msg = error.response?.data?.error || error.response?.data?.detail || "Failed to submit Top-Up.";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
