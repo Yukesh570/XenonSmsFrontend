@@ -14,6 +14,7 @@ import AdvancedFilter, { type FilterColumn } from "../../components/ui/AdvancedF
 import { usePagePermissions } from "../../hooks/usePagePermissions";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { actionHelper } from "../../helper/action";
+import { formatDateTime } from "../../helper/dateFormatter";
 
 interface Option { label: string; value: string; }
 
@@ -27,7 +28,7 @@ interface ColumnConfig extends FilterColumn {
 }
 
 const DEFAULT_SEARCH_COLUMNS = ["name"];
-const DEFAULT_TABLE_COLUMNS = ["name", "customerCreditLimit", "totalCustomerCredit", "usedCustomerCredit", "latestClientRemark", "vendorCreditLimit", "totalVendorCredit", "usedVendorCredit", "latestVendorRemark"];
+const DEFAULT_TABLE_COLUMNS = ["name", "customerCreditLimit", "totalCustomerCredit", "usedCustomerCredit", "latestClientRemark", "vendorCreditLimit", "totalVendorCredit", "usedVendorCredit", "latestVendorRemark", "updatedAt"];
 
 const AddCredit: React.FC = () => {
   const { canUpdate } = usePagePermissions();
@@ -86,7 +87,15 @@ const AddCredit: React.FC = () => {
     { key: "totalVendorCredit", label: "Total Vendor Credit", type: "number", filterKey: "totalVendorCredit" },
     { key: "usedVendorCredit", label: "Used Vendor Credit", type: "number", filterKey: "usedVendorCredit" },
     { key: "latestVendorRemark", label: "Vendor Remark", type: "text", filterKey: "latestVendorRemark" },
-
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);

@@ -92,6 +92,7 @@ const encodingOptions: Option[] = [
 const DEFAULT_SEARCH_COLUMNS = [
   "clientName",
   "countryName",
+  "mccmnc",
   "destination",
   "message_id",
   "status",
@@ -105,12 +106,13 @@ const DEFAULT_TABLE_COLUMNS = [
   "destination",
   "source_addr",
   "countryName",
+  "mccmnc",
   "status",
   "clientName",
   "vendorName",
   "segmentNumber",
   "failure_reason",
-  "createdAt",
+  "createdAt", "updatedAt",
   "effectiveSenderId",
 ];
 
@@ -266,6 +268,12 @@ const MessageReport: React.FC = () => {
         options: countryOptions,
         filterKey: "country__name__icontains",
       },
+      {
+        key: "mccmnc",
+        label: "MCCMNC",
+        type: "text",
+        filterKey: "mccmnc",
+      },
       { key: "destination", label: "Destination", type: "text", filterKey: "destination__icontains" },
       { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
       { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
@@ -347,6 +355,21 @@ const MessageReport: React.FC = () => {
               {match?.icon}
               <span>{log.countryName}</span>
             </div>
+          );
+        },
+      },
+      {
+        key: "mccmnc",
+        label: "MCCMNC",
+        type: "text",
+        render: (log: any) => {
+          const mcc = log.mcc ? String(log.mcc).padStart(3, "0") : "";
+          const mnc = log.mnc ? String(log.mnc).padStart(3, "0") : "";
+          const combined = mcc && mnc ? `${mcc}${mnc}` : (mcc || mnc || "-");
+          return (
+            <span className="text-sm font-mono">
+              {combined}
+            </span>
           );
         },
       },
@@ -443,6 +466,15 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
     ],
     [countryOptions],
   );
@@ -514,6 +546,14 @@ const MessageReport: React.FC = () => {
             }
             if (lt && lt.trim() !== "") {
               currentSearchParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+            }
+          } else if (key === "mccmnc") {
+            const clean = value.replace(/[^0-9]/g, "");
+            if (clean.length > 3) {
+              currentSearchParams["mcc"] = clean.substring(0, 3);
+              currentSearchParams["mnc"] = clean.substring(3);
+            } else if (clean.length > 0) {
+              currentSearchParams["mcc"] = clean;
             }
           } else if (colDef?.type === "text") {
             const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -650,7 +690,16 @@ const MessageReport: React.FC = () => {
 
   const handleSearch = () => {
     setAppliedFilters(filterValues);
-    fetchLogs(filterValues, 1, false);
+    const hasActiveFilters = Object.values(filterValues).some(
+      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+    );
+    if (!hasActiveFilters) {
+      setActivePreset("today");
+      fetchLogs(filterValues, 1, false, false, "today");
+    } else {
+      setActivePreset("custom");
+      fetchLogs(filterValues, 1, false, false, "custom");
+    }
   };
 
   const handleClearFilters = () => {

@@ -444,7 +444,17 @@ const MarginReport: React.FC = () => {
   ];
 
   const handleSearch = () => {
-    fetchReports();
+    const currentFilters = filterValuesRef.current || filterValues;
+    const hasActiveFilters = Object.values(currentFilters).some(
+      (val) => Boolean(val && String(val).replace(/,/g, "").trim() !== "")
+    );
+    if (!hasActiveFilters) {
+      setActivePreset("today");
+      fetchReports(undefined, undefined, "today");
+    } else {
+      setActivePreset("custom");
+      fetchReports(undefined, undefined, "custom");
+    }
   };
 
   const handleClearFilters = () => {

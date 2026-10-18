@@ -51,7 +51,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["client__name", "system_id", "destination_addr", "message_id"];
-const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit"];
+const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -99,6 +99,15 @@ const RejectedSMSLog: React.FC = () => {
     { key: "smpp_command_status", label: "Status Code", type: "text", isSearchable: false },
     { key: "timestamp", label: "Timestamp", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", isSearchable: false, render: (data: any) => data.timestamp ? formatDateTime(data.timestamp) : "-" },
     { key: "timestamp__range", label: "Timestamp (From / To)", type: "date_range", filterKey: "timestamp__range", isSearchOnly: true },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -289,7 +298,16 @@ const RejectedSMSLog: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchEvents(undefined, 1, false);
+          const hasActiveFilters = Object.values(filterValues).some(
+            (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+          );
+          if (!hasActiveFilters) {
+            setActivePreset("today");
+            fetchEvents(undefined, 1, false, "today");
+          } else {
+            setActivePreset("custom");
+            fetchEvents(undefined, 1, false, "custom");
+          }
         }}
         onClear={() => {
           setActivePreset("today");

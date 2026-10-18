@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Edit, Trash, ShieldPlus, Shield, Eye, Mail, Layers, ChevronDown } from "lucide-react";
+import { Home, Plus, Edit, Trash, ShieldPlus, Eye, Mail, Layers, ChevronDown } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -19,7 +19,6 @@ import { ClientModal } from "../../components/modals/ClientModal";
 import { ClientRoutingRateModal } from "../../components/modals/ClientRoutingRateModal";
 import IpWhitelistModal from "../../components/modals/WhiteListIPModal";
 import { ClientRateTableModal } from "../../components/modals/ClientRateTableModal";
-import SenderIdPolicyModal from "../../components/modals/SenderIdPolicyModal";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -65,8 +64,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "invoicePolicy",
   "status",
   "bindStatus",
-  "route",
-];
+  "route", "updatedAt"];
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -101,9 +99,6 @@ const Client: React.FC = () => {
 
   const [isRateModalOpen, setIsRateModalOpen] = useState(false);
   const [rateModalClient, setRateModalClient] = useState<{ id: number; name: string; } | null>(null);
-
-  const [isSenderIdModalOpen, setIsSenderIdModalOpen] = useState(false);
-  const [senderIdModalClient, setSenderIdModalClient] = useState<{ id: number; name: string; } | null>(null);
 
   // --- Context Menu State ---
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number; } | null>(null);
@@ -267,7 +262,9 @@ const Client: React.FC = () => {
     { label: "MKT", value: "MKT" },
     { label: "Local By Pass", value: "LOCAL_BY_PASS" },
     { label: "WhatsApp", value: "WHATSAPP" },
-    { label: "Bulk", value: "BULK" }
+    { label: "Bulk", value: "BULK" },
+    { label: "Casino", value: "CASINO" },
+    { label: "SS7", value: "SS7" },
   ];
 
   const paymentTermOptions: Option[] = [
@@ -380,6 +377,15 @@ const Client: React.FC = () => {
     },
     { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt", isSearchable: false, render: (c) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
     { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", isSearchOnly: true },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -604,11 +610,6 @@ const Client: React.FC = () => {
     setIsIpModalOpen(true);
   };
 
-  const handleSenderIdPolicy = (client: ClientData) => {
-    if (!client.id) return;
-    setSenderIdModalClient({ id: client.id, name: client.name || "" });
-    setIsSenderIdModalOpen(true);
-  };
 
   const handleSendDetails = async (client: ClientData) => {
     if (!client.id) return;
@@ -668,11 +669,7 @@ const Client: React.FC = () => {
           },
         ]
         : []),
-      {
-        label: "Sender ID Policy",
-        icon: <Shield size={16} />,
-        onClick: () => handleSenderIdPolicy(selectedRowClient),
-      },
+
       {
         label: "View Details",
         icon: <Eye size={16} />,
@@ -1042,11 +1039,6 @@ const Client: React.FC = () => {
         onConfirm={handleDelete}
         title="Delete Client"
         message={`Are you sure you want to delete client "${selectedRowClient?.name || ""}"? This action cannot be undone.`}
-      />
-      <SenderIdPolicyModal
-        isOpen={isSenderIdModalOpen}
-        onClose={() => setIsSenderIdModalOpen(false)}
-        client={senderIdModalClient}
       />
     </div>
   );

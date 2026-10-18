@@ -164,8 +164,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "request_time",
   "message_delivered_at",
   "message_failed_at",
-  "effectiveSenderId",
-];
+  "effectiveSenderId", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -617,6 +616,15 @@ const DetailedReport: React.FC = () => {
       filterKey: "message__failed_at",
       isSearchOnly: true,
     },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter(
@@ -815,7 +823,16 @@ const DetailedReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, reports.length]);
 
   const handleSearch = () => {
-    fetchReports(undefined, 1, false);
+    const hasActiveFilters = Object.values(filterValues).some(
+      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
+    );
+    if (!hasActiveFilters) {
+      setActivePreset("today");
+      fetchReports(undefined, 1, false, "today");
+    } else {
+      setActivePreset("custom");
+      fetchReports(undefined, 1, false, "custom");
+    }
   };
   const handleClearFilters = () => {
     setActivePreset("today");

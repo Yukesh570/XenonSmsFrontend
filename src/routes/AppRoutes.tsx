@@ -67,12 +67,12 @@ import PrefixLookup from "../pages/MccMncPrefix/PrefixLookup";
 import AnalyticsReport from "../pages/Report/AnalyticsReport";
 import UserCreation from "../pages/UserCreation/UserCreation";
 import VendorCampaign from "../pages/Campaign/VendorCampaign";
-import SenderIdTranslationModule from "../pages/SenderIdTranslation/SenderIdTranslationModule";
+import SenderIdManagementModule from "../pages/SenderIdManagement/SenderIdManagementModule";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import SummariseReport from "../pages/Report/SummariseReport";
 import MarginReport from "../pages/Report/MarginReport";
-import ReplacementListModule from "../pages/SenderIdTranslation/ReplacementListModule";
-import SenderPoolModule from "../pages/SenderIdTranslation/SenderPoolModule";
+import CreditPaymentOverviewPage from "../pages/Finance/Overview/CreditPaymentOverviewPage";
+import PendingApprovalsPage from "../pages/Finance/Overview/PendingApprovalsPage";
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
@@ -142,15 +142,16 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   analyticsReport: AnalyticsReport,
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,
-  senderIdTranslation: SenderIdTranslationModule,
+  senderIdManagement: SenderIdManagementModule,
   summariseReport: SummariseReport,
   marginReport: MarginReport,
-  replacementList: ReplacementListModule,
-  senderPool: SenderPoolModule,
+  overview: CreditPaymentOverviewPage,
+  approvals: PendingApprovalsPage,
 };
 
 export const getComponentByPath = (pathname: string): React.ComponentType<any> => {
-  const cleanPath = pathname.replace(/^\//, "");
+  const pathWithoutQuery = pathname.split("?")[0];
+  const cleanPath = pathWithoutQuery.replace(/^\//, "");
 
   if (!cleanPath || cleanPath === "dashboard") return Dashboard;
   if (cleanPath === "change-password") return ChangePassword;

@@ -755,6 +755,9 @@ const Dashboard: React.FC = () => {
     if (activeRange === "365d" || activeRange === "all") {
       return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
     }
+    if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
+      return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+    }
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
@@ -764,6 +767,9 @@ const Dashboard: React.FC = () => {
     const d = new Date(value);
     if (isNaN(d.getTime())) return String(value);
 
+    if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
+      return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+    }
     return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
   };
 

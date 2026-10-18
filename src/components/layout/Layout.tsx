@@ -16,19 +16,19 @@ const TabPane: React.FC<{
   Component: React.ComponentType<any>;
 }> = React.memo(
   ({ tabPath, tabId, isActive, Component }) => {
-    const scopedLocationValue = useMemo(
-      () => ({
+    const scopedLocationValue = useMemo(() => {
+      const [pathPart, searchPart] = tabPath.split("?");
+      return {
         location: {
-          pathname: tabPath,
-          search: "",
+          pathname: pathPart,
+          search: searchPart ? `?${searchPart}` : "",
           hash: "",
           state: null,
           key: tabId,
         },
         navigationType: "PUSH" as any,
-      }),
-      [tabPath, tabId]
-    );
+      };
+    }, [tabPath, tabId]);
 
     return (
       <div
@@ -41,7 +41,10 @@ const TabPane: React.FC<{
       </div>
     );
   },
-  (prev, next) => prev.isActive === next.isActive && prev.tabPath === next.tabPath
+  (prev, next) =>
+    prev.isActive === next.isActive &&
+    prev.tabPath === next.tabPath &&
+    prev.Component === next.Component
 );
 
 const Layout: React.FC = () => {
@@ -221,6 +224,7 @@ const Layout: React.FC = () => {
               );
             })}
           </main>
+          <div id="page-modal-root" className="pointer-events-none absolute inset-0 z-40 overflow-hidden" />
         </div>
       </div>
     </div>

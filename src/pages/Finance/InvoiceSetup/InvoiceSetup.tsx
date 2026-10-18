@@ -59,8 +59,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "businessEntity",
   "invoiceFrequency",
   "dueDays",
-  "isTaxApplied",
-];
+  "isTaxApplied", "updatedAt"];
 
 const InvoiceSetup: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -261,6 +260,15 @@ const InvoiceSetup: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

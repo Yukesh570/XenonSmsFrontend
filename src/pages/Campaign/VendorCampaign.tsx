@@ -6,6 +6,8 @@ import {
   Megaphone,
   Calendar,
   Eye,
+  Phone,
+  RotateCcw,
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -14,11 +16,14 @@ import { toast } from "react-toastify";
 import {
   getCampaignVendorsApi,
   deleteCampaignVendorApi,
+  retryCampaignVendorApi,
   type CampaignVendorFormData,
 } from "../../api/campaignApi/campaignVendorApi";
 
 // --- Components ---
 import { VendorCampaignModal } from "../../components/modals/Campaign/VendorCampaignModal";
+import { CampaignContactsModal } from "../../components/modals/Campaign/CampaignContactsModal";
+import { RetryCampaignModal } from "../../components/modals/Campaign/RetryCampaignModal";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
@@ -69,15 +74,16 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["name", "vendorName", "objective", "content", "senderId"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "vendorName", "phoneNumbers", "objective", "content", "senderId"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
   "vendorName",
+  "phoneNumbers",
   "objective",
   "content",
   "schedule",
   "senderId",
-  "createdAt",
+  "createdAt", "updatedAt",
 ];
 
 const VendorCampaign: React.FC = () => {
@@ -92,6 +98,12 @@ const VendorCampaign: React.FC = () => {
     useState<CampaignVendorFormData | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [isViewMode, setIsViewMode] = useState(false);
+  const [selectedCampaignForContacts, setSelectedCampaignForContacts] =
+    useState<CampaignVendorFormData | null>(null);
+  const [isContactsModalOpen, setIsContactsModalOpen] = useState(false);
+  const [retryCampaign, setRetryCampaign] =
+    useState<CampaignVendorFormData | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   // --- Context Menu State ---
   const [contextMenuPos, setContextMenuPos] = useState<{
@@ -104,7 +116,18 @@ const VendorCampaign: React.FC = () => {
   // --- Search & Filter States ---
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("vendor_campaign_search_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          if (!parsed.includes("phoneNumbers")) {
+            parsed.push("phoneNumbers");
+          }
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_SEARCH_COLUMNS;
   });
 
   useEffect(() => {
@@ -123,7 +146,23 @@ const VendorCampaign: React.FC = () => {
   // --- Column Order State & Persistence ---
   const [tableColumns, setTableColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("vendor_campaign_table_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_TABLE_COLUMNS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          if (!parsed.includes("phoneNumbers")) {
+            const vendorIdx = parsed.indexOf("vendorName");
+            if (vendorIdx !== -1) {
+              parsed.splice(vendorIdx + 1, 0, "phoneNumbers");
+            } else {
+              parsed.splice(2, 0, "phoneNumbers");
+            }
+          }
+          return parsed;
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_TABLE_COLUMNS;
   });
 
   useEffect(() => {
@@ -171,6 +210,48 @@ const VendorCampaign: React.FC = () => {
       type: "text",
       filterKey: "vendor__profileName__icontains",
       render: (c) => c.vendorName || "-",
+    },
+    {
+      key: "phoneNumbers",
+      label: "Phone Numbers",
+      tableLabel: "Phone Numbers",
+      type: "text",
+      filterKey: "contactsVendor__contactNumber__icontains",
+      render: (c) => {
+        const count = c.contactCount ?? (c.contacts ? c.contacts.length : 0);
+        const contactsList = c.contacts || [];
+
+        if (count === 0) {
+          return <span className="text-gray-400 dark:text-gray-500 text-xs">-</span>;
+        }
+
+        const firstNumber = contactsList[0];
+
+        return (
+          <div className="!inline-flex items-center gap-1.5 whitespace-nowrap">
+            {firstNumber ? (
+              <span className="font-mono text-xs text-text-primary dark:text-white font-medium !inline-flex items-center gap-1 shrink-0">
+                <Phone size={12} className="text-primary shrink-0 opacity-70" />
+                {firstNumber}
+              </span>
+            ) : null}
+            {count > (firstNumber ? 1 : 0) && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedCampaignForContacts(c);
+                  setIsContactsModalOpen(true);
+                }}
+                className="!inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 dark:bg-primary/20 dark:text-primary-light transition-colors shrink-0 whitespace-nowrap"
+                title="Click to view all phone numbers"
+              >
+                +{count - (firstNumber ? 1 : 0)} more
+              </button>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "senderId",
@@ -250,6 +331,15 @@ const VendorCampaign: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 
@@ -425,6 +515,26 @@ const VendorCampaign: React.FC = () => {
     }
   };
 
+  const handleConfirmRetry = async () => {
+    if (!retryCampaign?.id) return;
+    setIsRetrying(true);
+    try {
+      const res = await retryCampaignVendorApi(retryCampaign.id);
+      toast.success(res?.message || `Retry triggered for "${retryCampaign.name}"`);
+      setRetryCampaign(null);
+      fetchCampaigns();
+    } catch (error: any) {
+      console.error(error);
+      const errMsg =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Failed to retry vendor campaign";
+      toast.error(errMsg);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   const handleAdd = () => {
     if (!canCreate) return;
     setSelectedCampaign(null);
@@ -454,6 +564,19 @@ const VendorCampaign: React.FC = () => {
         label: "View Details",
         icon: <Eye size={16} />,
         onClick: () => handleView(selectedRowCampaign),
+      },
+      {
+        label: "View Phone Numbers",
+        icon: <Phone size={16} />,
+        onClick: () => {
+          setSelectedCampaignForContacts(selectedRowCampaign);
+          setIsContactsModalOpen(true);
+        },
+      },
+      {
+        label: "Retry Campaign",
+        icon: <RotateCcw size={16} />,
+        onClick: () => setRetryCampaign(selectedRowCampaign),
       },
       ...(canDelete
         ? [
@@ -686,6 +809,18 @@ const VendorCampaign: React.FC = () => {
         isViewMode={isViewMode}
       />
 
+      <CampaignContactsModal
+        isOpen={isContactsModalOpen}
+        onClose={() => {
+          setIsContactsModalOpen(false);
+          setSelectedCampaignForContacts(null);
+        }}
+        campaignId={selectedCampaignForContacts?.id}
+        campaignName={selectedCampaignForContacts?.name}
+        contacts={selectedCampaignForContacts?.contacts || []}
+        contactCount={selectedCampaignForContacts?.contactCount}
+      />
+
       <DeleteModal
         isOpen={!!deleteId}
         onClose={() => {
@@ -695,6 +830,22 @@ const VendorCampaign: React.FC = () => {
         onConfirm={handleDelete}
         title="Delete Vendor Campaign"
         message={`Are you sure you want to delete vendor campaign "${selectedRowCampaign?.name || ""}"? This action cannot be undone.`}
+      />
+
+      <RetryCampaignModal
+        isOpen={!!retryCampaign}
+        onClose={() => {
+          setRetryCampaign(null);
+          setSelectedRowCampaign(null);
+        }}
+        onConfirm={handleConfirmRetry}
+        campaignName={retryCampaign?.name}
+        recipientCount={
+          retryCampaign?.contactCount ??
+          retryCampaign?.contacts?.length ??
+          0
+        }
+        isLoading={isRetrying}
       />
     </div>
   );
