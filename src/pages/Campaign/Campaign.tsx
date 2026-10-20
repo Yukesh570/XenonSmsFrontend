@@ -299,7 +299,7 @@ const CampaignList: React.FC = () => {
       filterKey: "schedule__icontains",
       render: (c) => (
         <span className="flex items-center gap-2">
-          <Calendar size={14} className="shrink-0" /> {c.schedule}
+          <Calendar size={14} className="shrink-0" /> {c.schedule ? formatDateTime(c.schedule) : "-"}
         </span>
       ),
     },

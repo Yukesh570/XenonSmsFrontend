@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { getCreditTransactionHistoryApi } from "../../../api/companyApi/companyApi";
 import Modal from "../../ui/Modal";
 import ModalDataTable from "../../ui/ModalDataTable";
-import { format } from "date-fns";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface CreditTransactionHistoryModalProps {
   isOpen: boolean;
@@ -31,6 +31,13 @@ export const CreditTransactionHistoryModal: React.FC<CreditTransactionHistoryMod
 
   const [columns, setColumns] = useState<string[]>(DEFAULT_COLUMNS);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+  const [, setTzTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => setTzTrigger((prev) => prev + 1);
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => window.removeEventListener("timezoneChanged", handleTimezoneChange);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -109,7 +116,7 @@ export const CreditTransactionHistoryModal: React.FC<CreditTransactionHistoryMod
       case "createdAt":
         return (
           <td key={colKey} className="px-4 py-3 border-b dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-            {item.createdAt ? format(new Date(item.createdAt), "MMM d, yyyy HH:mm") : "-"}
+            {item.createdAt ? formatDateTime(item.createdAt) : "-"}
           </td>
         );
       default:

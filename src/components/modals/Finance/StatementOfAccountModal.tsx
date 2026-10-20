@@ -3,7 +3,7 @@ import Modal from "../../ui/Modal";
 import DataTable from "../../ui/DataTable";
 import DatePicker from "../../ui/DatePicker";
 import { getAccountStatementApi } from "../../../api/financeApi/accountTransactionApi";
-import { formatLocalDateTime } from "../../../helper/dateFormatter";
+import { formatDateTime } from "../../../helper/dateFormatter";
 import { RefreshCw } from "lucide-react";
 
 interface StatementOfAccountModalProps {
@@ -170,7 +170,7 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
               return (
                 <tr key={row.id} className="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/40 transition-colors">
                   <td className="px-4 py-2.5 text-xs text-gray-700 dark:text-gray-300">
-                    {row.date ? formatLocalDateTime(new Date(row.date)) : "-"}
+                    {row.date ? formatDateTime(row.date) : "-"}
                   </td>
                   <td className="px-4 py-2.5 text-xs font-mono font-medium text-blue-600 dark:text-blue-400">
                     {row.referenceNo}

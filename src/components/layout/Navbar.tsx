@@ -73,6 +73,37 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
     localStorage.getItem("app_timezone") || "UTC"
   );
 
+  const formattedClock = useMemo(() => {
+    try {
+      const tz = appTimezone && appTimezone.trim() ? appTimezone.trim() : "UTC";
+      const datePart = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: tz,
+      }).format(currentTime);
+      const timePart = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+      }).format(currentTime);
+      return `${datePart} | ${timePart}`;
+    } catch {
+      const datePart = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(currentTime);
+      const timePart = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }).format(currentTime);
+      return `${datePart} | ${timePart}`;
+    }
+  }, [currentTime, appTimezone]);
+
   // Extract all searchable readable module pages dynamically from navItems context
   const searchableModules = useMemo(() => {
     if (!navItems?.results) return [];
@@ -301,7 +332,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
         <div className="flex items-center space-x-2">
           {/* Live Clock using state appTimezone */}
           <div className="text-sm text-gray-900 dark:text-white font-medium whitespace-nowrap shrink-0 hidden md:block">
-            {new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: appTimezone }).format(currentTime)} | {new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", timeZone: appTimezone }).format(currentTime)}
+            {formattedClock}
           </div>
           <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2 hidden md:block shrink-0" />
 

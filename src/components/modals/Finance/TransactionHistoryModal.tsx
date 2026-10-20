@@ -5,6 +5,7 @@ import Select, { type SelectOption } from "../../ui/Select";
 import DatePicker from "../../ui/DatePicker";
 import { StatusBadge } from "../../ui/StatusBadge";
 import { getTransactionHistoryApi } from "../../../api/financeApi/accountTransactionApi";
+import { formatDateTime } from "../../../helper/dateFormatter";
 import { X } from "lucide-react";
 
 interface TransactionHistoryModalProps {
@@ -40,9 +41,15 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
   const [selectedType, setSelectedType] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
-  // Column reordering & sorting state
   const [tableColumnKeys, setTableColumnKeys] = useState<string[]>(DEFAULT_COLUMN_KEYS);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+  const [, setTzTrigger] = useState(0);
+
+  useEffect(() => {
+    const handleTimezoneChange = () => setTzTrigger((prev) => prev + 1);
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => window.removeEventListener("timezoneChanged", handleTimezoneChange);
+  }, []);
 
   const visibleColumns = useMemo(() => {
     return tableColumnKeys
@@ -246,10 +253,7 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
             </div>
           }
           renderRow={(row, index) => {
-            const dateObj = new Date(row.transactionDate || row.createdAt);
-            const dateStr = !isNaN(dateObj.getTime())
-              ? dateObj.toLocaleString()
-              : "-";
+            const dateStr = formatDateTime(row.transactionDate || row.createdAt);
             const amountVal = Number(row.newLimit) || Number(row.amount) || 0;
 
             return (
