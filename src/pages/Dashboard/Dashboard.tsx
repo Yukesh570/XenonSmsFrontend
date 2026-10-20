@@ -65,7 +65,7 @@ import {
   getFailureReasonCountsApi,
   type FailureReasonCountsData,
 } from "../../api/reportApi/smsCountsApi";
-import { getDaysAgoInAppTimezone, formatDateTime } from "../../helper/dateFormatter";
+import { getDaysAgoInAppTimezone, formatDateTime, getAppTimezone } from "../../helper/dateFormatter";
 
 
 
@@ -749,28 +749,79 @@ const Dashboard: React.FC = () => {
   const formatXAxisTick = (value: any) => {
     if (isHourly) return `${value}:00`;
     if (!value) return "";
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return String(value);
+    const str = String(value).trim();
+
+    if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
+      const timeMatch = str.match(/\b(\d{2}:\d{2})\b/);
+      if (timeMatch) return timeMatch[1];
+
+      const d = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: getAppTimezone(),
+        });
+      }
+      return str;
+    }
 
     if (activeRange === "365d" || activeRange === "all") {
-      return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      const d = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString("en-US", { month: "short", year: "numeric", timeZone: getAppTimezone() });
+      }
+      return str;
     }
-    if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
-      return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+    const d = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: getAppTimezone() });
     }
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    return str;
   };
 
   const formatTooltipLabel = (value: any) => {
-    if (isHourly) return `Hour ${value}:00`;
+    if (isHourly) return `${activeRange === "yesterday" ? "Yesterday" : "Today"}, ${value}:00`;
     if (!value) return "";
-    const d = new Date(value);
-    if (isNaN(d.getTime())) return String(value);
+    const str = String(value).trim();
 
     if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
-      return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})$/);
+      if (match) {
+        const [, y, m, d, time] = match;
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const monthName = monthNames[parseInt(m, 10) - 1] || m;
+        return `${monthName} ${parseInt(d, 10)}, ${y} ${time}`;
+      }
+
+      const dateObj = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+      if (!isNaN(dateObj.getTime())) {
+        return dateObj.toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: getAppTimezone(),
+        });
+      }
+      return str;
     }
-    return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+
+    const dateObj = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+    if (!isNaN(dateObj.getTime())) {
+      return dateObj.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        timeZone: getAppTimezone(),
+      });
+    }
+    return str;
   };
 
   let tickInterval: any = "preserveStartEnd";
@@ -1027,7 +1078,7 @@ const Dashboard: React.FC = () => {
                           tick={renderTrafficTick}
                           dy={10}
                           interval={tickInterval}
-                          minTickGap={activeRange === "365d" || activeRange === "all" ? 60 : 5}
+                          minTickGap={activeRange === "365d" || activeRange === "all" ? 60 : ["5m", "15m", "1h", "2h", "4h"].includes(activeRange) ? 16 : 5}
                           ticks={monthlyTicks}
                           tickFormatter={formatXAxisTick}
                         />

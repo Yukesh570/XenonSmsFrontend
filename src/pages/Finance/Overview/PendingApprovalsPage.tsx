@@ -3,6 +3,7 @@ import { toast } from "react-toastify";
 import { getPendingTransactionsApi, verifyTransactionApi } from "../../../api/financeApi/accountTransactionApi";
 import DataTable from "../../../components/ui/DataTable";
 import Button from "../../../components/ui/Button";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 const PendingApprovalsPage: React.FC = () => {
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -21,8 +22,13 @@ const PendingApprovalsPage: React.FC = () => {
     }
   };
 
+  const [, setTzTrigger] = useState(0);
+
   useEffect(() => {
     fetchPendingTransactions();
+    const handleTimezoneChange = () => setTzTrigger((prev) => prev + 1);
+    window.addEventListener("timezoneChanged", handleTimezoneChange);
+    return () => window.removeEventListener("timezoneChanged", handleTimezoneChange);
   }, []);
 
   const handleApprove = async (transactionId: number) => {
@@ -57,8 +63,7 @@ const PendingApprovalsPage: React.FC = () => {
           isLoading={isLoading}
           data={transactions}
           renderRow={(row) => {
-            const dateObj = new Date(row.transactionDate);
-            const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toLocaleString() : row.transactionDate;
+            const dateStr = formatDateTime(row.transactionDate);
             const amountVal = Number(row.newLimit) || Number(row.amount) || 0;
 
             return (
