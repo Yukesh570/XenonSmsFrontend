@@ -1,3 +1,5 @@
+import MultiSelectDropdown from "../../components/ui/MultiSelectDropdown";
+import { getClientsApi } from "../../api/clientApi/clientApi";
 import React, { useState, useEffect, useRef } from "react";
 import { Home } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
@@ -50,7 +52,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 
-const DEFAULT_SEARCH_COLUMNS = ["client__name", "system_id", "destination_addr", "message_id"];
+const DEFAULT_SEARCH_COLUMNS = ["client__name", "exclude_client_name", "system_id", "destination_addr", "message_id"];
 const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit", "updatedAt"];
 
 const BATCH_SIZE = 100;
@@ -63,6 +65,25 @@ const RejectedSMSLog: React.FC = () => {
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const [loadedPage, setLoadedPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+
+  const [clientOptions, setClientOptions] = useState<Option[]>([]);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      try {
+        const res = await getClientsApi("client", 1, 1000);
+        const data = res.results || (Array.isArray(res) ? res : []);
+        const opts = data.map((item: any) => ({
+          label: item.name || "Unknown",
+          value: item.name || String(item.id),
+        }));
+        setClientOptions(opts);
+      } catch (err) {
+        console.error("Failed to load clients dropdown:", err);
+      }
+    };
+    fetchClients();
+  }, []);
 
   const [activePreset, setActivePreset] = useState<DatePresetKey>("today");
 
@@ -87,7 +108,8 @@ const RejectedSMSLog: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     { key: "id", label: "Log ID", type: "text", isSearchable: false },
-    { key: "client__name", label: "Client", tableLabel: "Client", type: "text", filterKey: "client__name__icontains", render: (log) => log.client_name || "-" },
+    { key: "client__name", label: "Client", tableLabel: "Client", type: "text", options: clientOptions, filterKey: "client__name__icontains", render: (log) => log.client_name || "-" },
+    { key: "exclude_client_name", label: "Exclude Client", type: "multi-select", options: clientOptions, filterKey: "client__name__not_contains", isSearchOnly: true },
     { key: "system_id", label: "System ID", type: "text", filterKey: "system_id__icontains" },
     { key: "source_addr", label: "Source Addr", type: "text", filterKey: "source_addr__icontains" },
     { key: "destination_addr", label: "Destination", type: "text", filterKey: "destination_addr__icontains" },
@@ -149,7 +171,9 @@ const RejectedSMSLog: React.FC = () => {
         const colDef = allColumns.find((c) => c.key === key);
         const baseKey = colDef?.filterKey || key;
 
-        if (colDef?.options) {
+        if (colDef?.type === "multi-select") {
+          cleanParams[baseKey] = value;
+        } else if (colDef?.options) {
           const selectedOption = colDef.options.find((opt) => opt.value === value);
           cleanParams[baseKey] = selectedOption ? selectedOption.value : value;
         } else {
@@ -318,16 +342,33 @@ const RejectedSMSLog: React.FC = () => {
         {visibleSearchFields.map((col) => {
           const baseLabel = getBaseLabel(col.label || "");
 
+          if (col.type === "multi-select" && col.options) {
+            const isExclude = col.key.startsWith("exclude_") || (col.filterKey && col.filterKey.includes("not_contains"));
+            const selectLabel = isExclude ? (col.label || "Exclude Client") : baseLabel;
+            return (
+              <MultiSelectDropdown
+                key={col.key}
+                label={selectLabel}
+                options={col.options}
+                selected={filterValues[col.key] ? filterValues[col.key].split(",").filter(Boolean) : []}
+                onChange={(selectedValues) => setFilterValues(p => ({ ...p, [col.key]: selectedValues.join(",") }))}
+                placeholder={`Select ${selectLabel}`}
+              />
+            );
+          }
           if (col.options) {
+            const isExclude = col.key.startsWith("exclude_") || (col.filterKey && col.filterKey.includes("not_contains"));
+            const selectLabel = isExclude ? (col.label || "Exclude Client") : baseLabel;
             return (
               <Select
                 key={col.key}
-                label={baseLabel}
+                label={selectLabel}
                 value={filterValues[col.key] || ""}
                 onChange={(val) => setFilterValues(p => ({ ...p, [col.key]: val }))}
                 options={col.options}
-                placeholder={`Select ${baseLabel}`}
-              allowCustomValue={true} />
+                placeholder={`Select ${selectLabel}`}
+                allowCustomValue={true}
+              />
             );
           }
           if (col.type === "date") {
@@ -393,13 +434,15 @@ const RejectedSMSLog: React.FC = () => {
               </React.Fragment>
             );
           }
+          const isExclude = col.key.startsWith("exclude_") || (col.filterKey && col.filterKey.includes("not_contains"));
+          const inputLabel = isExclude ? (col.label || "Exclude Client") : `Search ${baseLabel}`;
           return (
             <Input
               key={col.key}
-              label={`Search ${baseLabel}`}
+              label={inputLabel}
               value={filterValues[col.key] || ""}
               onChange={(e) => setFilterValues(p => ({ ...p, [col.key]: e.target.value }))}
-              placeholder={`Search ${baseLabel}`}
+              placeholder={inputLabel}
             />
           );
         })}
