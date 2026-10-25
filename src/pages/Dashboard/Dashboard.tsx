@@ -786,52 +786,87 @@ const Dashboard: React.FC = () => {
     if (isHourly) return `${activeRange === "yesterday" ? "Yesterday" : "Today"}, ${value}:00`;
     if (!value) return "";
     const str = String(value).trim();
+    const d = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
+    if (isNaN(d.getTime())) return str;
 
-    if (["5m", "15m", "1h", "2h", "4h"].includes(activeRange)) {
-      const match = str.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}:\d{2})$/);
-      if (match) {
-        const [, y, m, d, time] = match;
-        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const monthName = monthNames[parseInt(m, 10) - 1] || m;
-        return `${monthName} ${parseInt(d, 10)}, ${y} ${time}`;
-      }
-
-      const dateObj = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
-      if (!isNaN(dateObj.getTime())) {
-        return dateObj.toLocaleString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-          timeZone: getAppTimezone(),
-        });
-      }
-      return str;
-    }
-
-    const dateObj = new Date(str.includes(" ") ? str.replace(" ", "T") : str);
-    if (!isNaN(dateObj.getTime())) {
-      return dateObj.toLocaleDateString("en-US", {
-        weekday: "short",
+    if (
+      ["5m", "15m", "1h", "2h", "4h"].includes(activeRange) ||
+      (["3d", "7d"].includes(activeRange) && !!customTicks)
+    ) {
+      return d.toLocaleString("en-US", {
         month: "short",
         day: "numeric",
-        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
         timeZone: getAppTimezone(),
       });
     }
-    return str;
+    return d.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: getAppTimezone(),
+    });
   };
+
+  // ─── Custom ticks (one label per day for 3d/7d with hourly data; one per month for 365d/all) ───
+  const customTicks = React.useMemo(() => {
+    if (!trafficData || trafficData.length === 0) return undefined;
+
+    if (activeRange === "365d" || activeRange === "all") {
+      const seen = new Set<string>();
+      const ticks: string[] = [];
+      for (const item of trafficData as any[]) {
+        const raw = item[xAxisKey];
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) continue;
+        const key = activeRange === "all"
+          ? `${d.getFullYear()}-${Math.floor(d.getMonth() / 6)}`
+          : `${d.getFullYear()}-${d.getMonth()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          ticks.push(raw);
+        }
+      }
+      return ticks;
+    }
+
+    if (activeRange === "3d" || activeRange === "7d") {
+      const seen = new Set<string>();
+      const ticks: string[] = [];
+      for (const item of trafficData as any[]) {
+        const raw = item[xAxisKey];
+        if (!raw) continue;
+        const d = new Date(raw);
+        if (isNaN(d.getTime())) continue;
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          ticks.push(raw);
+        }
+      }
+      // If there are multiple points per day (e.g. hourly data points in 3d or 7d),
+      // only show one tick per day to prevent overlapping repeated date labels.
+      if (ticks.length > 0 && ticks.length < trafficData.length) {
+        return ticks;
+      }
+      return undefined;
+    }
+
+    return undefined;
+  }, [trafficData, xAxisKey, activeRange]);
 
   let tickInterval: any = "preserveStartEnd";
   let chartMinWidth = "100%";
   let needsScroll = false;
 
-  if (activeRange === "today" || activeRange === "yesterday") {
-    tickInterval = 3;
-  } else if (activeRange === "3d" || activeRange === "7d") {
+  if (customTicks) {
     tickInterval = 0;
+  } else if (activeRange === "today" || activeRange === "yesterday") {
+    tickInterval = 3;
   } else if (activeRange === "30d") {
     tickInterval = 0;
     chartMinWidth = "1800px";
@@ -863,26 +898,6 @@ const Dashboard: React.FC = () => {
       };
     }
   }, [trafficData, needsScroll, isTrafficLoading, activeRange]);
-
-  const monthlyTicks = React.useMemo(() => {
-    if (activeRange !== "365d" && activeRange !== "all") return undefined;
-    const seen = new Set<string>();
-    const ticks: string[] = [];
-    for (const item of trafficData as any[]) {
-      const raw = item[xAxisKey];
-      if (!raw) continue;
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) continue;
-      const key = activeRange === "all"
-        ? `${d.getFullYear()}-${Math.floor(d.getMonth() / 6)}`
-        : `${d.getFullYear()}-${d.getMonth()}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        ticks.push(raw);
-      }
-    }
-    return ticks;
-  }, [trafficData, xAxisKey, activeRange]);
 
   const renderTrafficTick = (props: any) => {
     const { x, y, payload } = props;
@@ -1078,8 +1093,8 @@ const Dashboard: React.FC = () => {
                           tick={renderTrafficTick}
                           dy={10}
                           interval={tickInterval}
-                          minTickGap={activeRange === "365d" || activeRange === "all" ? 60 : ["5m", "15m", "1h", "2h", "4h"].includes(activeRange) ? 16 : 5}
-                          ticks={monthlyTicks}
+                          minTickGap={activeRange === "365d" || activeRange === "all" ? 60 : 45}
+                          ticks={customTicks}
                           tickFormatter={formatXAxisTick}
                         />
                         {!needsScroll && (
