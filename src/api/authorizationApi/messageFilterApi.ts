@@ -4,6 +4,7 @@ export interface MessageFilterPolicy {
   id?: number;
   client: number;
   client_name?: string;
+  client__name?: string;
   isActive: boolean;
   destinationRulesEnabled: boolean;
   textRulesEnabled: boolean;
@@ -40,8 +41,10 @@ export interface MessageFilterRule {
   id?: number;
   client: number;
   client_name?: string;
+  client__name?: string;
   country: number | null;
   country_name?: string | null;
+  country__name?: string | null;
   country_code?: string | null;
   name: string;
   description?: string;
@@ -81,6 +84,7 @@ export interface MessageTextReplacementList {
   id?: number;
   client: number | null;
   client_name?: string | null;
+  client__name?: string | null;
   name: string;
   description?: string;
   selectionMode: "SEQUENTIAL" | "RANDOM";
@@ -157,10 +161,10 @@ export interface ValidateRuleResponse {
 }
 
 // --- Policy APIs ---
-export const getMessageFilterPoliciesApi = async (clientId?: number): Promise<MessageFilterPolicy[]> => {
-  const params = clientId ? { client: clientId } : {};
-  const response = await api.get("/api/message-filter-policies/", { params });
-  return Array.isArray(response.data) ? response.data : response.data.results || [];
+export const getMessageFilterPoliciesApi = async (params?: Record<string, any> | number): Promise<any> => {
+  const queryParams = typeof params === "number" ? { client: params } : params || {};
+  const response = await api.get("/api/message-filter-policies/", { params: queryParams });
+  return response.data;
 };
 
 export const getMessageFilterPolicyApi = async (id: number): Promise<MessageFilterPolicy> => {
@@ -179,13 +183,9 @@ export const updateMessageFilterPolicyApi = async (id: number, data: Partial<Mes
 };
 
 // --- Rules APIs ---
-export const getMessageFilterRulesApi = async (params?: {
-  client?: number;
-  targetEntity?: TargetEntity;
-  status?: string;
-}): Promise<MessageFilterRule[]> => {
+export const getMessageFilterRulesApi = async (params?: Record<string, any>): Promise<any> => {
   const response = await api.get("/api/message-filter-rules/", { params });
-  return Array.isArray(response.data) ? response.data : response.data.results || [];
+  return response.data;
 };
 
 export const createMessageFilterRuleApi = async (data: Partial<MessageFilterRule>): Promise<MessageFilterRule> => {
@@ -213,10 +213,10 @@ export const previewMessageFilterRuleApi = async (data: PreviewRequest): Promise
 };
 
 // --- Text Replacement Lists & Items APIs ---
-export const getMessageTextReplacementListsApi = async (clientId?: number): Promise<MessageTextReplacementList[]> => {
-  const params = clientId ? { client: clientId } : {};
-  const response = await api.get("/api/message-text-lists/", { params });
-  return Array.isArray(response.data) ? response.data : response.data.results || [];
+export const getMessageTextReplacementListsApi = async (params?: Record<string, any> | number): Promise<any> => {
+  const queryParams = typeof params === "number" ? { client: params } : params || {};
+  const response = await api.get("/api/message-text-lists/", { params: queryParams });
+  return response.data;
 };
 
 export const createMessageTextReplacementListApi = async (data: Partial<MessageTextReplacementList>): Promise<MessageTextReplacementList> => {
@@ -233,9 +233,9 @@ export const deleteMessageTextReplacementListApi = async (id: number): Promise<v
   await api.delete(`/api/message-text-lists/${id}/`);
 };
 
-export const getMessageTextReplacementListItemsApi = async (listId: number): Promise<MessageTextReplacementListItem[]> => {
-  const response = await api.get(`/api/message-text-lists/${listId}/items/`);
-  return Array.isArray(response.data) ? response.data : response.data.results || [];
+export const getMessageTextReplacementListItemsApi = async (listId: number, params?: Record<string, any>): Promise<any> => {
+  const response = await api.get(`/api/message-text-lists/${listId}/items/`, { params });
+  return response.data;
 };
 
 export const createMessageTextReplacementListItemApi = async (listId: number, data: Partial<MessageTextReplacementListItem>): Promise<MessageTextReplacementListItem> => {

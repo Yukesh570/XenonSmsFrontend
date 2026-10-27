@@ -5,19 +5,24 @@ import {
   Trash,
   PhoneCall,
   AlertTriangle,
-  CheckCircle,
-  Search,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import DataTable from "../../../components/ui/DataTable";
+import FilterCard from "../../../components/ui/FilterCard";
+import AdvancedFilter, {
+  type FilterColumn,
+} from "../../../components/ui/AdvancedFilter";
 import Modal from "../../../components/ui/Modal";
+import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
 import { DeleteModal } from "../../../components/modals/DeleteModal";
 import { CountryFlag } from "../../../components/ui/CountryFlag";
 import LoadingSpinner from "../../../components/ui/LoadingSpinner";
 import ToggleSwitch from "../../../components/ui/ToggleSwitch";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { formatDateTime } from "../../../helper/dateFormatter";
 import {
   getMessageFilterRulesApi,
   createMessageFilterRuleApi,
@@ -28,6 +33,24 @@ import {
   type DestinationAction,
 } from "../../../api/authorizationApi/messageFilterApi";
 
+interface Option {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}
+
+interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
+  key: string;
+  label: string;
+  type?: "text" | "number" | "boolean" | "date";
+  render?: (rule: MessageFilterRule) => React.ReactNode;
+  options?: Option[];
+  filterKey?: string;
+  isSearchOnly?: boolean;
+  isSearchable?: boolean;
+  tableLabel?: string;
+}
+
 interface DestinationRulesTabProps {
   selectedClientId: number | null;
   setSelectedClientId: (id: number | null) => void;
@@ -35,15 +58,15 @@ interface DestinationRulesTabProps {
   countries: any[];
 }
 
-const TABLE_HEADERS = [
-  "Priority",
-  "Rule Name",
-  "Country Scope",
-  "Match Criteria",
-  "Action & Target",
-  "Country Warning",
-  "Status",
-  "Actions",
+const DEFAULT_SEARCH_COLUMNS = ["name", "client", "isActive"];
+const DEFAULT_TABLE_COLUMNS = [
+  "priority",
+  "name",
+  "country",
+  "destinationMatchType",
+  "action",
+  "countryWarning",
+  "isActive",
 ];
 
 export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
@@ -54,8 +77,88 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
 }) => {
   const [rules, setRules] = useState<MessageFilterRule[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
+
+  // Pagination & Sorting State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  // Dynamic Column Persistence
+  const [tableColumns, setTableColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("destination_rules_table_columns");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading saved table columns", e);
+    }
+    return DEFAULT_TABLE_COLUMNS;
+  });
+
+  const [searchColumns, setSearchColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("destination_rules_search_columns_v2");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading saved search columns", e);
+    }
+    return DEFAULT_SEARCH_COLUMNS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("destination_rules_table_columns", JSON.stringify(tableColumns));
+  }, [tableColumns]);
+
+  useEffect(() => {
+    localStorage.setItem("destination_rules_search_columns_v2", JSON.stringify(searchColumns));
+  }, [searchColumns]);
+
+  const [filterValues, setFilterValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    if (selectedClientId) {
+      initial.client = String(selectedClientId);
+    }
+    return initial;
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    if (selectedClientId) {
+      initial.client = String(selectedClientId);
+    }
+    return initial;
+  });
+
+  // Sync external client change
+  useEffect(() => {
+    setFilterValues((prev) => {
+      if (selectedClientId) {
+        return { ...prev, client: String(selectedClientId) };
+      } else {
+        const next = { ...prev };
+        delete next.client;
+        return next;
+      }
+    });
+    setAppliedFilters((prev) => {
+      if (selectedClientId) {
+        return { ...prev, client: String(selectedClientId) };
+      } else {
+        const next = { ...prev };
+        delete next.client;
+        return next;
+      }
+    });
+  }, [selectedClientId]);
+
+  // Context Menu State
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedRowRule, setSelectedRowRule] = useState<MessageFilterRule | null>(null);
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -101,13 +204,35 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
   const [isValidating, setIsValidating] = useState(false);
 
   // Load Rules
-  const loadRules = async () => {
+  const loadRules = async (customFilters?: Record<string, string>) => {
     setLoading(true);
     try {
-      const res = await getMessageFilterRulesApi({
-        client: selectedClientId || undefined,
+      const activeFilters = customFilters !== undefined ? customFilters : appliedFilters;
+      const params: Record<string, any> = {
         targetEntity: "DESTINATION",
-      });
+      };
+
+      const clientParam = activeFilters.client ? Number(activeFilters.client) : selectedClientId || undefined;
+      if (clientParam) {
+        params.client = clientParam;
+      }
+
+      for (const [key, rawVal] of Object.entries(activeFilters)) {
+        const val = rawVal?.trim();
+        if (!val || key === "client") continue;
+
+        const colDef = allColumns.find((c) => c.key === key);
+        const filterKey = colDef?.filterKey || key;
+        params[filterKey] = val;
+      }
+
+      if (sortConfig) {
+        const colDef = allColumns.find((c) => c.key === sortConfig.key);
+        const sortKey = colDef?.filterKey ? colDef.filterKey.replace(/__(icontains|exact|gte|lte)$/, "") : sortConfig.key;
+        params.ordering = sortConfig.direction === "desc" ? `-${sortKey}` : sortKey;
+      }
+
+      const res = await getMessageFilterRulesApi(params);
       const data = Array.isArray(res) ? res : (res as any)?.results || [];
       setRules(
         data.sort(
@@ -168,6 +293,384 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
     formData.action,
     formData.replacement,
   ]);
+
+  const clientOptions: Option[] = useMemo(
+    () =>
+      clients.map((c) => ({
+        value: String(c.id),
+        label: c.name
+          ? c.companyName
+            ? `${c.name} (${c.companyName})`
+            : c.name
+          : c.companyName || `Client #${c.id}`,
+      })),
+    [clients]
+  );
+
+  const countryOptions: Option[] = useMemo(
+    () =>
+      countries.map((c) => ({
+        value: String(c.id),
+        label: c.name,
+        icon: <CountryFlag iso2={c.iso2} width={16} height={12} />,
+      })),
+    [countries]
+  );
+
+  const matchTypeOptions: Option[] = [
+    { label: "Prefix Match", value: "PREFIX" },
+    { label: "Exact Match", value: "EXACT" },
+    { label: "Regex Pattern", value: "REGEX" },
+  ];
+
+  const actionOptions: Option[] = [
+    { label: "Prefix Add", value: "PREFIX_ADD" },
+    { label: "Prefix Remove", value: "PREFIX_REMOVE" },
+    { label: "Fixed Replace", value: "FIXED_REPLACE" },
+    { label: "Regex Replace", value: "REGEX_REPLACE" },
+    { label: "Normalize", value: "NORMALIZE" },
+  ];
+
+  const booleanOptions: Option[] = [
+    { label: "Active", value: "true" },
+    { label: "Inactive", value: "false" },
+  ];
+
+  // All Column Definitions for Dynamic Table & Search
+  const allColumns: ColumnConfig[] = [
+    {
+      key: "priority",
+      label: "Priority",
+      tableLabel: "Priority",
+      type: "number",
+      filterKey: "priority",
+      render: (rule) => (
+        <span className="text-sm text-text-secondary dark:text-gray-300">
+          #{rule.priority}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      label: "Rule Name",
+      tableLabel: "Rule Name",
+      type: "text",
+      filterKey: "name__icontains",
+      render: (rule) => (
+        <span className="text-sm text-text-primary dark:text-white">
+          {rule.name}
+        </span>
+      ),
+    },
+    {
+      key: "client",
+      label: "Client",
+      tableLabel: "Client",
+      type: "text",
+      filterKey: "client",
+      options: clientOptions,
+      render: (rule) => {
+        const clientName =
+          rule.client__name ||
+          rule.client_name ||
+          clients.find((c) => c.id === rule.client || c.value === String(rule.client))?.label ||
+          clients.find((c) => c.id === rule.client || c.value === String(rule.client))?.name ||
+          (rule.client ? `Client #${rule.client}` : "Direct Client");
+
+        return (
+          <span className="text-sm text-text-secondary dark:text-gray-300">
+            {clientName}
+          </span>
+        );
+      },
+    },
+    {
+      key: "country",
+      label: "Country Scope",
+      tableLabel: "Country",
+      type: "text",
+      filterKey: "country",
+      options: countryOptions,
+      render: (rule) => {
+        const countryName =
+          rule.country__name ||
+          rule.country_name ||
+          countries.find((c) => c.id === rule.country || c.value === String(rule.country))?.name ||
+          (rule.country ? `Country #${rule.country}` : "Global");
+
+        const countryObj = countries.find(
+          (c) =>
+            c.id === rule.country ||
+            c.value === String(rule.country) ||
+            c.name?.toLowerCase() === countryName?.toLowerCase()
+        );
+        const iso2 = countryObj?.iso2 || rule.country_code;
+
+        return countryName && countryName !== "Global" ? (
+          <div className="flex items-center gap-2">
+            {iso2 && <CountryFlag iso2={iso2} width={18} height={12} />}
+            <span className="text-sm text-text-secondary dark:text-gray-300">
+              {countryName}
+            </span>
+          </div>
+        ) : (
+          <span className="text-sm text-text-secondary dark:text-gray-400">
+            Global
+          </span>
+        );
+      },
+    },
+    {
+      key: "destinationMatchType",
+      label: "Match Criteria",
+      tableLabel: "Match Type",
+      type: "text",
+      filterKey: "destinationMatchType",
+      options: matchTypeOptions,
+      render: (rule) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <StatusBadge status="SUBMITTED" customText={rule.destinationMatchType || "ANY"} />
+          {rule.destinationPattern && (
+            <span
+              className="text-sm text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
+              title={rule.destinationPattern}
+            >
+              {rule.destinationPattern}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "action",
+      label: "Action & Target",
+      tableLabel: "Action",
+      type: "text",
+      filterKey: "action",
+      options: actionOptions,
+      render: (rule) => (
+        <div className="flex items-center gap-1.5 whitespace-nowrap">
+          <StatusBadge status="SENT_TO_VENDOR" customText={rule.action} />
+          {rule.prefixValue && (
+            <span className="text-sm text-text-secondary dark:text-gray-300">
+              {rule.prefixValue}
+            </span>
+          )}
+          {rule.replacement && (
+            <span className="text-sm text-text-secondary dark:text-gray-300">
+              {rule.replacement}
+            </span>
+          )}
+          {rule.action === "NORMALIZE" && (
+            <span className="text-sm text-text-secondary dark:text-gray-400">
+              ({rule.normalizationMode || "E.164"})
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: "isActive",
+      label: "Status",
+      tableLabel: "Status",
+      type: "boolean",
+      filterKey: "isActive",
+      options: booleanOptions,
+      render: (rule) => (
+        <StatusBadge
+          status={rule.isActive ? "ACTIVE" : "INACTIVE"}
+          customText={rule.isActive ? "Active" : "Inactive"}
+        />
+      ),
+    },
+    // Optional Backend Search Fields (Available in Search Fields modal)
+    {
+      key: "destinationPattern",
+      label: "Destination Pattern",
+      filterKey: "destinationPattern__icontains",
+      type: "text",
+      isSearchOnly: true,
+    },
+    {
+      key: "country__isnull",
+      label: "Global Rules Only",
+      filterKey: "country__isnull",
+      options: [
+        { label: "Global Rules (No Country)", value: "true" },
+        { label: "Country Specific", value: "false" },
+      ],
+      isSearchOnly: true,
+    },
+    {
+      key: "senderPattern",
+      label: "Sender Pattern",
+      filterKey: "senderPattern__icontains",
+      type: "text",
+      isSearchOnly: true,
+    },
+    {
+      key: "status",
+      label: "Lifecycle Status",
+      filterKey: "status",
+      options: [
+        { label: "Active", value: "ACTIVE" },
+        { label: "Draft", value: "DRAFT" },
+        { label: "Inactive", value: "INACTIVE" },
+      ],
+      isSearchOnly: true,
+    },
+    {
+      key: "countryWarning",
+      label: "Country Warning",
+      tableLabel: "Warning",
+      isSearchable: false,
+      render: (rule) => {
+        const isPotentialCountryCross = [
+          "PREFIX_ADD",
+          "FIXED_REPLACE",
+          "REGEX_REPLACE",
+        ].includes(rule.action);
+        return isPotentialCountryCross ? (
+          <StatusBadge status="PENDING" customText="Monitored" />
+        ) : (
+          <span className="text-sm text-text-secondary dark:text-gray-400">Safe</span>
+        );
+      },
+    },
+    {
+      key: "createdAt",
+      label: "Created At",
+      tableLabel: "Created At",
+      type: "date",
+      isSearchable: false,
+      render: (rule) => (rule.createdAt ? formatDateTime(rule.createdAt) : "-"),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      tableLabel: "Updated At",
+      type: "date",
+      isSearchable: false,
+      render: (rule) =>
+        rule.updatedAt ? formatDateTime(rule.updatedAt) : "-",
+    },
+  ];
+
+  const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
+  const visibleSearchFields = searchableColumns.filter((col) =>
+    searchColumns.includes(col.key)
+  );
+
+  const visibleTableFields = tableColumns
+    .map((key) => allColumns.find((col) => col.key === key))
+    .filter((col): col is ColumnConfig => Boolean(col));
+
+  const tableHeaders = [
+    "S.N.",
+    ...visibleTableFields.map((col) => col.tableLabel || col.label),
+  ];
+
+  const tableFilterColumns = allColumns
+    .filter((c) => !c.isSearchOnly)
+    .map((c) => ({
+      key: c.key,
+      label: c.tableLabel || c.label,
+      type: c.type,
+    }));
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    setAppliedFilters({ ...filterValues });
+    loadRules(filterValues);
+  };
+
+  const handleClearFilters = () => {
+    setFilterValues({});
+    setAppliedFilters({});
+    setCurrentPage(1);
+    setSelectedClientId(null);
+    loadRules({});
+  };
+
+  const handleSort = (columnIndex: number) => {
+    const colIndex = columnIndex - 1;
+    if (colIndex >= 0 && colIndex < visibleTableFields.length) {
+      const col = visibleTableFields[colIndex];
+      setCurrentPage(1);
+      setSortConfig((prev) => {
+        if (prev?.key === col.key) {
+          if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+          return null;
+        }
+        return { key: col.key, direction: "asc" };
+      });
+    }
+  };
+
+  // Filter & Sort Rules
+  const filteredAndSortedRules = useMemo(() => {
+    let result = rules.filter((r) => {
+      for (const colKey of Object.keys(appliedFilters)) {
+        const val = appliedFilters[colKey]?.trim().toLowerCase();
+        if (!val) continue;
+
+        if (colKey === "client") {
+          const ruleClient = String(r.client || "");
+          const clientName = (r.client__name || r.client_name || "").toLowerCase();
+          if (ruleClient !== val && !clientName.includes(val)) {
+            return false;
+          }
+        } else if (colKey === "country") {
+          const ruleCountry = String(r.country || "");
+          const countryName = (r.country__name || r.country_name || "").toLowerCase();
+          if (ruleCountry !== val && !countryName.includes(val)) return false;
+        } else if (colKey === "country__isnull") {
+          if (val === "true" && r.country !== null && r.country !== undefined) return false;
+          if (val === "false" && (r.country === null || r.country === undefined)) return false;
+        } else if (colKey === "isActive") {
+          const expected = val === "true";
+          if (r.isActive !== expected) return false;
+        } else if (colKey === "status" || colKey === "ruleStatus") {
+          if (r.status?.toLowerCase() !== val) return false;
+        } else if (colKey === "destinationMatchType") {
+          if (r.destinationMatchType !== val.toUpperCase()) return false;
+        } else if (colKey === "destinationPattern") {
+          if (!r.destinationPattern?.toLowerCase().includes(val)) return false;
+        } else if (colKey === "senderPattern") {
+          if (!r.senderPattern?.toLowerCase().includes(val)) return false;
+        } else if (colKey === "action") {
+          if (r.action !== val.toUpperCase()) return false;
+        } else if (colKey === "priority") {
+          if (String(r.priority) !== val) return false;
+        } else if (colKey === "name") {
+          if (!r.name.toLowerCase().includes(val)) return false;
+        } else {
+          const itemVal = String((r as any)[colKey] || "").toLowerCase();
+          if (!itemVal.includes(val)) return false;
+        }
+      }
+      return true;
+    });
+
+    if (sortConfig) {
+      result = [...result].sort((a: any, b: any) => {
+        const aVal = a[sortConfig.key] ?? "";
+        const bVal = b[sortConfig.key] ?? "";
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        return sortConfig.direction === "asc"
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      });
+    }
+
+    return result;
+  }, [rules, appliedFilters, sortConfig]);
 
   const handleOpenAdd = () => {
     setEditingRuleId(null);
@@ -230,7 +733,7 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
     setIsSubmitting(true);
     try {
       const payload: Partial<MessageFilterRule> = {
-        client: selectedClientId || 0,
+        client: selectedClientId || (filterValues.client ? Number(filterValues.client) : 0),
         targetEntity: "DESTINATION",
         name: formData.name.trim(),
         priority: Number(formData.priority),
@@ -281,6 +784,7 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
       await deleteMessageFilterRuleApi(deletingRule.id);
       toast.success("Destination rule deleted");
       setDeletingRule(null);
+      setSelectedRowRule(null);
       loadRules();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to delete rule");
@@ -311,235 +815,193 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
     }
   };
 
-  // Filter Rules
-  const filteredRules = useMemo(() => {
-    return rules.filter((r) => {
-      const matchesSearch =
-        r.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (r.destinationPattern &&
-          r.destinationPattern.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (r.replacement &&
-          r.replacement.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (r.prefixValue &&
-          r.prefixValue.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesStatus =
-        statusFilter === "ALL" ||
-        (statusFilter === "ACTIVE" && r.isActive) ||
-        (statusFilter === "INACTIVE" && !r.isActive);
-      return matchesSearch && matchesStatus;
-    });
-  }, [rules, searchTerm, statusFilter]);
+  const handleContextMenu = (e: React.MouseEvent, rule: MessageFilterRule) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setSelectedRowRule(rule);
+  };
+
+  const contextMenuItems: ContextMenuItem[] = selectedRowRule
+    ? [
+        {
+          label: "Edit Rule",
+          icon: <Edit size={16} />,
+          onClick: () => {
+            handleOpenEdit(selectedRowRule);
+            setContextMenuPos(null);
+          },
+        },
+        {
+          label: selectedRowRule.isActive ? "Deactivate Rule" : "Activate Rule",
+          icon: <PhoneCall size={16} />,
+          onClick: () => {
+            handleToggleStatus(selectedRowRule);
+            setContextMenuPos(null);
+          },
+        },
+        {
+          label: "Delete Rule",
+          icon: <Trash size={16} />,
+          variant: "danger",
+          onClick: () => {
+            setDeletingRule(selectedRowRule);
+            setContextMenuPos(null);
+          },
+        },
+      ]
+    : [];
+
+  const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
   return (
-    <div className="space-y-4">
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Client Selector */}
-          <div className="w-64">
-            <Select
-              value={selectedClientId ? String(selectedClientId) : ""}
-              onChange={(val) => setSelectedClientId(val ? Number(val) : null)}
-              options={[
-                { value: "", label: "All Clients (Global & Direct)" },
-                ...clients.map((c) => ({
-                  value: String(c.id),
-                  label: c.name ? (c.companyName ? `${c.name} (${c.companyName})` : c.name) : (c.companyName || `Client #${c.id}`),
-                })),
-              ]}
-              placeholder="Filter by Client"
+    <div className="space-y-4" onClick={() => setContextMenuPos(null)}>
+      {/* Top Filter Bar Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative z-20">
+            <AdvancedFilter
+              columns={tableFilterColumns as any}
+              selectedColumns={tableColumns}
+              defaultColumns={DEFAULT_TABLE_COLUMNS}
+              onFilter={(cols: string[]) => setTableColumns(cols)}
+              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
+              buttonLabel="Columns"
+              enableReorder={true}
             />
           </div>
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by rule name, pattern, or replacement..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-          </div>
-
-          {/* Status Filter */}
-          <div className="w-36">
-            <Select
-              value={statusFilter}
-              onChange={(val) => setStatusFilter(val || "ALL")}
-              options={[
-                { value: "ALL", label: "All Status" },
-                { value: "ACTIVE", label: "Active Only" },
-                { value: "INACTIVE", label: "Inactive Only" },
-              ]}
+          <div className="relative z-20">
+            <AdvancedFilter
+              columns={searchableColumns as any}
+              selectedColumns={searchColumns}
+              defaultColumns={DEFAULT_SEARCH_COLUMNS}
+              onFilter={(newCols: string[]) => {
+                setSearchColumns(newCols);
+                setFilterValues((prev) => {
+                  const next = { ...prev };
+                  Object.keys(next).forEach((k) => {
+                    if (!newCols.includes(k)) delete next[k];
+                  });
+                  return next;
+                });
+              }}
+              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
+              isLoading={loading}
+              buttonLabel="Search Fields"
             />
           </div>
         </div>
-
-        <Button
-          variant="primary"
-          onClick={handleOpenAdd}
-          className="flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          <span>Add Destination Rule</span>
-        </Button>
       </div>
 
-      {/* Rules Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 flex justify-center items-center">
-            <LoadingSpinner />
-          </div>
-        ) : filteredRules.length === 0 ? (
-          <div className="p-12 text-center text-text-secondary dark:text-gray-400">
-            <PhoneCall size={40} className="mx-auto text-gray-400 mb-3 opacity-60" />
-            <p className="text-base font-semibold">No destination rules found</p>
-            <p className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
-              Destination rules allow prefix normalization, country stripping, and regex number translation for inbound SMS.
-            </p>
-            <Button
-              variant="secondary"
-              onClick={handleOpenAdd}
-              className="mt-4 inline-flex items-center gap-2"
-            >
-              <Plus size={14} />
-              Create First Destination Rule
-            </Button>
-          </div>
-        ) : (
-          <DataTable
-            headers={TABLE_HEADERS}
-            data={filteredRules}
-            renderRow={(rule) => {
-              const country = countries.find(
-                (c) =>
-                  c.id === rule.country || c.value === String(rule.country)
-              );
-              const isPotentialCountryCross =
-                rule.action === "PREFIX_ADD" ||
-                rule.action === "FIXED_REPLACE" ||
-                rule.action === "REGEX_REPLACE";
+      {/* Dynamic FilterCard */}
+      <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
+        {visibleSearchFields.map((col) => {
+          const baseLabel = getBaseLabel(col.label || "");
+          if (col.options) {
+            return (
+              <Select
+                key={col.key}
+                label={baseLabel}
+                value={filterValues[col.key] || ""}
+                onChange={(val) => handleFilterChange(col.key, val)}
+                options={col.options}
+                placeholder={`Select ${baseLabel}`}
+                allowCustomValue={true}
+              />
+            );
+          }
+          return (
+            <Input
+              key={col.key}
+              type={col.type === "number" ? "number" : "text"}
+              label={baseLabel}
+              value={filterValues[col.key] || ""}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleFilterChange(col.key, e.target.value)
+              }
+              placeholder={`Search ${baseLabel}`}
+            />
+          );
+        })}
+      </FilterCard>
 
+      {/* Reusable DataTable */}
+      <DataTable
+        density="compact"
+        headers={tableHeaders}
+        data={filteredAndSortedRules}
+        totalItems={filteredAndSortedRules.length}
+        currentPage={currentPage}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
+        isLoading={loading}
+        onSort={handleSort}
+        sortColumnIndex={
+          sortConfig
+            ? visibleTableFields.findIndex((c) => c.key === sortConfig.key) + 1
+            : null
+        }
+        sortDirection={sortConfig?.direction || null}
+        onReorderColumns={(fromIdx, toIdx) => {
+          setTableColumns((prev) => {
+            const validKeys = prev.filter((key) =>
+              allColumns.some((c) => c.key === key)
+            );
+            const next = [...validKeys];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+            return next;
+          });
+        }}
+        headerActions={
+          <Button
+            variant="primary"
+            onClick={handleOpenAdd}
+            leftIcon={<Plus size={16} />}
+          >
+            Add Destination Rule
+          </Button>
+        }
+        renderRow={(rule, index) => (
+          <tr
+            key={rule.id || index}
+            onContextMenu={(e) => handleContextMenu(e, rule)}
+            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors"
+          >
+            <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
+              {(currentPage - 1) * rowsPerPage + index + 1}
+            </td>
+            {visibleTableFields.map((col) => {
+              if (col.render) {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                  >
+                    {col.render(rule)}
+                  </td>
+                );
+              }
+              const cellData = (rule as any)[col.key];
               return (
-                <tr
-                  key={rule.id}
-                  className="border-b border-gray-100 dark:border-gray-700/60 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors"
+                <td
+                  key={col.key}
+                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                 >
-                  <td className="px-4 py-3 font-mono text-xs text-text-primary dark:text-gray-200 font-semibold">
-                    #{rule.priority}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-sm text-text-primary dark:text-white">
-                      {rule.name}
-                    </div>
-                    {rule.client_name && (
-                      <span className="text-[11px] text-text-secondary dark:text-gray-400">
-                        Client: {rule.client_name}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {country ? (
-                      <div className="flex items-center gap-2">
-                        <CountryFlag iso2={country.iso2} width={18} height={12} />
-                        <span className="text-xs text-text-primary dark:text-gray-200 font-medium">
-                          {country.name}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        Global (All Countries)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800">
-                        {rule.destinationMatchType || "ANY"}
-                      </span>
-                      {rule.destinationPattern && (
-                        <code
-                          className="text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded font-mono text-text-primary dark:text-gray-200 max-w-[140px] truncate block"
-                          title={rule.destinationPattern}
-                        >
-                          {rule.destinationPattern}
-                        </code>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="space-y-1">
-                      <span className="inline-block px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                        {rule.action}
-                      </span>
-                      {rule.prefixValue && (
-                        <div className="text-xs font-mono text-gray-600 dark:text-gray-300">
-                          Prefix: <strong>{rule.prefixValue}</strong>
-                        </div>
-                      )}
-                      {rule.replacement && (
-                        <div className="text-xs font-mono text-gray-600 dark:text-gray-300">
-                          Replace: <strong>{rule.replacement}</strong>
-                        </div>
-                      )}
-                      {rule.action === "NORMALIZE" && (
-                        <div className="text-xs text-text-secondary dark:text-gray-400">
-                          Mode: {rule.normalizationMode || "E.164"}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {isPotentialCountryCross ? (
-                      <span
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
-                        title="Action alters phone digits; subject to cross-country policy validation."
-                      >
-                        <AlertTriangle size={11} />
-                        Monitored
-                      </span>
-                    ) : (
-                      <span className="text-xs text-gray-400">Safe</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <ToggleSwitch
-                      checked={rule.isActive}
-                      onChange={() => handleToggleStatus(rule)}
-                    />
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEdit(rule)}
-                        className="p-1 text-gray-400 hover:text-primary transition-colors"
-                        title="Edit Rule"
-                      >
-                        <Edit size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeletingRule(rule)}
-                        className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
-                        title="Delete Rule"
-                      >
-                        <Trash size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+                  {cellData ?? "-"}
+                </td>
               );
-            }}
-          />
+            })}
+          </tr>
         )}
-      </div>
+      />
+
+      {/* Context Menu */}
+      <ContextMenu
+        position={contextMenuPos}
+        items={contextMenuItems}
+        onClose={() => setContextMenuPos(null)}
+      />
 
       {/* Add / Edit Destination Rule Modal */}
       <Modal
@@ -690,8 +1152,8 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
           )}
 
           {validationResult && !validationResult.isValid && (
-            <div className="p-3 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-800 rounded-lg flex items-start gap-2 text-rose-700 dark:text-rose-300 text-xs">
-              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+            <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg flex items-start gap-2.5 text-red-700 dark:text-red-400 text-xs">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-red-500" />
               <div>
                 <strong className="block font-semibold">Validation Error / ReDoS Warning:</strong>
                 <span>{validationResult.error}</span>
@@ -699,46 +1161,41 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
             </div>
           )}
 
-          {validationResult && validationResult.isValid && (
-            <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 text-xs">
-              <CheckCircle size={15} />
-              <span>Safe and valid regex pattern.</span>
-            </div>
-          )}
-
-          {/* Toggles */}
-          <div className="flex flex-wrap items-center gap-6 pt-2">
-            <label className="flex items-start gap-2.5 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={formData.stopProcessing}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    stopProcessing: e.target.checked,
-                  })
-                }
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4 mt-0.5"
-              />
-              <div className="flex flex-col">
-                <span className="font-medium">Stop processing further rules</span>
-                <span className="text-xs text-text-secondary dark:text-gray-400">
-                  Skip lower-priority rules if this rule matches.
-                </span>
+          {/* Clean UI Switches */}
+          <div className="space-y-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl">
+              <div>
+                <div className="text-sm font-semibold text-text-primary dark:text-white">
+                  Stop Processing Further Rules
+                </div>
+                <div className="text-xs text-text-secondary dark:text-gray-400">
+                  Skip lower-priority rules when this rule matches
+                </div>
               </div>
-            </label>
-
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) =>
-                  setFormData({ ...formData, isActive: e.target.checked })
+              <ToggleSwitch
+                checked={formData.stopProcessing}
+                onChange={(checked) =>
+                  setFormData({ ...formData, stopProcessing: checked })
                 }
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
               />
-              <span>Active</span>
-            </label>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl">
+              <div>
+                <div className="text-sm font-semibold text-text-primary dark:text-white">
+                  Rule Status
+                </div>
+                <div className="text-xs text-text-secondary dark:text-gray-400">
+                  Enable or disable this rule in the live routing pipeline
+                </div>
+              </div>
+              <ToggleSwitch
+                checked={formData.isActive}
+                onChange={(checked) =>
+                  setFormData({ ...formData, isActive: checked })
+                }
+              />
+            </div>
           </div>
 
           {/* Footer Actions */}

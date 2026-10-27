@@ -1,25 +1,28 @@
 import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
-  List,
   Edit,
   Trash,
-  Layers,
-  Search,
-  FileText,
-  Shuffle,
-  ListOrdered,
   Eye,
+  Shuffle,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
+import TextArea from "../../../components/ui/TextArea";
 import Select from "../../../components/ui/Select";
 import DataTable from "../../../components/ui/DataTable";
+import ModalDataTable from "../../../components/ui/ModalDataTable";
+import FilterCard from "../../../components/ui/FilterCard";
 import Modal from "../../../components/ui/Modal";
+import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
 import { DeleteModal } from "../../../components/modals/DeleteModal";
-import LoadingSpinner from "../../../components/ui/LoadingSpinner";
 import ToggleSwitch from "../../../components/ui/ToggleSwitch";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import AdvancedFilter, {
+  type FilterColumn,
+} from "../../../components/ui/AdvancedFilter";
+import { formatDateTime } from "../../../helper/dateFormatter";
 import {
   getMessageTextReplacementListsApi,
   createMessageTextReplacementListApi,
@@ -33,21 +36,40 @@ import {
   type MessageTextReplacementListItem,
 } from "../../../api/authorizationApi/messageFilterApi";
 
+interface Option {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}
+
+interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
+  key: string;
+  label: string;
+  type?: "text" | "number" | "boolean" | "date";
+  render?: (list: MessageTextReplacementList) => React.ReactNode;
+  options?: Option[];
+  filterKey?: string;
+  isSearchOnly?: boolean;
+  isSearchable?: boolean;
+  tableLabel?: string;
+}
+
 interface MessageTextListsTabProps {
   selectedClientId: number | null;
   setSelectedClientId: (id: number | null) => void;
   clients: any[];
 }
 
-const LIST_HEADERS = [
-  "ID",
-  "List Name & Description",
-  "Client",
-  "Selection Mode",
-  "Items",
-  "Status",
-  "Actions",
+const DEFAULT_SEARCH_COLUMNS = ["name", "client", "status"];
+const DEFAULT_TABLE_COLUMNS = [
+  "name",
+  "client",
+  "selectionMode",
+  "itemCount",
+  "status",
 ];
+
+const ITEM_HEADERS = ["Seq #", "Replacement Value", "Length", "Status"];
 
 export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   selectedClientId,
@@ -56,8 +78,90 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 }) => {
   const [lists, setLists] = useState<MessageTextReplacementList[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [modeFilter, setModeFilter] = useState<string>("ALL");
+
+  // Pagination & Sorting State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  // Dynamic Column Persistence
+  const [tableColumns, setTableColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("message_text_lists_table_columns");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.filter((k) => k !== "actions");
+        }
+      }
+    } catch (e) {
+      console.error("Error reading saved table columns", e);
+    }
+    return DEFAULT_TABLE_COLUMNS;
+  });
+
+  const [searchColumns, setSearchColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("message_text_lists_search_columns_v2");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading saved search columns", e);
+    }
+    return DEFAULT_SEARCH_COLUMNS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("message_text_lists_table_columns", JSON.stringify(tableColumns));
+  }, [tableColumns]);
+
+  useEffect(() => {
+    localStorage.setItem("message_text_lists_search_columns_v2", JSON.stringify(searchColumns));
+  }, [searchColumns]);
+
+  const [filterValues, setFilterValues] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    if (selectedClientId) {
+      initial.client = String(selectedClientId);
+    }
+    return initial;
+  });
+
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    if (selectedClientId) {
+      initial.client = String(selectedClientId);
+    }
+    return initial;
+  });
+
+  // Sync external client change
+  useEffect(() => {
+    setFilterValues((prev) => {
+      if (selectedClientId) {
+        return { ...prev, client: String(selectedClientId) };
+      } else {
+        const next = { ...prev };
+        delete next.client;
+        return next;
+      }
+    });
+    setAppliedFilters((prev) => {
+      if (selectedClientId) {
+        return { ...prev, client: String(selectedClientId) };
+      } else {
+        const next = { ...prev };
+        delete next.client;
+        return next;
+      }
+    });
+  }, [selectedClientId]);
+
+  // Context Menu State for Lists
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedRowList, setSelectedRowList] = useState<MessageTextReplacementList | null>(null);
 
   // List Modal State
   const [showListModal, setShowListModal] = useState(false);
@@ -84,6 +188,10 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   const [items, setItems] = useState<MessageTextReplacementListItem[]>([]);
   const [loadingItems, setLoadingItems] = useState(false);
 
+  // Item Context Menu State
+  const [itemContextMenuPos, setItemContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedRowItem, setSelectedRowItem] = useState<MessageTextReplacementListItem | null>(null);
+
   // Add / Edit Item State
   const [showItemModal, setShowItemModal] = useState(false);
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
@@ -103,10 +211,33 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   // Load Lists
-  const loadLists = async () => {
+  const loadLists = async (customFilters?: Record<string, string>) => {
     setLoading(true);
     try {
-      const res = await getMessageTextReplacementListsApi(selectedClientId || undefined);
+      const activeFilters = customFilters !== undefined ? customFilters : appliedFilters;
+      const clientParam = activeFilters.client ? Number(activeFilters.client) : selectedClientId || undefined;
+
+      const params: Record<string, any> = {};
+      if (clientParam) {
+        params.client = clientParam;
+      }
+
+      for (const [key, rawVal] of Object.entries(activeFilters)) {
+        const val = rawVal?.trim();
+        if (!val || key === "client") continue;
+
+        const colDef = allColumns.find((c) => c.key === key);
+        const filterKey = colDef?.filterKey || key;
+        params[filterKey] = val;
+      }
+
+      if (sortConfig) {
+        const colDef = allColumns.find((c) => c.key === sortConfig.key);
+        const sortKey = colDef?.filterKey ? colDef.filterKey.replace(/__(icontains|exact|gte|lte)$/, "") : sortConfig.key;
+        params.ordering = sortConfig.direction === "desc" ? `-${sortKey}` : sortKey;
+      }
+
+      const res = await getMessageTextReplacementListsApi(params);
       const data = Array.isArray(res) ? res : (res as any)?.results || [];
       setLists(data);
     } catch (err: any) {
@@ -140,15 +271,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
     }
   };
 
-  // Open Items Manager
-  const handleOpenItems = (list: MessageTextReplacementList) => {
-    setActiveListForItems(list);
-    if (list.id) {
-      loadItems(list.id);
-    }
-  };
-
-  // Open List Add / Edit
   const handleOpenAddList = () => {
     setEditingListId(null);
     setListForm({
@@ -180,29 +302,26 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 
     setIsSubmittingList(true);
     try {
+      const statusValue: "ACTIVE" | "INACTIVE" = listForm.isActive ? "ACTIVE" : "INACTIVE";
       const payload: Partial<MessageTextReplacementList> = {
-        client: selectedClientId || null,
+        client: selectedClientId || 0,
         name: listForm.name.trim(),
         description: listForm.description.trim(),
         selectionMode: listForm.selectionMode,
-        status: listForm.isActive ? "ACTIVE" : "INACTIVE",
+        status: statusValue,
       };
 
       if (editingListId) {
         await updateMessageTextReplacementListApi(editingListId, payload);
-        toast.success("Text replacement list updated");
+        toast.success("Replacement list updated successfully");
       } else {
         await createMessageTextReplacementListApi(payload);
-        toast.success("Text replacement list created");
+        toast.success("Replacement list created successfully");
       }
       setShowListModal(false);
       loadLists();
     } catch (err: any) {
-      toast.error(
-        err.response?.data?.name?.[0] ||
-        err.response?.data?.detail ||
-        "Failed to save list"
-      );
+      toast.error(err.response?.data?.detail || "Failed to save replacement list");
     } finally {
       setIsSubmittingList(false);
     }
@@ -213,8 +332,9 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
     setIsDeletingList(true);
     try {
       await deleteMessageTextReplacementListApi(deletingList.id);
-      toast.success("List deleted successfully");
+      toast.success("Replacement list deleted");
       setDeletingList(null);
+      setSelectedRowList(null);
       loadLists();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || "Failed to delete list");
@@ -225,25 +345,38 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 
   const handleToggleListStatus = async (list: MessageTextReplacementList) => {
     if (!list.id) return;
-    const nextStatus = list.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    const isCurrentlyActive = list.status === "ACTIVE";
+    const nextStatus: "ACTIVE" | "INACTIVE" = isCurrentlyActive ? "INACTIVE" : "ACTIVE";
     try {
-      await updateMessageTextReplacementListApi(list.id, { status: nextStatus });
-      toast.success(`List "${list.name}" status updated`);
+      await updateMessageTextReplacementListApi(list.id, {
+        status: nextStatus,
+      });
+      toast.success(
+        `List "${list.name}" ${!isCurrentlyActive ? "activated" : "deactivated"}`
+      );
       setLists((prev) =>
-        prev.map((l) => (l.id === list.id ? { ...l, status: nextStatus } : l))
+        prev.map((l) =>
+          l.id === list.id
+            ? { ...l, status: nextStatus }
+            : l
+        )
       );
     } catch (err: any) {
-      toast.error("Failed to toggle status");
+      toast.error("Failed to update status");
     }
   };
 
-  // Item Management Handlers
+  // Manage Items Handlers
+  const handleOpenItems = (list: MessageTextReplacementList) => {
+    setActiveListForItems(list);
+    if (list.id) loadItems(list.id);
+  };
+
   const handleOpenAddItem = () => {
     setEditingItemId(null);
     setItemForm({
       value: "",
-      sequenceNo:
-        items.length > 0 ? Math.max(...items.map((i) => i.sequenceNo)) + 1 : 1,
+      sequenceNo: items.length + 1,
       isActive: true,
     });
     setShowItemModal(true);
@@ -309,6 +442,7 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       );
       toast.success("Item deleted");
       setDeletingItem(null);
+      setSelectedRowItem(null);
       loadItems(activeListForItems.id);
       loadLists();
     } catch (err: any) {
@@ -336,196 +470,496 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
     }
   };
 
-  // Filter Lists
-  const filteredLists = useMemo(() => {
-    return lists.filter((l) => {
-      const matchesSearch =
-        l.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (l.description &&
-          l.description.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesMode =
-        modeFilter === "ALL" || l.selectionMode === modeFilter;
-      return matchesSearch && matchesMode;
+  // Context Menu Handlers
+  const handleContextMenu = (e: React.MouseEvent, list: MessageTextReplacementList) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setSelectedRowList(list);
+  };
+
+  const listContextMenuItems: ContextMenuItem[] = selectedRowList
+    ? [
+        {
+          label: "Manage Items",
+          icon: <Eye size={16} />,
+          onClick: () => {
+            handleOpenItems(selectedRowList);
+            setContextMenuPos(null);
+          },
+        },
+        {
+          label: "Edit List",
+          icon: <Edit size={16} />,
+          onClick: () => {
+            handleOpenEditList(selectedRowList);
+            setContextMenuPos(null);
+          },
+        },
+        {
+          label: selectedRowList.status === "ACTIVE" ? "Deactivate List" : "Activate List",
+          icon: <Shuffle size={16} />,
+          onClick: () => {
+            handleToggleListStatus(selectedRowList);
+            setContextMenuPos(null);
+          },
+        },
+        {
+          label: "Delete List",
+          icon: <Trash size={16} />,
+          variant: "danger",
+          onClick: () => {
+            setDeletingList(selectedRowList);
+            setContextMenuPos(null);
+          },
+        },
+      ]
+    : [];
+
+  const handleItemContextMenu = (e: React.MouseEvent, item: MessageTextReplacementListItem) => {
+    e.preventDefault();
+    setItemContextMenuPos({ x: e.clientX, y: e.clientY });
+    setSelectedRowItem(item);
+  };
+
+  const itemContextMenuItems: ContextMenuItem[] = selectedRowItem
+    ? [
+        {
+          label: "Edit Entry",
+          icon: <Edit size={16} />,
+          onClick: () => {
+            handleOpenEditItem(selectedRowItem);
+            setItemContextMenuPos(null);
+          },
+        },
+        {
+          label: selectedRowItem.status === "ACTIVE" ? "Deactivate" : "Activate",
+          icon: <Shuffle size={16} />,
+          onClick: () => {
+            handleToggleItemStatus(selectedRowItem);
+            setItemContextMenuPos(null);
+          },
+        },
+        {
+          label: "Delete Entry",
+          icon: <Trash size={16} />,
+          variant: "danger",
+          onClick: () => {
+            setDeletingItem(selectedRowItem);
+            setItemContextMenuPos(null);
+          },
+        },
+      ]
+    : [];
+
+  const clientOptions: Option[] = useMemo(
+    () =>
+      clients.map((c) => ({
+        value: String(c.id),
+        label: c.name
+          ? c.companyName
+            ? `${c.name} (${c.companyName})`
+            : c.name
+          : c.companyName || `Client #${c.id}`,
+      })),
+    [clients]
+  );
+
+  const modeOptions: Option[] = [
+    { label: "Random Rotation", value: "RANDOM" },
+    { label: "Sequential Round-Robin", value: "SEQUENTIAL" },
+  ];
+
+  const statusOptions: Option[] = [
+    { label: "Active", value: "ACTIVE" },
+    { label: "Inactive", value: "INACTIVE" },
+  ];
+
+  // All Column Definitions
+  const allColumns: ColumnConfig[] = [
+    {
+      key: "name",
+      label: "List Name",
+      tableLabel: "List Name",
+      type: "text",
+      filterKey: "name__icontains",
+      render: (list) => (
+        <span className="text-sm text-text-primary dark:text-white">
+          {list.name}
+        </span>
+      ),
+    },
+    {
+      key: "client",
+      label: "Client",
+      tableLabel: "Client",
+      type: "text",
+      filterKey: "client",
+      options: clientOptions,
+      render: (list) => {
+        const clientName =
+          list.client__name ||
+          list.client_name ||
+          clients.find((c) => c.id === list.client || c.value === String(list.client))?.label ||
+          clients.find((c) => c.id === list.client || c.value === String(list.client))?.name ||
+          (list.client ? `Client #${list.client}` : "Direct Client");
+
+        return (
+          <span className="text-sm text-text-secondary dark:text-gray-300">
+            {clientName}
+          </span>
+        );
+      },
+    },
+    {
+      key: "selectionMode",
+      label: "Selection Mode",
+      tableLabel: "Selection Mode",
+      type: "text",
+      filterKey: "selectionMode",
+      options: modeOptions,
+      render: (list) => (
+        <StatusBadge status="SUBMITTED" customText={list.selectionMode || "RANDOM"} />
+      ),
+    },
+    {
+      key: "itemCount",
+      label: "Items Count",
+      tableLabel: "Items",
+      type: "number",
+      isSearchable: false,
+      render: (list) => (
+        <span className="text-sm text-text-secondary dark:text-gray-300">
+          {list.itemCount ?? 0} item{(list.itemCount ?? 0) !== 1 ? "s" : ""}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      tableLabel: "Status",
+      type: "boolean",
+      filterKey: "status",
+      options: statusOptions,
+      render: (list) => <StatusBadge status={list.status} />,
+    },
+    // Optional Backend Search Fields (Available in Search Fields modal)
+    {
+      key: "client__isnull",
+      label: "Global Lists Only",
+      filterKey: "client__isnull",
+      options: [
+        { label: "Global Lists", value: "true" },
+        { label: "Client Lists", value: "false" },
+      ],
+      isSearchOnly: true,
+    },
+    {
+      key: "allowRandomMacros",
+      label: "Allow Random Macros",
+      filterKey: "allowRandomMacros",
+      options: [
+        { label: "Allowed", value: "true" },
+        { label: "Disallowed", value: "false" },
+      ],
+      isSearchOnly: true,
+    },
+    {
+      key: "id",
+      label: "List ID",
+      tableLabel: "ID",
+      type: "number",
+      render: (list) => (
+        <span className="text-sm text-text-secondary dark:text-gray-300">
+          #{list.id}
+        </span>
+      ),
+    },
+    {
+      key: "description",
+      label: "Description",
+      tableLabel: "Description",
+      type: "text",
+      render: (list) => (
+        <span className="text-sm text-text-secondary dark:text-gray-300 max-w-[200px] truncate block" title={list.description}>
+          {list.description || "-"}
+        </span>
+      ),
+    },
+    {
+      key: "createdAt",
+      label: "Created At",
+      tableLabel: "Created At",
+      type: "date",
+      isSearchable: false,
+      render: (list) => (list.createdAt ? formatDateTime(list.createdAt) : "-"),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      tableLabel: "Updated At",
+      type: "date",
+      isSearchable: false,
+      render: (list) => (list.updatedAt ? formatDateTime(list.updatedAt) : "-"),
+    },
+  ];
+
+  const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
+  const visibleSearchFields = searchableColumns.filter((col) =>
+    searchColumns.includes(col.key)
+  );
+
+  const visibleTableFields = tableColumns
+    .map((key) => allColumns.find((col) => col.key === key))
+    .filter((col): col is ColumnConfig => Boolean(col));
+
+  const tableHeaders = [
+    "S.N.",
+    ...visibleTableFields.map((col) => col.tableLabel || col.label),
+  ];
+
+  const tableFilterColumns = allColumns
+    .filter((c) => !c.isSearchOnly)
+    .map((c) => ({
+      key: c.key,
+      label: c.tableLabel || c.label,
+      type: c.type,
+    }));
+
+  const handleFilterChange = (key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    setAppliedFilters({ ...filterValues });
+    loadLists(filterValues);
+  };
+
+  const handleClearFilters = () => {
+    setFilterValues({});
+    setAppliedFilters({});
+    setCurrentPage(1);
+    setSelectedClientId(null);
+    loadLists({});
+  };
+
+  const handleSort = (columnIndex: number) => {
+    const colIndex = columnIndex - 1;
+    if (colIndex >= 0 && colIndex < visibleTableFields.length) {
+      const col = visibleTableFields[colIndex];
+      setCurrentPage(1);
+      setSortConfig((prev) => {
+        if (prev?.key === col.key) {
+          if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+          return null;
+        }
+        return { key: col.key, direction: "asc" };
+      });
+    }
+  };
+
+  // Filter & Sort Lists
+  const filteredAndSortedLists = useMemo(() => {
+    let result = lists.filter((l) => {
+      for (const colKey of Object.keys(appliedFilters)) {
+        const val = appliedFilters[colKey]?.trim().toLowerCase();
+        if (!val) continue;
+
+        if (colKey === "client") {
+          const listClient = String(l.client || "");
+          const clientName = (l.client__name || l.client_name || "").toLowerCase();
+          if (listClient !== val && !clientName.includes(val)) {
+            return false;
+          }
+        } else if (colKey === "client__isnull") {
+          if (val === "true" && l.client !== null && l.client !== undefined && l.client !== 0) return false;
+          if (val === "false" && (l.client === null || l.client === undefined || l.client === 0)) return false;
+        } else if (colKey === "selectionMode") {
+          if (l.selectionMode !== val.toUpperCase()) return false;
+        } else if (colKey === "status") {
+          if (l.status !== val.toUpperCase()) return false;
+        } else if (colKey === "name") {
+          if (
+            !l.name.toLowerCase().includes(val) &&
+            !(l.description && l.description.toLowerCase().includes(val))
+          ) {
+            return false;
+          }
+        } else {
+          const itemVal = String((l as any)[colKey] || "").toLowerCase();
+          if (!itemVal.includes(val)) return false;
+        }
+      }
+      return true;
     });
-  }, [lists, searchTerm, modeFilter]);
+
+    if (sortConfig) {
+      result = [...result].sort((a: any, b: any) => {
+        const aVal = a[sortConfig.key] ?? "";
+        const bVal = b[sortConfig.key] ?? "";
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        return sortConfig.direction === "asc"
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      });
+    }
+
+    return result;
+  }, [lists, appliedFilters, sortConfig]);
+
+  const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");
 
   return (
-    <div className="space-y-4">
-      {/* Top Filter & Action Bar */}
-      <div className="bg-white dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Client Selector */}
-          <div className="w-64">
-            <Select
-              value={selectedClientId ? String(selectedClientId) : ""}
-              onChange={(val) => setSelectedClientId(val ? Number(val) : null)}
-              options={[
-                { value: "", label: "All Clients (Global & Direct)" },
-                ...clients.map((c) => ({
-                  value: String(c.id),
-                  label: c.name ? (c.companyName ? `${c.name} (${c.companyName})` : c.name) : (c.companyName || `Client #${c.id}`),
-                })),
-              ]}
-              placeholder="Filter by Client"
+    <div className="space-y-4" onClick={() => setContextMenuPos(null)}>
+      {/* Top Filter Bar Controls */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative z-20">
+            <AdvancedFilter
+              columns={tableFilterColumns as any}
+              selectedColumns={tableColumns}
+              defaultColumns={DEFAULT_TABLE_COLUMNS}
+              onFilter={(cols: string[]) => setTableColumns(cols)}
+              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
+              buttonLabel="Columns"
+              enableReorder={true}
             />
           </div>
-
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px]">
-            <Search
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-            />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search replacement lists..."
-              className="w-full pl-9 pr-4 py-2 text-sm bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg text-text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-            />
-          </div>
-
-          {/* Mode Filter */}
-          <div className="w-44">
-            <Select
-              value={modeFilter}
-              onChange={(val) => setModeFilter(val || "ALL")}
-              options={[
-                { value: "ALL", label: "All Modes" },
-                { value: "RANDOM", label: "Random Rotation" },
-                { value: "SEQUENTIAL", label: "Sequential Round-Robin" },
-              ]}
+          <div className="relative z-20">
+            <AdvancedFilter
+              columns={searchableColumns as any}
+              selectedColumns={searchColumns}
+              defaultColumns={DEFAULT_SEARCH_COLUMNS}
+              onFilter={(newCols: string[]) => {
+                setSearchColumns(newCols);
+                setFilterValues((prev) => {
+                  const next = { ...prev };
+                  Object.keys(next).forEach((k) => {
+                    if (!newCols.includes(k)) delete next[k];
+                  });
+                  return next;
+                });
+              }}
+              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
+              isLoading={loading}
+              buttonLabel="Search Fields"
             />
           </div>
         </div>
-
-        <Button
-          variant="primary"
-          onClick={handleOpenAddList}
-          className="flex items-center gap-2 whitespace-nowrap"
-        >
-          <Plus size={16} />
-          <span>New Replacement List</span>
-        </Button>
       </div>
+
+      {/* Dynamic FilterCard */}
+      <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
+        {visibleSearchFields.map((col) => {
+          const baseLabel = getBaseLabel(col.label || "");
+          if (col.options) {
+            return (
+              <Select
+                key={col.key}
+                label={baseLabel}
+                value={filterValues[col.key] || ""}
+                onChange={(val) => handleFilterChange(col.key, val)}
+                options={col.options}
+                placeholder={`Select ${baseLabel}`}
+                allowCustomValue={true}
+              />
+            );
+          }
+          return (
+            <Input
+              key={col.key}
+              type={col.type === "number" ? "number" : "text"}
+              label={baseLabel}
+              value={filterValues[col.key] || ""}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                handleFilterChange(col.key, e.target.value)
+              }
+              placeholder={`Search ${baseLabel}`}
+            />
+          );
+        })}
+      </FilterCard>
 
       {/* Lists Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 flex justify-center items-center">
-            <LoadingSpinner />
-          </div>
-        ) : filteredLists.length === 0 ? (
-          <div className="p-12 text-center text-text-secondary dark:text-gray-400">
-            <Layers size={40} className="mx-auto text-gray-400 mb-3 opacity-60" />
-            <p className="text-base font-semibold">No message text replacement lists</p>
-            <p className="text-xs text-gray-400 mt-1 max-w-md mx-auto">
-              Create reusable pools of arbitrary text templates, disclaimers, or rotation variants for message text rules.
-            </p>
-            <Button
-              variant="secondary"
-              onClick={handleOpenAddList}
-              className="mt-4 inline-flex items-center gap-2"
-            >
-              <Plus size={14} />
-              Create Text List
-            </Button>
-          </div>
-        ) : (
-          <DataTable
-            headers={LIST_HEADERS}
-            data={filteredLists}
-            renderRow={(list) => (
-              <tr
-                key={list.id}
-                className="border-b border-gray-100 dark:border-gray-700/60 hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors"
-              >
-                <td className="px-4 py-3 font-mono text-xs text-text-primary dark:text-gray-200 font-semibold">
-                  #{list.id}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="font-semibold text-sm text-text-primary dark:text-white">
-                    {list.name}
-                  </div>
-                  {list.description && (
-                    <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5 line-clamp-1">
-                      {list.description}
-                    </p>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {list.client_name ? (
-                    <span className="text-xs font-medium text-text-primary dark:text-gray-200">
-                      {list.client_name}
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                      Global
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  {list.selectionMode === "SEQUENTIAL" ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                      <ListOrdered size={12} />
-                      Sequential
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                      <Shuffle size={12} />
-                      Random
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => handleOpenItems(list)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium bg-gray-100 dark:bg-gray-700 hover:bg-primary/10 hover:text-primary dark:hover:bg-primary/20 text-text-primary dark:text-gray-200 rounded-lg transition-colors border border-gray-200 dark:border-gray-600"
+      <DataTable
+        density="compact"
+        headers={tableHeaders}
+        data={filteredAndSortedLists}
+        totalItems={filteredAndSortedLists.length}
+        currentPage={currentPage}
+        rowsPerPage={rowsPerPage}
+        onPageChange={setCurrentPage}
+        onRowsPerPageChange={setRowsPerPage}
+        isLoading={loading}
+        onSort={handleSort}
+        sortColumnIndex={
+          sortConfig
+            ? visibleTableFields.findIndex((c) => c.key === sortConfig.key) + 1
+            : null
+        }
+        sortDirection={sortConfig?.direction || null}
+        onReorderColumns={(fromIdx, toIdx) => {
+          setTableColumns((prev) => {
+            const validKeys = prev.filter((key) =>
+              allColumns.some((c) => c.key === key)
+            );
+            const next = [...validKeys];
+            const [moved] = next.splice(fromIdx, 1);
+            next.splice(toIdx, 0, moved);
+            return next;
+          });
+        }}
+        emptyMessage="No text replacement lists found"
+        headerActions={
+          <Button
+            variant="primary"
+            onClick={handleOpenAddList}
+            leftIcon={<Plus size={16} />}
+          >
+            New Replacement List
+          </Button>
+        }
+        renderRow={(list, index) => (
+          <tr
+            key={list.id || index}
+            onContextMenu={(e) => handleContextMenu(e, list)}
+            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors"
+          >
+            <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
+              {(currentPage - 1) * rowsPerPage + index + 1}
+            </td>
+            {visibleTableFields.map((col) => {
+              if (col.render) {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                   >
-                    <List size={13} />
-                    <span>{list.itemCount ?? 0} items</span>
-                  </button>
+                    {col.render(list)}
+                  </td>
+                );
+              }
+              return (
+                <td
+                  key={col.key}
+                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                >
+                  {(list as any)[col.key] ?? "-"}
                 </td>
-                <td className="px-4 py-3">
-                  <ToggleSwitch
-                    checked={list.status === "ACTIVE"}
-                    onChange={() => handleToggleListStatus(list)}
-                  />
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenItems(list)}
-                      className="p-1 text-gray-400 hover:text-primary transition-colors"
-                      title="Manage Items"
-                    >
-                      <Eye size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenEditList(list)}
-                      className="p-1 text-gray-400 hover:text-primary transition-colors"
-                      title="Edit List"
-                    >
-                      <Edit size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setDeletingList(list)}
-                      className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
-                      title="Delete List"
-                    >
-                      <Trash size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            )}
-          />
+              );
+            })}
+          </tr>
         )}
-      </div>
+      />
+
+      {/* Context Menu for Lists */}
+      <ContextMenu
+        position={contextMenuPos}
+        items={listContextMenuItems}
+        onClose={() => setContextMenuPos(null)}
+      />
 
       {/* Add / Edit List Modal */}
       <Modal
@@ -543,11 +977,12 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
             required
           />
 
-          <Input
+          <TextArea
             label="Description (Optional)"
             value={listForm.description}
             onChange={(e) => setListForm({ ...listForm, description: e.target.value })}
             placeholder="Brief purpose of this replacement list"
+            rows={2}
           />
 
           <Select
@@ -562,16 +997,19 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
             ]}
           />
 
-          <div className="flex items-center gap-2 pt-2">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={listForm.isActive}
-                onChange={(e) => setListForm({ ...listForm, isActive: e.target.checked })}
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
-              />
-              <span>Active</span>
-            </label>
+          <div className="p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-text-primary dark:text-white">
+                List Status
+              </div>
+              <div className="text-xs text-text-secondary dark:text-gray-400">
+                Activate or deactivate this replacement list pool
+              </div>
+            </div>
+            <ToggleSwitch
+              checked={listForm.isActive}
+              onChange={(checked) => setListForm({ ...listForm, isActive: checked })}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -593,109 +1031,73 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       <Modal
         isOpen={!!activeListForItems}
         onClose={() => setActiveListForItems(null)}
-        className="max-w-3xl"
+        className="max-w-4xl"
         title={
-          activeListForItems
-            ? `Manage Items: ${activeListForItems.name} (${activeListForItems.selectionMode})`
-            : "Manage Items"
+          <div className="flex items-center gap-2">
+            <span>List Entries:</span>
+            <span className="text-primary font-bold">{activeListForItems?.name}</span>
+            <span className="text-xs text-text-secondary font-normal">
+              ({activeListForItems?.selectionMode || "RANDOM"})
+            </span>
+          </div>
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <p className="text-xs text-text-secondary dark:text-gray-400">
-              Each entry represents an arbitrary replacement string or multi-line template.
-            </p>
-            <Button
-              variant="primary"
-              onClick={handleOpenAddItem}
-              className="flex items-center gap-1.5 text-xs py-1.5"
-            >
-              <Plus size={14} />
-              <span>Add Text Entry</span>
-            </Button>
-          </div>
-
-          <div className="max-h-[50vh] overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-700">
-            {loadingItems ? (
-              <div className="p-8 flex justify-center">
-                <LoadingSpinner />
-              </div>
-            ) : items.length === 0 ? (
-              <div className="p-8 text-center text-text-secondary dark:text-gray-400">
-                <FileText size={32} className="mx-auto text-gray-400 mb-2 opacity-60" />
-                <p className="text-sm font-semibold">No items in this list yet</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Click &quot;Add Text Entry&quot; above to add your first template snippet.
-                </p>
-              </div>
-            ) : (
-              <table className="w-full text-left text-sm">
-                <thead className="bg-gray-50 dark:bg-gray-700/50 text-xs font-semibold text-text-secondary dark:text-gray-400 border-b border-gray-200 dark:border-gray-700">
-                  <tr>
-                    <th className="px-3 py-2.5 w-16">Seq #</th>
-                    <th className="px-3 py-2.5">Replacement Value / Text</th>
-                    <th className="px-3 py-2.5 w-20">Length</th>
-                    <th className="px-3 py-2.5 w-20">Status</th>
-                    <th className="px-3 py-2.5 w-24 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60">
-                  {items.map((item) => (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-gray-50/50 dark:hover:bg-gray-700/20 transition-colors"
-                    >
-                      <td className="px-3 py-2.5 font-mono text-xs font-semibold text-text-primary dark:text-gray-200">
-                        {item.sequenceNo}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <pre className="text-xs font-mono text-text-primary dark:text-gray-200 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-200/50 dark:border-gray-700/50">
-                          {item.value}
-                        </pre>
-                      </td>
-                      <td className="px-3 py-2.5 text-xs font-mono text-gray-500">
-                        {item.value.length} ch
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <ToggleSwitch
-                          checked={item.status === "ACTIVE"}
-                          onChange={() => handleToggleItemStatus(item)}
-                        />
-                      </td>
-                      <td className="px-3 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleOpenEditItem(item)}
-                            className="p-1 text-gray-400 hover:text-primary transition-colors"
-                            title="Edit Item"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeletingItem(item)}
-                            className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
-                            title="Delete Item"
-                          >
-                            <Trash size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="space-y-4" onClick={() => setItemContextMenuPos(null)}>
+          <ModalDataTable
+            density="compact"
+            data={items}
+            isLoading={loadingItems}
+            headers={ITEM_HEADERS}
+            emptyMessage="No items in this list yet. Click 'Add Entry' to create one."
+            headerActions={
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={handleOpenAddItem}
+                leftIcon={<Plus size={15} />}
+              >
+                Add Entry
+              </Button>
+            }
+            renderRow={(item: MessageTextReplacementListItem) => (
+              <tr
+                key={item.id}
+                onContextMenu={(e) => handleItemContextMenu(e, item)}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
+              >
+                <td className="px-4 py-3 font-mono text-xs font-semibold text-text-primary dark:text-gray-200">
+                  {item.sequenceNo}
+                </td>
+                <td className="px-4 py-3">
+                  <pre className="text-xs font-mono text-text-primary dark:text-gray-200 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
+                    {item.value}
+                  </pre>
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-text-secondary dark:text-gray-400">
+                  {item.value.length} ch
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={item.status} />
+                </td>
+              </tr>
             )}
-          </div>
+          />
 
-          <div className="flex justify-end pt-2">
+          <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
             <Button variant="secondary" onClick={() => setActiveListForItems(null)}>
               Close
             </Button>
           </div>
         </div>
       </Modal>
+
+      {/* Item Context Menu */}
+      <ContextMenu
+        position={itemContextMenuPos}
+        items={itemContextMenuItems}
+        onClose={() => setItemContextMenuPos(null)}
+      />
 
       {/* Add / Edit Single Item Modal */}
       <Modal
@@ -705,22 +1107,17 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
         title={editingItemId ? "Update Text Entry" : "Add Text Entry"}
       >
         <form onSubmit={handleSaveItem} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-300 mb-1">
-              Text Value / Template Content
-            </label>
-            <textarea
-              value={itemForm.value}
-              onChange={(e) => setItemForm({ ...itemForm, value: e.target.value })}
-              rows={4}
-              placeholder="Enter replacement string, dynamic macro, or multi-line template..."
-              className="w-full px-3 py-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-text-primary dark:text-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono"
-              required
-            />
-            <div className="text-[11px] text-gray-400 mt-1 flex justify-between">
-              <span>Supports any characters, UTF-8, and emoji.</span>
-              <span className="font-mono">{itemForm.value.length} characters</span>
-            </div>
+          <TextArea
+            label="Text Value / Template Content"
+            value={itemForm.value}
+            onChange={(e) => setItemForm({ ...itemForm, value: e.target.value })}
+            rows={4}
+            placeholder="Enter replacement string, dynamic macro, or multi-line template..."
+            required
+          />
+          <div className="text-[11px] text-gray-400 -mt-2 flex justify-between">
+            <span>Supports any characters, UTF-8, and emoji.</span>
+            <span className="font-mono">{itemForm.value.length} characters</span>
           </div>
 
           <Input
@@ -733,16 +1130,19 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
             required
           />
 
-          <div className="flex items-center gap-2 pt-2">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={itemForm.isActive}
-                onChange={(e) => setItemForm({ ...itemForm, isActive: e.target.checked })}
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
-              />
-              <span>Active</span>
-            </label>
+          <div className="p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between">
+            <div>
+              <div className="text-sm font-semibold text-text-primary dark:text-white">
+                Entry Status
+              </div>
+              <div className="text-xs text-text-secondary dark:text-gray-400">
+                Include this entry in active list selection
+              </div>
+            </div>
+            <ToggleSwitch
+              checked={itemForm.isActive}
+              onChange={(checked) => setItemForm({ ...itemForm, isActive: checked })}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -779,7 +1179,7 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
           onClose={() => setDeletingItem(null)}
           onConfirm={handleDeleteItem}
           title="Delete Text Entry"
-          message={`Are you sure you want to delete this text entry?`}
+          message="Are you sure you want to delete this text entry?"
           isDeleting={isDeletingItem}
         />
       )}
