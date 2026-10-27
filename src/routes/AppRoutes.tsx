@@ -68,6 +68,7 @@ import AnalyticsReport from "../pages/Report/AnalyticsReport";
 import UserCreation from "../pages/UserCreation/UserCreation";
 import VendorCampaign from "../pages/Campaign/VendorCampaign";
 import SenderIdManagementModule from "../pages/SenderIdManagement/SenderIdManagementModule";
+import MessageFilterManagementModule from "../pages/MessageFilterManagement/MessageFilterManagementModule";
 import LoadingSpinner from "../components/ui/LoadingSpinner";
 import SummariseReport from "../pages/Report/SummariseReport";
 import MarginReport from "../pages/Report/MarginReport";
@@ -143,6 +144,9 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   userCreation: UserCreation,
   vendorCampaign: VendorCampaign,
   senderIdManagement: SenderIdManagementModule,
+  messageFilter: MessageFilterManagementModule,
+  messageFilterManagement: MessageFilterManagementModule,
+  messageTranslation: MessageFilterManagementModule,
   summariseReport: SummariseReport,
   marginReport: MarginReport,
   overview: CreditPaymentOverviewPage,

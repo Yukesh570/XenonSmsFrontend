@@ -5,7 +5,7 @@ import {
   Shield,
   RotateCcw,
   Layers,
-  List,
+  Database,
 } from "lucide-react";
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
@@ -14,7 +14,11 @@ import { TranslationTab } from "./tabs/TranslationTab";
 import { SenderPoolsTab } from "./tabs/SenderPoolsTab";
 import { ReplacementListsTab } from "./tabs/ReplacementListsTab";
 
-export type SenderIdMainTab = "authorization" | "translation" | "pools" | "replacementLists";
+export type SenderIdMainTab =
+  | "authorization"
+  | "translation"
+  | "pools"
+  | "replacementLists";
 
 const SenderIdManagementModule: React.FC = () => {
   const location = useLocation();
@@ -23,10 +27,18 @@ const SenderIdManagementModule: React.FC = () => {
   // Determine initial tab from pathname or query param
   const getInitialTab = (): SenderIdMainTab => {
     const params = new URLSearchParams(location.search);
-    const tabParam = params.get("tab");
-    if (tabParam === "translation" || tabParam === "pools" || tabParam === "replacementLists" || tabParam === "authorization") {
-      return tabParam as SenderIdMainTab;
+    const tabParam = params.get("tab") as SenderIdMainTab;
+    const validTabs: SenderIdMainTab[] = [
+      "authorization",
+      "translation",
+      "pools",
+      "replacementLists",
+    ];
+
+    if (tabParam && validTabs.includes(tabParam)) {
+      return tabParam;
     }
+
     const path = location.pathname.toLowerCase();
     if (path.includes("translation")) return "translation";
     if (path.includes("pool")) return "pools";
@@ -112,7 +124,7 @@ const SenderIdManagementModule: React.FC = () => {
             Sender ID Management
           </h1>
           <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
-            Unified control center for client Sender ID authorization, traffic translation, number pools, and replacement lists.
+            Unified control center for client Sender ID authorization compliance, translation rules, number pools, and replacement lists.
           </p>
         </div>
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
@@ -128,51 +140,59 @@ const SenderIdManagementModule: React.FC = () => {
       {/* Main Hub Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-4">
         <div className="flex border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 pt-2 gap-2 sm:gap-6 bg-white dark:bg-gray-800 overflow-x-auto">
+          {/* Sender Authorization */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "authorization"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "authorization"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("authorization")}
           >
             <Shield size={16} />
             <span>Authorization & Compliance</span>
           </button>
 
+          {/* Sender ID Translation */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "translation"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "translation"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("translation")}
           >
             <RotateCcw size={16} />
             <span>Translation & Rewriting</span>
           </button>
 
+          {/* Sender Pools */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "pools"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "pools"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("pools")}
           >
             <Layers size={16} />
             <span>Sender Pools</span>
           </button>
 
+          {/* Sender Replacement Lists */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "replacementLists"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "replacementLists"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("replacementLists")}
           >
-            <List size={16} />
+            <Database size={16} />
             <span>Replacement Lists</span>
           </button>
         </div>
