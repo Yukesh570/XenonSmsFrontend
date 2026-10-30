@@ -127,6 +127,9 @@ export const TabProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cleanPath === "notifications") {
         return { title: "Notifications", icon: "Bell" };
       }
+      if (cleanPath === "custom-dashboard" || cleanPath === "my-workspace") {
+        return { title: "Custom Dashboard", icon: "LayoutGrid" };
+      }
 
       if (navItems?.results) {
         for (const item of navItems.results) {

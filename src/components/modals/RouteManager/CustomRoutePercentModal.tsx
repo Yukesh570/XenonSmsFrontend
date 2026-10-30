@@ -6,6 +6,8 @@ import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import Select from "../../ui/Select";
 import { CountryFlag } from "../../ui/CountryFlag";
+import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
+import { getMncMarginInfo } from "./SubRouteTableModal";
 import {
   MultiSelectDropdown,
   type MultiSelectOption,
@@ -75,16 +77,18 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingOptions, setIsFetchingOptions] = useState(false);
 
-  // Dynamic Rate States
   const [dynamicCustomerRate, setDynamicCustomerRate] = useState<string | null>(null);
   const [dynamicCustomerRateBase, setDynamicCustomerRateBase] = useState<number | null>(null);
   const [dynamicCustomerCurrency, setDynamicCustomerCurrency] = useState<string | null>(null);
+  const [dynamicAllCustomerRates, setDynamicAllCustomerRates] = useState<any[] | null>(null);
 
   const [dynamicVendorRate, setDynamicVendorRate] = useState<string | null>(null);
   const [dynamicVendorRateBase, setDynamicVendorRateBase] = useState<number | null>(null);
   const [dynamicVendorCurrency, setDynamicVendorCurrency] = useState<string | null>(null);
+  const [dynamicAllVendorRates, setDynamicAllVendorRates] = useState<any[] | null>(null);
 
   const [dynamicBaseCurrency, setDynamicBaseCurrency] = useState<string | null>(null);
+  const [selectedRateMnc, setSelectedRateMnc] = useState<string | null>(null);
 
   const statusOptions = [
     { label: "Active", value: "ACTIVE" },
@@ -215,7 +219,30 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
   // Dynamic rate fetching
   useEffect(() => {
-    if (editingRoute && formData.MCC?.length > 0 && formData.MNC?.length > 0) {
+    if (editingRoute) {
+      const allCust = (editingRoute as any).allCustomerRates && (editingRoute as any).allCustomerRates.length > 1
+        ? (editingRoute as any).allCustomerRates
+        : null;
+      const allVend = (editingRoute as any).allVendorRates && (editingRoute as any).allVendorRates.length > 1
+        ? (editingRoute as any).allVendorRates
+        : null;
+
+      setDynamicAllCustomerRates(allCust);
+      setDynamicCustomerRate(allCust ? "Multiple Rates" : ((editingRoute as any).customerRate ? String((editingRoute as any).customerRate) : null));
+
+      setDynamicAllVendorRates(allVend);
+      setDynamicVendorRate(allVend ? "Multiple Rates" : ((editingRoute as any).vendorRate ? String((editingRoute as any).vendorRate) : null));
+
+      setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+      setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+      setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode || null);
+      setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
+      setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
+
+      return;
+    }
+
+    if (formData.MCC?.length > 0 && formData.MNC?.length > 0) {
       const fetchDynamicRates = async () => {
         try {
           const mcc = formData.MCC[0] === "ALL_MCC" ? "ALL" : formData.MCC[0];
@@ -227,6 +254,8 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             if (match && match[1]) {
               cleanMnc = match[1].trim();
             }
+          } else if (cleanMnc.includes("(")) {
+            cleanMnc = cleanMnc.split("(")[0].trim();
           }
           if (cleanMnc === "ALL_MNC") cleanMnc = "ALL";
 
@@ -234,24 +263,56 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
           // Customer Rate
           try {
-            const custRes = await findCustomerRateApi({
+            const custParams: any = {
               routeGroupName: routeName,
               MCC: mcc,
-              MNC: cleanMnc,
-            });
+            };
+            if (cleanMnc && cleanMnc !== "ALL") {
+              custParams.MNC = cleanMnc;
+            }
+
+            const custRes = await findCustomerRateApi(custParams);
             const custResults = custRes.results || (Array.isArray(custRes) ? custRes : []);
-            if (custResults.length > 0) {
-              setDynamicCustomerRate(String(custResults[0].rate));
-              setDynamicCustomerRateBase(custResults[0].rateBase ?? null);
+            if (custResults.length > 1) {
+              setDynamicAllCustomerRates(custResults.map((r: any) => ({ MNC: r.MNC || r.mnc || cleanMnc, rate: r.rate })));
+              setDynamicCustomerRate("Multiple Rates");
+              setDynamicCustomerRateBase(null);
               setDynamicCustomerCurrency(custResults[0].currencyCode ?? null);
               setDynamicBaseCurrency(custResults[0].baseCurrencyCode ?? null);
+            } else if (custResults.length === 1) {
+              if (cleanMnc === "ALL" && custResults[0].MNC === "ALL" && (editingRoute as any)?.allCustomerRates?.length > 1) {
+                setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+                setDynamicCustomerRate("Multiple Rates");
+              } else {
+                setDynamicAllCustomerRates(null);
+                setDynamicCustomerRate(String(custResults[0].rate));
+                setDynamicCustomerRateBase(custResults[0].rateBase ?? null);
+                setDynamicCustomerCurrency(custResults[0].currencyCode ?? null);
+                setDynamicBaseCurrency(custResults[0].baseCurrencyCode ?? null);
+              }
             } else {
-              setDynamicCustomerRate("N/A");
-              setDynamicCustomerRateBase(null);
+              if ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1) {
+                setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+                setDynamicCustomerRate("Multiple Rates");
+                setDynamicCustomerRateBase(null);
+                setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+              } else {
+                setDynamicAllCustomerRates(null);
+                setDynamicCustomerRate("N/A");
+                setDynamicCustomerRateBase(null);
+              }
             }
           } catch {
-            setDynamicCustomerRate("Error");
-            setDynamicCustomerRateBase(null);
+            if ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1) {
+              setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+              setDynamicCustomerRate("Multiple Rates");
+              setDynamicCustomerRateBase(null);
+              setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+            } else {
+              setDynamicAllCustomerRates(null);
+              setDynamicCustomerRate("Error");
+              setDynamicCustomerRateBase(null);
+            }
           }
 
           // Vendor Rate
@@ -260,26 +321,59 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             : (editingRoute ? String(editingRoute.terminatingVendor || "") : null);
           if (currentTerminatingVendor) {
             try {
-              const vendRes = await findVendorRateApi({
+              const vendParams: any = {
                 terminatingVendor: currentTerminatingVendor,
                 MCC: mcc,
-                MNC: cleanMnc,
-              });
+              };
+              if (cleanMnc && cleanMnc !== "ALL") {
+                vendParams.MNC = cleanMnc;
+              }
+
+              const vendRes = await findVendorRateApi(vendParams);
               const vendResults = vendRes.results || (Array.isArray(vendRes) ? vendRes : []);
-              if (vendResults.length > 0) {
-                setDynamicVendorRate(String(vendResults[0].rate));
-                setDynamicVendorRateBase(vendResults[0].rateBase ?? null);
+              if (vendResults.length > 1) {
+                setDynamicAllVendorRates(vendResults.map((r: any) => ({ MNC: r.MNC || r.mnc || cleanMnc, rate: r.rate })));
+                setDynamicVendorRate("Multiple Rates");
+                setDynamicVendorRateBase(null);
                 setDynamicVendorCurrency(vendResults[0].currencyCode ?? null);
                 setDynamicBaseCurrency((prev) => prev || (vendResults[0].baseCurrencyCode ?? null));
+              } else if (vendResults.length === 1) {
+                if (cleanMnc === "ALL" && vendResults[0].MNC === "ALL" && (editingRoute as any)?.allVendorRates?.length > 1) {
+                  setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                  setDynamicVendorRate("Multiple Rates");
+                } else {
+                  setDynamicAllVendorRates(null);
+                  setDynamicVendorRate(String(vendResults[0].rate));
+                  setDynamicVendorRateBase(vendResults[0].rateBase ?? null);
+                  setDynamicVendorCurrency(vendResults[0].currencyCode ?? null);
+                  setDynamicBaseCurrency((prev) => prev || (vendResults[0].baseCurrencyCode ?? null));
+                }
               } else {
-                setDynamicVendorRate("N/A");
-                setDynamicVendorRateBase(null);
+                if ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1) {
+                  setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                  setDynamicVendorRate("Multiple Rates");
+                  setDynamicVendorRateBase(null);
+                  setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+                } else {
+                  setDynamicAllVendorRates(null);
+                  setDynamicVendorRate("N/A");
+                  setDynamicVendorRateBase(null);
+                }
               }
             } catch {
-              setDynamicVendorRate("Error");
-              setDynamicVendorRateBase(null);
+              if ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1) {
+                setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                setDynamicVendorRate("Multiple Rates");
+                setDynamicVendorRateBase(null);
+                setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+              } else {
+                setDynamicAllVendorRates(null);
+                setDynamicVendorRate("Error");
+                setDynamicVendorRateBase(null);
+              }
             }
           } else {
+            setDynamicAllVendorRates(null);
             setDynamicVendorRate(null);
             setDynamicVendorRateBase(null);
           }
@@ -289,16 +383,6 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
       };
 
       fetchDynamicRates();
-    } else if (editingRoute) {
-      setDynamicCustomerRate((editingRoute as any).customerRate ?? null);
-      setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
-      setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode ?? null);
-
-      setDynamicVendorRate((editingRoute as any).vendorRate ?? null);
-      setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
-      setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode ?? null);
-
-      setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode ?? null);
     }
   }, [vendorRows, formData.MCC, formData.MNC, formData.name, lockedName, editingRoute]);
 
@@ -404,6 +488,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   }, [formData.country, formData.MCC, formData.MNC, fullCountriesList]);
 
   useEffect(() => {
+    setSelectedRateMnc(null);
     if (isOpen) {
       if (editingRoute) {
         const parseArrayField = (val: any): string[] => {
@@ -440,6 +525,17 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             percentage: String(editingRoute.trafficPercentage || ""),
           },
         ]);
+        const initAllCust = (editingRoute as any).allCustomerRates && (editingRoute as any).allCustomerRates.length > 1 ? (editingRoute as any).allCustomerRates : null;
+        const initAllVend = (editingRoute as any).allVendorRates && (editingRoute as any).allVendorRates.length > 1 ? (editingRoute as any).allVendorRates : null;
+        setDynamicAllCustomerRates(initAllCust);
+        setDynamicAllVendorRates(initAllVend);
+        setDynamicCustomerRate(initAllCust ? "Multiple Rates" : ((editingRoute as any).customerRate ? String((editingRoute as any).customerRate) : null));
+        setDynamicVendorRate(initAllVend ? "Multiple Rates" : ((editingRoute as any).vendorRate ? String((editingRoute as any).vendorRate) : null));
+        setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+        setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+        setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode || null);
+        setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
+        setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
       } else {
         setFormData({
           name: lockedName || "",
@@ -451,6 +547,15 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           network: "",
         });
         setVendorRows([{ terminatingVendor: "", percentage: "" }]);
+        setDynamicAllCustomerRates(null);
+        setDynamicAllVendorRates(null);
+        setDynamicCustomerRate(null);
+        setDynamicCustomerRateBase(null);
+        setDynamicCustomerCurrency(null);
+        setDynamicVendorRate(null);
+        setDynamicVendorRateBase(null);
+        setDynamicVendorCurrency(null);
+        setDynamicBaseCurrency(null);
       }
     }
   }, [isOpen, lockedName, editingRoute]);
@@ -945,54 +1050,141 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             <legend className="text-sm font-semibold text-primary px-2">
               Rates & Margins (Read Only)
             </legend>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Input
-                label="Customer Rate"
-                value={dynamicCustomerRate ? `${dynamicCustomerRate} ${dynamicCustomerCurrency || ''}` : "—"}
-                disabled
-              />
-              <Input
-                label="Vendor Rate"
-                value={dynamicVendorRate ? `${dynamicVendorRate} ${dynamicVendorCurrency || ''}` : "—"}
-                disabled
-              />
-              <Input
-                label="Margin"
-                value={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return `${margin.toFixed(6)} ${dynamicBaseCurrency || ''}`;
-                  }
-                  return "—";
-                })()}
-                className={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
-                  }
-                  return "";
-                })()}
-                disabled
-              />
-              <Input
-                label="Margin %"
-                value={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
-                    const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
-                    return `${marginPct.toFixed(2)}%`;
-                  }
-                  return "—";
-                })()}
-                className={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
-                  }
-                  return "";
-                })()}
-                disabled
-              />
-            </div>
+            {(() => {
+              const custRates = (dynamicAllCustomerRates && dynamicAllCustomerRates.length > 1)
+                ? dynamicAllCustomerRates
+                : ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1 ? (editingRoute as any).allCustomerRates : null);
+              const vendRates = (dynamicAllVendorRates && dynamicAllVendorRates.length > 1)
+                ? dynamicAllVendorRates
+                : ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1 ? (editingRoute as any).allVendorRates : null);
+              const custCurrency = dynamicCustomerCurrency || (editingRoute as any)?.clientCurrencyCode || (editingRoute as any)?.customerCurrencyCode || "";
+              const vendCurrency = dynamicVendorCurrency || (editingRoute as any)?.vendorCurrencyCode || "";
+              const hasMultipleRates = Boolean((custRates && custRates.length > 1) || (vendRates && vendRates.length > 1));
+              const activeMncMargin = (hasMultipleRates && selectedRateMnc)
+                ? getMncMarginInfo(editingRoute || {
+                    allMargins: (editingRoute as any)?.allMargins,
+                    allCustomerRates: custRates,
+                    allVendorRates: vendRates,
+                    customerRateBase: dynamicCustomerRateBase,
+                    vendorRateBase: dynamicVendorRateBase,
+                  }, selectedRateMnc)
+                : null;
+
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {custRates && custRates.length > 1 ? (
+                    <div className="flex flex-col w-full">
+                      <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
+                        Customer Rate
+                      </label>
+                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
+                        <RatesHoverDropdown
+                          title="All Customer Rates"
+                          rates={custRates}
+                          currencyCode={custCurrency}
+                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                          allMargins={(editingRoute as any)?.allMargins}
+                          selectedMnc={selectedRateMnc}
+                          onSelectMnc={setSelectedRateMnc}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <Input
+                      label="Customer Rate"
+                      value={dynamicCustomerRate ? `${dynamicCustomerRate} ${custCurrency}` : ((editingRoute as any)?.customerRate ? `${(editingRoute as any).customerRate} ${custCurrency}` : "—")}
+                      disabled
+                    />
+                  )}
+
+                  {vendRates && vendRates.length > 1 ? (
+                    <div className="flex flex-col w-full">
+                      <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
+                        Vendor Rate
+                      </label>
+                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
+                        <RatesHoverDropdown
+                          title="All Network Rates"
+                          rates={vendRates}
+                          currencyCode={vendCurrency}
+                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                          allMargins={(editingRoute as any)?.allMargins}
+                          selectedMnc={selectedRateMnc}
+                          onSelectMnc={setSelectedRateMnc}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <Input
+                      label="Vendor Rate"
+                      value={dynamicVendorRate ? `${dynamicVendorRate} ${vendCurrency}` : ((editingRoute as any)?.vendorRate ? `${(editingRoute as any).vendorRate} ${vendCurrency}` : "—")}
+                      disabled
+                    />
+                  )}
+
+                  <Input
+                    label={selectedRateMnc ? `Margin (MNC: ${selectedRateMnc})` : "Margin"}
+                    value={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
+                          return `${activeMncMargin.margin > 0 ? "+" : ""}${Number(activeMncMargin.margin).toFixed(6)} ${dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode || ''}`;
+                        }
+                        return "—";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
+                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
+                        return `${margin.toFixed(6)} ${dynamicBaseCurrency || ''}`;
+                      }
+                      return "—";
+                    })()}
+                    className={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
+                          return activeMncMargin.margin < 0 ? "!text-red-500 font-medium" : activeMncMargin.margin > 0 ? "!text-green-600 font-medium" : "";
+                        }
+                        return "";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
+                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
+                        return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
+                      }
+                      return "";
+                    })()}
+                    disabled
+                  />
+                  <Input
+                    label={selectedRateMnc ? `Margin % (MNC: ${selectedRateMnc})` : "Margin %"}
+                    value={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
+                          return `${Number(activeMncMargin.marginPercentage).toFixed(2)}%`;
+                        }
+                        return "—";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
+                        const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
+                        return `${marginPct.toFixed(2)}%`;
+                      }
+                      return "—";
+                    })()}
+                    className={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
+                          return activeMncMargin.marginPercentage < 0 ? "!text-red-500 font-medium" : activeMncMargin.marginPercentage > 0 ? "!text-green-600 font-medium" : "";
+                        }
+                        return "";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
+                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
+                        return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
+                      }
+                      return "";
+                    })()}
+                    disabled
+                  />
+                </div>
+              );
+            })()}
           </fieldset>
         )}
 

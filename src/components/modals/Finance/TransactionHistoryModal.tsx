@@ -22,13 +22,14 @@ interface ColumnDef {
 
 const ALL_COLUMNS: ColumnDef[] = [
   { key: "date", label: "Date" },
+  { key: "reference", label: "Reference" },
   { key: "type", label: "Type" },
   { key: "amount", label: "Amount / Limit" },
   { key: "remarks", label: "Remarks" },
   { key: "status", label: "Status" },
 ];
 
-const DEFAULT_COLUMN_KEYS = ["date", "type", "amount", "remarks", "status"];
+const DEFAULT_COLUMN_KEYS = ["date", "reference", "type", "amount", "remarks", "status"];
 
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen,
@@ -273,6 +274,29 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                           className="px-4 py-2.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                         >
                           {dateStr}
+                        </td>
+                      );
+                    case "reference":
+                      const refCode =
+                        row.referenceCode ||
+                        row.referenceNo ||
+                        (row.id
+                          ? `${
+                              row.transactionType === "CREDIT_ADJUSTMENT"
+                                ? "CR"
+                                : row.transactionType === "DEBIT_ADJUSTMENT"
+                                ? "DB"
+                                : row.transactionType === "CREDIT_LIMIT_INCREASE"
+                                ? "LIM"
+                                : "PAY"
+                            }-${String(row.id).padStart(5, "0")}`
+                          : "-");
+                      return (
+                        <td
+                          key="reference"
+                          className="px-4 py-2.5 text-xs font-mono font-semibold text-primary dark:text-primary-light whitespace-nowrap"
+                        >
+                          {refCode}
                         </td>
                       );
                     case "type":

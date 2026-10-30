@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "../components/layout/Layout";
 import Login from "../pages/Auth/Login";
 import Dashboard from "../pages/Dashboard/Dashboard";
+import CustomDashboard from "../pages/CustomDashboard/CustomDashboard";
 import CreateSidebar from "../pages/module/ModuleList";
 import PermissionsTable from "../pages/role/role";
 import { useAuth } from "../context/AuthContext";
@@ -77,6 +78,8 @@ import PendingApprovalsPage from "../pages/Finance/Overview/PendingApprovalsPage
 
 export const componentRegistry: Record<string, React.ComponentType<any>> = {
   dashboard: Dashboard,
+  "custom-dashboard": CustomDashboard,
+  "my-workspace": CustomDashboard,
   navItem: CreateSidebar,
   role: PermissionsTable,
   changePassword: ChangePassword,
@@ -158,6 +161,7 @@ export const getComponentByPath = (pathname: string): React.ComponentType<any> =
   const cleanPath = pathWithoutQuery.replace(/^\//, "");
 
   if (!cleanPath || cleanPath === "dashboard") return Dashboard;
+  if (cleanPath === "custom-dashboard" || cleanPath === "my-workspace") return CustomDashboard;
   if (cleanPath === "change-password") return ChangePassword;
   if (cleanPath === "notifications") return AllNotifications;
 

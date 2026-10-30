@@ -121,41 +121,75 @@ const Sidebar = ({ isCollapsed, isMobileOpen, closeMobileSidebar }: SidebarProps
       const paddingLeftStyle = !isActuallyCollapsed ? { paddingLeft: `${level * 12 + 12}px` } : {};
       const iconSize = level === 0 ? 20 : 18;
 
+      const isCustomDashboardActive =
+        location.pathname === "/custom-dashboard" ||
+        location.pathname.startsWith("/custom-dashboard/");
+
       return (
-        <div key={item.id} className="w-full">
-          <NavLink
-            to={itemPath}
-            data-active={isActive ? "true" : "false"}
-            className={`${baseClasses} ${layoutClasses} ${colorClasses}`}
-            style={paddingLeftStyle}
-            onClick={(e) => {
-              if (hasChildren) {
-                e.preventDefault();
-                toggleItem(item.id);
-              } else {
-                if (window.innerWidth < 768) closeMobileSidebar();
-              }
-            }}
-            onMouseEnter={(e) => handleMouseEnter(e, item.label)}
-            onMouseLeave={handleMouseLeave}
-          >
-            <div className={`flex items-center ${isActuallyCollapsed ? "justify-center" : "gap-3"}`}>
-              {renderIcon(item.icon, iconSize)}
-              {!isActuallyCollapsed && <span className="text-sm leading-tight">{item.label}</span>}
-            </div>
-            {!isActuallyCollapsed && hasChildren && (
-              <div className="text-gray-400">{isOpen ? <Icons.ChevronDown size={15} /> : <Icons.ChevronRight size={15} />}</div>
+        <React.Fragment key={item.id}>
+          <div className="w-full">
+            <NavLink
+              to={itemPath}
+              data-active={isActive ? "true" : "false"}
+              className={`${baseClasses} ${layoutClasses} ${colorClasses}`}
+              style={paddingLeftStyle}
+              onClick={(e) => {
+                if (hasChildren) {
+                  e.preventDefault();
+                  toggleItem(item.id);
+                } else {
+                  if (window.innerWidth < 768) closeMobileSidebar();
+                }
+              }}
+              onMouseEnter={(e) => handleMouseEnter(e, item.label)}
+              onMouseLeave={handleMouseLeave}
+            >
+              <div className={`flex items-center ${isActuallyCollapsed ? "justify-center" : "gap-3"}`}>
+                {renderIcon(item.icon, iconSize)}
+                {!isActuallyCollapsed && <span className="text-sm leading-tight">{item.label}</span>}
+              </div>
+              {!isActuallyCollapsed && hasChildren && (
+                <div className="text-gray-400">{isOpen ? <Icons.ChevronDown size={15} /> : <Icons.ChevronRight size={15} />}</div>
+              )}
+              {isActuallyCollapsed && isActive && (
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full"></div>
+              )}
+            </NavLink>
+            {hasChildren && isOpen && (
+              <div className={`overflow-hidden transition-all duration-300 ${isActuallyCollapsed ? "bg-gray-100 dark:bg-gray-800/50 rounded-xl mx-1 mb-2 py-1 border border-gray-100 dark:border-gray-700" : "border-l-2 border-gray-100 dark:border-gray-700 ml-5 my-1"}`}>
+                {renderNavItems({ count: 0, next: null, previous: null, results: item.children! }, level + 1)}
+              </div>
             )}
-            {isActuallyCollapsed && isActive && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full"></div>
-            )}
-          </NavLink>
-          {hasChildren && isOpen && (
-            <div className={`overflow-hidden transition-all duration-300 ${isActuallyCollapsed ? "bg-gray-100 dark:bg-gray-800/50 rounded-xl mx-1 mb-2 py-1 border border-gray-100 dark:border-gray-700" : "border-l-2 border-gray-100 dark:border-gray-700 ml-5 my-1"}`}>
-              {renderNavItems({ count: 0, next: null, previous: null, results: item.children! }, level + 1)}
+          </div>
+
+          {isDashboardItem && level === 0 && (
+            <div key="custom-dashboard-nav-item" className="w-full">
+              <NavLink
+                to="/custom-dashboard"
+                data-active={isCustomDashboardActive ? "true" : "false"}
+                className={`${baseClasses} ${layoutClasses} ${
+                  isCustomDashboardActive
+                    ? "bg-sidebar-active-bg dark:bg-transparent text-sidebar-active-text font-medium"
+                    : "text-text-secondary hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+                }`}
+                style={paddingLeftStyle}
+                onClick={() => {
+                  if (window.innerWidth < 768) closeMobileSidebar();
+                }}
+                onMouseEnter={(e) => handleMouseEnter(e, "Custom Dashboard")}
+                onMouseLeave={handleMouseLeave}
+              >
+                <div className={`flex items-center ${isActuallyCollapsed ? "justify-center" : "gap-3"}`}>
+                  <Icons.LayoutGrid size={iconSize} className="flex-shrink-0" />
+                  {!isActuallyCollapsed && <span className="text-sm leading-tight">Custom Dashboard</span>}
+                </div>
+                {isActuallyCollapsed && isCustomDashboardActive && (
+                  <div className="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-l-full"></div>
+                )}
+              </NavLink>
             </div>
           )}
-        </div>
+        </React.Fragment>
       );
     });
   };

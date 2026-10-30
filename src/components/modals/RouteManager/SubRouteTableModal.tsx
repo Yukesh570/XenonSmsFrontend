@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import Modal from "../../ui/Modal";
 import { DeleteModal } from "../DeleteModal";
 import {
@@ -26,6 +25,7 @@ import Button from "../../ui/Button";
 import Select from "../../ui/Select";
 import Input from "../../ui/Input";
 import { StatusBadge } from "../../ui/StatusBadge";
+import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
 import { CountryFlag } from "../../ui/CountryFlag";
 import ContextMenu, { type ContextMenuItem } from "../../ui/ContextMenu";
 import ToggleSwitch from "../../ui/ToggleSwitch";
@@ -121,145 +121,6 @@ const FilterInput = ({
   </div>
 );
 
-const RatesHoverDropdown: React.FC<{
-  title: string;
-  rates: Array<{ MNC: string; rate: string | number }>;
-  currencyCode?: string;
-}> = ({ title, rates, currencyCode }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [openUpwards, setOpenUpwards] = useState(false);
-  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const calculatePosition = () => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    const estimatedHeight = Math.min(240, 55 + rates.length * 26);
-    const shouldOpenUp = spaceBelow < estimatedHeight + 15 && spaceAbove > spaceBelow;
-
-    setOpenUpwards(shouldOpenUp);
-
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(120, Math.min(window.innerWidth - 120, centerX));
-
-    if (shouldOpenUp) {
-      setCoords({
-        bottom: window.innerHeight - rect.top + 6,
-        left,
-      });
-    } else {
-      setCoords({
-        top: rect.bottom + 6,
-        left,
-      });
-    }
-  };
-
-  const handleMouseEnter = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    calculatePosition();
-    setIsOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 150);
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleScrollOrResize = () => {
-      calculatePosition();
-    };
-    window.addEventListener("scroll", handleScrollOrResize, true);
-    window.addEventListener("resize", handleScrollOrResize);
-    return () => {
-      window.removeEventListener("scroll", handleScrollOrResize, true);
-      window.removeEventListener("resize", handleScrollOrResize);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={triggerRef}
-      className="relative inline-block select-none"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div className="cursor-pointer inline-flex items-center hover:opacity-80 transition-opacity">
-        <StatusBadge
-          status="MULTIPLE_RATES"
-          customText={
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>Multiple Rates</span>
-              <ChevronDown
-                size={11}
-                strokeWidth={2.5}
-                className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
-              />
-            </span>
-          }
-        />
-      </div>
-
-      {isOpen &&
-        createPortal(
-          <div
-            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl p-2.5 min-w-[210px] max-w-[290px] pointer-events-auto animate-fade-in"
-            style={{
-              position: "fixed",
-              left: `${coords.left}px`,
-              ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : { top: `${coords.top}px` }),
-              transform: "translateX(-50%)",
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            <div className="text-xs font-semibold mb-1.5 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-1 flex items-center justify-between">
-              <span>{title}</span>
-              <span className="text-[10px] font-normal text-gray-400">({rates.length})</span>
-            </div>
-            <div className="max-h-52 overflow-y-auto pr-0.5 custom-scrollbar">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50 sticky top-0">
-                    <th className="px-2 py-1 font-medium">MNC</th>
-                    <th className="px-2 py-1 font-medium text-right">Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                  {rates.map((r, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-2 py-1 font-mono text-xs text-gray-700 dark:text-gray-300">{r.MNC}</td>
-                      <td className="px-2 py-1 font-mono text-xs text-right text-gray-700 dark:text-gray-300">
-                        {r.rate} {currencyCode || ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>,
-          document.body
-        )}
-    </div>
-  );
-};
-
 const routingTypeOptions = [
   { label: "Priority", value: "PRIORITY" },
   { label: "Percentage", value: "PERCENTAGE" },
@@ -308,6 +169,79 @@ const formatGroupKeyLabel = (groupKey: string): string => {
   if (!mcc || mcc.trim() === "") return "Unassigned Network Group";
   if (!mnc || mnc.trim() === "") return `MCC ${mcc} / MNC (Select MNC)`;
   return `MCC ${mcc} / MNC ${mnc}`;
+};
+
+export const getMncMarginInfo = (
+  itemData: any,
+  selectedMnc?: string | null
+): { margin?: number; marginPercentage?: number } | null => {
+  if (!selectedMnc) return null;
+  const mncStr = selectedMnc.trim();
+
+  // 1. Check allMargins dictionary
+  if (itemData.allMargins && itemData.allMargins[mncStr]) {
+    const m = itemData.allMargins[mncStr];
+    return {
+      margin: m.margin !== undefined && m.margin !== null ? Number(m.margin) : undefined,
+      marginPercentage: m.marginPercentage !== undefined && m.marginPercentage !== null ? Number(m.marginPercentage) : undefined,
+    };
+  }
+
+  // 2. Check in allCustomerRates
+  if (Array.isArray(itemData.allCustomerRates)) {
+    const cust = itemData.allCustomerRates.find(
+      (r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr
+    );
+    if (cust && cust.margin !== undefined && cust.margin !== null) {
+      return {
+        margin: Number(cust.margin),
+        marginPercentage: cust.marginPercentage !== undefined && cust.marginPercentage !== null ? Number(cust.marginPercentage) : undefined,
+      };
+    }
+  }
+
+  // 3. Check in allVendorRates
+  if (Array.isArray(itemData.allVendorRates)) {
+    const vend = itemData.allVendorRates.find(
+      (r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr
+    );
+    if (vend && vend.margin !== undefined && vend.margin !== null) {
+      return {
+        margin: Number(vend.margin),
+        marginPercentage: vend.marginPercentage !== undefined && vend.marginPercentage !== null ? Number(vend.marginPercentage) : undefined,
+      };
+    }
+  }
+
+  // 4. Compute from rateBase if available
+  const custItem = Array.isArray(itemData.allCustomerRates)
+    ? itemData.allCustomerRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr) ||
+      itemData.allCustomerRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === "ALL")
+    : null;
+  const vendItem = Array.isArray(itemData.allVendorRates)
+    ? itemData.allVendorRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr) ||
+      itemData.allVendorRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === "ALL")
+    : null;
+
+  const crBase = custItem?.rateBase !== undefined && custItem?.rateBase !== null
+    ? Number(custItem.rateBase)
+    : itemData.customerRateBase != null && !["N/A", "Error"].includes(String(itemData.customerRateBase))
+    ? Number(itemData.customerRateBase)
+    : null;
+
+  const vrBase = vendItem?.rateBase !== undefined && vendItem?.rateBase !== null
+    ? Number(vendItem.rateBase)
+    : itemData.vendorRateBase != null && !["N/A", "Error"].includes(String(itemData.vendorRateBase))
+    ? Number(itemData.vendorRateBase)
+    : null;
+
+  if (crBase != null && vrBase != null && !isNaN(crBase) && !isNaN(vrBase)) {
+    const margin = crBase - vrBase;
+    const marginPercentage = crBase !== 0 ? (margin / crBase) * 100 : 0;
+    return { margin, marginPercentage };
+  }
+
+  return null;
 };
 
 export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
@@ -379,6 +313,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [isEditPriorityModalOpen, setIsEditPriorityModalOpen] = useState(false);
   const [isEditPercentModalOpen, setIsEditPercentModalOpen] = useState(false);
   const [editingRouteData, setEditingRouteData] = useState<CustomRouteData | null>(null);
+  const [selectedMncByRoute, setSelectedMncByRoute] = useState<Record<string | number, string>>({});
 
   const handleRouteContextMenu = (
     e: React.MouseEvent,
@@ -642,6 +577,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setCountrySearchTerm("");
       setIsLoadingConfigs(false);
       hasFetchedRef.current = false;
+      setSelectedMncByRoute({});
       return;
     }
     hasFetchedRef.current = false;
@@ -2300,6 +2236,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     title="All Customer Rates"
                                                     rates={row.allCustomerRates}
                                                     currencyCode={row.customerCurrencyCode}
+                                                    baseCurrencyCode={row.baseCurrencyCode}
+                                                    allMargins={(row as any).allMargins}
+                                                    selectedMnc={selectedMncByRoute[row._id]}
+                                                    onSelectMnc={(mnc) =>
+                                                      setSelectedMncByRoute((prev) => {
+                                                        const next = { ...prev };
+                                                        if (mnc) next[row._id] = mnc;
+                                                        else delete next[row._id];
+                                                        return next;
+                                                      })
+                                                    }
                                                   />
                                                 ) : row.customerRate ? (
                                                   row.customerRate === "N/A" || row.customerRate === "Error" ? (
@@ -2317,6 +2264,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     title="All Network Rates"
                                                     rates={row.allVendorRates}
                                                     currencyCode={row.vendorCurrencyCode}
+                                                    baseCurrencyCode={row.baseCurrencyCode}
+                                                    allMargins={(row as any).allMargins}
+                                                    selectedMnc={selectedMncByRoute[row._id]}
+                                                    onSelectMnc={(mnc) =>
+                                                      setSelectedMncByRoute((prev) => {
+                                                        const next = { ...prev };
+                                                        if (mnc) next[row._id] = mnc;
+                                                        else delete next[row._id];
+                                                        return next;
+                                                      })
+                                                    }
                                                   />
                                                 ) : row.vendorRate ? (
                                                   row.vendorRate === "N/A" || row.vendorRate === "Error" ? (
@@ -2328,12 +2286,76 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   "—"
                                                 )}
                                               </td>
-                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-20 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                                {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMargin !== null ? `${rowMargin.toFixed(6)} ${row.baseCurrencyCode || ''}` : "—"}
-                                              </td>
-                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-16 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                                {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMarginPct !== null ? rowMarginPct.toFixed(2) + "%" : "—"}
-                                              </td>
+                                              {(() => {
+                                                const hasMultipleRates = Boolean(
+                                                  (row.allVendorRates && row.allVendorRates.length > 1) ||
+                                                  (row.allCustomerRates && row.allCustomerRates.length > 1)
+                                                );
+                                                const rowSelectedMnc = selectedMncByRoute[row._id];
+                                                const mncMarginInfo = hasMultipleRates && rowSelectedMnc ? getMncMarginInfo(row, rowSelectedMnc) : null;
+                                                const effectiveMargin = mncMarginInfo ? mncMarginInfo.margin : hasMultipleRates ? null : rowMargin;
+                                                const effectiveMarginPct = mncMarginInfo ? mncMarginInfo.marginPercentage : hasMultipleRates ? null : rowMarginPct;
+
+                                                return (
+                                                  <>
+                                                    <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-20 ${
+                                                      effectiveMargin !== null && effectiveMargin !== undefined
+                                                        ? effectiveMargin < 0
+                                                          ? 'text-red-500 font-medium'
+                                                          : effectiveMargin > 0
+                                                          ? 'text-green-600 font-medium'
+                                                          : 'text-gray-500'
+                                                        : 'text-gray-400'
+                                                    }`}>
+                                                      {effectiveMargin !== null && effectiveMargin !== undefined ? (
+                                                        <div className="inline-flex flex-col items-center leading-tight">
+                                                          <span>
+                                                            {effectiveMargin > 0 ? "+" : ""}
+                                                            {Number(effectiveMargin).toFixed(6)} {row.baseCurrencyCode || ''}
+                                                          </span>
+                                                          {rowSelectedMnc && (
+                                                            <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded font-sans mt-0.5 border border-blue-200 dark:border-blue-800">
+                                                              MNC {rowSelectedMnc}
+                                                              <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                  e.stopPropagation();
+                                                                  setSelectedMncByRoute((prev) => {
+                                                                    const next = { ...prev };
+                                                                    delete next[row._id];
+                                                                    return next;
+                                                                  });
+                                                                }}
+                                                                className="hover:text-red-500 ml-0.5 text-[9px] font-bold"
+                                                                title="Clear MNC selection"
+                                                              >
+                                                                ✕
+                                                              </button>
+                                                            </span>
+                                                          )}
+                                                        </div>
+                                                      ) : (
+                                                        "—"
+                                                      )}
+                                                    </td>
+                                                    <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-16 ${
+                                                      effectiveMarginPct !== null && effectiveMarginPct !== undefined
+                                                        ? effectiveMarginPct < 0
+                                                          ? 'text-red-500 font-medium'
+                                                          : effectiveMarginPct > 0
+                                                          ? 'text-green-600 font-medium'
+                                                          : 'text-gray-500'
+                                                        : 'text-gray-400'
+                                                    }`}>
+                                                      {effectiveMarginPct !== null && effectiveMarginPct !== undefined ? (
+                                                        <span>{Number(effectiveMarginPct).toFixed(2)}%</span>
+                                                      ) : (
+                                                        "—"
+                                                      )}
+                                                    </td>
+                                                  </>
+                                                );
+                                              })()}
                                               <td className="px-2 py-1 border-b dark:border-gray-700 overflow-visible w-20">
                                                 <div className="inline-table-field min-w-[80px]">
                                                   <Select
@@ -2418,6 +2440,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   title="All Customer Rates"
                                                   rates={(route as any).allCustomerRates}
                                                   currencyCode={(route as any).clientCurrencyCode}
+                                                  baseCurrencyCode={(route as any).baseCurrencyCode}
+                                                  allMargins={(route as any).allMargins}
+                                                  selectedMnc={selectedMncByRoute[route.id!]}
+                                                  onSelectMnc={(mnc) =>
+                                                    setSelectedMncByRoute((prev) => {
+                                                      const next = { ...prev };
+                                                      if (mnc) next[route.id!] = mnc;
+                                                      else delete next[route.id!];
+                                                      return next;
+                                                    })
+                                                  }
                                                 />
                                               ) : (
                                                 (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
@@ -2429,17 +2462,96 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   title="All Network Rates"
                                                   rates={(route as any).allVendorRates}
                                                   currencyCode={(route as any).vendorCurrencyCode}
+                                                  baseCurrencyCode={(route as any).baseCurrencyCode}
+                                                  allMargins={(route as any).allMargins}
+                                                  selectedMnc={selectedMncByRoute[route.id!]}
+                                                  onSelectMnc={(mnc) =>
+                                                    setSelectedMncByRoute((prev) => {
+                                                      const next = { ...prev };
+                                                      if (mnc) next[route.id!] = mnc;
+                                                      else delete next[route.id!];
+                                                      return next;
+                                                    })
+                                                  }
                                                 />
                                               ) : (
                                                 (route as any).vendorRate ? `${(route as any).vendorRate} ${(route as any).vendorCurrencyCode || ''}` : "—"
                                               )}
                                             </td>
-                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).margin !== undefined ? `${(route as any).margin} ${(route as any).baseCurrencyCode || ""}` : "—")}
-                                            </td>
-                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
-                                            </td>
+                                            {(() => {
+                                              const hasMultipleRates = Boolean(
+                                                ((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ||
+                                                ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)
+                                              );
+                                              const routeSelectedMnc = selectedMncByRoute[route.id!] || null;
+                                              const mncMarginInfo = hasMultipleRates && routeSelectedMnc ? getMncMarginInfo(route, routeSelectedMnc) : null;
+                                              const displayMargin = mncMarginInfo ? mncMarginInfo.margin : hasMultipleRates ? null : (route as any).margin;
+                                              const displayMarginPct = mncMarginInfo ? mncMarginInfo.marginPercentage : hasMultipleRates ? null : (route as any).marginPercentage;
+
+                                              return (
+                                                <>
+                                                  <td
+                                                    className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 text-center ${
+                                                      displayMargin !== null && displayMargin !== undefined
+                                                        ? displayMargin < 0
+                                                          ? "text-red-500 font-medium"
+                                                          : displayMargin > 0
+                                                          ? "text-green-600 font-medium"
+                                                          : "text-gray-500"
+                                                        : "text-gray-400"
+                                                    }`}
+                                                  >
+                                                    {displayMargin !== null && displayMargin !== undefined ? (
+                                                      <div className="inline-flex flex-col items-center leading-tight">
+                                                        <span>
+                                                          {displayMargin > 0 ? "+" : ""}
+                                                          {Number(displayMargin).toFixed(6)} {(route as any).baseCurrencyCode || ""}
+                                                        </span>
+                                                        {routeSelectedMnc && (
+                                                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded font-sans mt-0.5 border border-blue-200 dark:border-blue-800">
+                                                            MNC {routeSelectedMnc}
+                                                            <button
+                                                              type="button"
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setSelectedMncByRoute((prev) => {
+                                                                  const next = { ...prev };
+                                                                  delete next[route.id!];
+                                                                  return next;
+                                                                });
+                                                              }}
+                                                              className="hover:text-red-500 ml-0.5 text-[9px] font-bold"
+                                                              title="Clear MNC selection"
+                                                            >
+                                                              ✕
+                                                            </button>
+                                                          </span>
+                                                        )}
+                                                      </div>
+                                                    ) : (
+                                                      "—"
+                                                    )}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 text-center ${
+                                                      displayMarginPct !== null && displayMarginPct !== undefined
+                                                        ? displayMarginPct < 0
+                                                          ? "text-red-500 font-medium"
+                                                          : displayMarginPct > 0
+                                                          ? "text-green-600 font-medium"
+                                                          : "text-gray-500"
+                                                        : "text-gray-400"
+                                                    }`}
+                                                  >
+                                                    {displayMarginPct !== null && displayMarginPct !== undefined ? (
+                                                      <span>{Number(displayMarginPct).toFixed(2)}%</span>
+                                                    ) : (
+                                                      "—"
+                                                    )}
+                                                  </td>
+                                                </>
+                                              );
+                                            })()}
                                             <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-20">
                                               <StatusBadge status={route.status} />
                                             </td>

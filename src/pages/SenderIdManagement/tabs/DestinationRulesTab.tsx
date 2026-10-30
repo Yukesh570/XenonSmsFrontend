@@ -66,6 +66,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "destinationMatchType",
   "action",
   "countryWarning",
+  "On Match",
   "isActive",
 ];
 
@@ -823,32 +824,32 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
 
   const contextMenuItems: ContextMenuItem[] = selectedRowRule
     ? [
-        {
-          label: "Edit Rule",
-          icon: <Edit size={16} />,
-          onClick: () => {
-            handleOpenEdit(selectedRowRule);
-            setContextMenuPos(null);
-          },
+      {
+        label: "Edit Rule",
+        icon: <Edit size={16} />,
+        onClick: () => {
+          handleOpenEdit(selectedRowRule);
+          setContextMenuPos(null);
         },
-        {
-          label: selectedRowRule.isActive ? "Deactivate Rule" : "Activate Rule",
-          icon: <PhoneCall size={16} />,
-          onClick: () => {
-            handleToggleStatus(selectedRowRule);
-            setContextMenuPos(null);
-          },
+      },
+      {
+        label: selectedRowRule.isActive ? "Deactivate Rule" : "Activate Rule",
+        icon: <PhoneCall size={16} />,
+        onClick: () => {
+          handleToggleStatus(selectedRowRule);
+          setContextMenuPos(null);
         },
-        {
-          label: "Delete Rule",
-          icon: <Trash size={16} />,
-          variant: "danger",
-          onClick: () => {
-            setDeletingRule(selectedRowRule);
-            setContextMenuPos(null);
-          },
+      },
+      {
+        label: "Delete Rule",
+        icon: <Trash size={16} />,
+        variant: "danger",
+        onClick: () => {
+          setDeletingRule(selectedRowRule);
+          setContextMenuPos(null);
         },
-      ]
+      },
+    ]
     : [];
 
   const getBaseLabel = (label: string) => (label ? label.split(" (")[0].trim() : "");

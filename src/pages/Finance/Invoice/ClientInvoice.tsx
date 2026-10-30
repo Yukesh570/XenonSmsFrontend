@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Trash, Eye, Download, Users } from "lucide-react";
+import { Home, Trash, Eye, Download, Users, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../../../api/axiosInstance";
@@ -14,6 +14,10 @@ import { getCompaniesApi as getClientsApi } from "../../../api/companyApi/compan
 
 // --- Modals ---
 import { ClientInvoiceViewClientModal } from "../../../components/modals/Finance/ClientInvoiceViewClientModal";
+import Button from "../../../components/ui/Button";
+import { GenerateSOAModal } from "../../../components/modals/Finance/GenerateSOAModal";
+import { SOAPreviewModal } from "../../../components/modals/Finance/SOAPreviewModal";
+import type { SOAResponseData, SOARequestPayload } from "../../../api/financeApi/soaApi";
 
 // --- Components ---
 import Select from "../../../components/ui/Select";
@@ -83,6 +87,10 @@ const ClientInvoice: React.FC = () => {
     y: number;
   } | null>(null);
   const [selectedRow, setSelectedRow] = useState<ClientInvoiceData | null>(null);
+  const [isGenerateSOAModalOpen, setIsGenerateSOAModalOpen] = useState(false);
+  const [isSOAPreviewModalOpen, setIsSOAPreviewModalOpen] = useState(false);
+  const [soaPreviewData, setSoaPreviewData] = useState<SOAResponseData | null>(null);
+  const [soaRequestPayload, setSoaRequestPayload] = useState<SOARequestPayload | null>(null);
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("clientInvoice_search_columns_v3");
@@ -604,6 +612,16 @@ const ClientInvoice: React.FC = () => {
               buttonLabel="Search Fields"
             />
           </div>
+          <div className="relative z-20">
+            <Button
+              variant="secondary"
+              onClick={() => setIsGenerateSOAModalOpen(true)}
+              className="flex items-center gap-1.5 h-10 px-3.5 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/5 hover:border-primary transition-all shadow-sm"
+            >
+              <FileText size={15} />
+              <span>Generate SOA</span>
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
@@ -829,6 +847,26 @@ const ClientInvoice: React.FC = () => {
         onClose={() => setIsViewClientModalOpen(false)}
         companyName={viewClientCompanyName}
         companyInvoiceId={viewClientInvoiceId}
+      />
+      <GenerateSOAModal
+        isOpen={isGenerateSOAModalOpen}
+        onClose={() => setIsGenerateSOAModalOpen(false)}
+        onPreviewSuccess={(data, payload) => {
+          setSoaPreviewData(data);
+          setSoaRequestPayload(payload);
+          setIsGenerateSOAModalOpen(false);
+          setIsSOAPreviewModalOpen(true);
+        }}
+      />
+      <SOAPreviewModal
+        isOpen={isSOAPreviewModalOpen}
+        onClose={() => {
+          setIsSOAPreviewModalOpen(false);
+          setSoaPreviewData(null);
+          setSoaRequestPayload(null);
+        }}
+        soaData={soaPreviewData}
+        requestPayload={soaRequestPayload}
       />
     </div>
   );
