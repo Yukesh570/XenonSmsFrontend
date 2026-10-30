@@ -298,8 +298,8 @@ const Dashboard: React.FC = () => {
   };
 
   // ─── Fetchers ────────────────────────────────────────────────────────────────
-  const fetchTrafficTraffic = async (range: RangeKey) => {
-    setIsTrafficLoading(true);
+  const fetchTrafficTraffic = async (range: RangeKey, isRefetch = false) => {
+    if (!isRefetch) setIsTrafficLoading(true);
     try {
       if (range === "today" || range === "yesterday") {
         const data = await getSmsHourlyApi(buildParams(range));
@@ -310,9 +310,9 @@ const Dashboard: React.FC = () => {
       }
     } catch (e) {
       console.error("fetchTrafficTraffic failed", e);
-      setTrafficData([]);
+      if (!isRefetch) setTrafficData([]);
     } finally {
-      setIsTrafficLoading(false);
+      if (!isRefetch) setIsTrafficLoading(false);
     }
   };
   const fetchSmsStats = async (range: RangeKey) => {
@@ -569,6 +569,16 @@ const Dashboard: React.FC = () => {
       }, 500);
     };
 
+    let trafficFetchTimeout: ReturnType<typeof setTimeout>;
+    const debouncedTrafficFetch = () => {
+      if (trafficFetchTimeout) clearTimeout(trafficFetchTimeout);
+      trafficFetchTimeout = setTimeout(() => {
+        if (activeRangeRef.current === "today") {
+          fetchTrafficTraffic("today", true);
+        }
+      }, 1000);
+    };
+
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
       ws = new WebSocket(wsUrl);
@@ -608,6 +618,7 @@ const Dashboard: React.FC = () => {
                 setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
+                debouncedTrafficFetch();
               }
               if (data.dlrStats) {
                 setDlrData([
@@ -627,10 +638,6 @@ const Dashboard: React.FC = () => {
               }
               if (data.revenue) {
                 setRevenue(data.revenue);
-              }
-              if (data.trafficData) {
-                setTrafficData(data.trafficData);
-                setIsTrafficLoading(false);
               }
             }
 
@@ -724,11 +731,12 @@ const Dashboard: React.FC = () => {
 
     return () => {
       isMounted = false;
+      if (fetchTimeout) clearTimeout(fetchTimeout);
+      if (trafficFetchTimeout) clearTimeout(trafficFetchTimeout);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (reconnectDashboardTimeout) clearTimeout(reconnectDashboardTimeout);
       if (ws) ws.close();
       if (wsDashboard) wsDashboard.close();
-
     };
   }, []);
 
@@ -1054,6 +1062,7 @@ const Dashboard: React.FC = () => {
                           tick={{ fill: isDark ? "#9ca3af" : "#6b7280", fontSize: 11 }}
                           dx={-10}
                           allowDecimals={false}
+                          domain={[0, "auto"]}
                         />
                         <Area
                           type="monotone"
@@ -1104,6 +1113,7 @@ const Dashboard: React.FC = () => {
                             tick={{ fill: isDark ? "#9ca3af" : "#6b7280", fontSize: 11 }}
                             dx={-10}
                             allowDecimals={false}
+                            domain={[0, "auto"]}
                           />
                         )}
                         <Tooltip

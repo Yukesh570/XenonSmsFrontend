@@ -612,16 +612,6 @@ const ClientInvoice: React.FC = () => {
               buttonLabel="Search Fields"
             />
           </div>
-          <div className="relative z-20">
-            <Button
-              variant="secondary"
-              onClick={() => setIsGenerateSOAModalOpen(true)}
-              className="flex items-center gap-1.5 h-10 px-3.5 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/5 hover:border-primary transition-all shadow-sm"
-            >
-              <FileText size={15} />
-              <span>Generate SOA</span>
-            </Button>
-          </div>
         </div>
 
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
@@ -784,6 +774,15 @@ const ClientInvoice: React.FC = () => {
             return next;
           });
         }}
+        headerActions={
+          <Button
+            variant="primary"
+            onClick={() => setIsGenerateSOAModalOpen(true)}
+            leftIcon={<FileText size={16} />}
+          >
+            Generate SOA
+          </Button>
+        }
         renderRow={(invoice, index) => (
           <tr
             key={invoice.id || index}

@@ -23,6 +23,21 @@ export interface RatesHoverDropdownProps {
   allMargins?: Record<string, { margin?: number; marginPercentage?: number; customerRate?: number | string; vendorRate?: number | string }>;
 }
 
+let activeDropdownId: string | null = null;
+const dropdownListeners = new Set<(activeId: string | null) => void>();
+
+const registerDropdown = (onActiveChange: (activeId: string | null) => void) => {
+  dropdownListeners.add(onActiveChange);
+  return () => {
+    dropdownListeners.delete(onActiveChange);
+  };
+};
+
+const setActiveDropdown = (id: string | null) => {
+  activeDropdownId = id;
+  dropdownListeners.forEach((listener) => listener(id));
+};
+
 export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   title,
   rates = [],
@@ -34,7 +49,18 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   const [openUpwards, setOpenUpwards] = useState(false);
   const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
+  const portalRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownId = useRef<string>(`rates-dropdown-${Math.random().toString(36).substring(2, 9)}`).current;
+
+  useEffect(() => {
+    return registerDropdown((activeId) => {
+      if (activeId !== dropdownId) {
+        setIsOpen(false);
+      }
+    });
+  }, [dropdownId]);
 
   const calculatePosition = () => {
     if (!triggerRef.current) return;
@@ -47,8 +73,13 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
 
     setOpenUpwards(shouldOpenUp);
 
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(120, Math.min(window.innerWidth - 120, centerX));
+    const dropdownWidth = 240;
+    let left = rect.left;
+    if (left + dropdownWidth > window.innerWidth - 16) {
+      left = Math.max(16, window.innerWidth - dropdownWidth - 16);
+    } else if (left < 16) {
+      left = 16;
+    }
 
     if (shouldOpenUp) {
       setCoords({
@@ -68,22 +99,40 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
     }
-    calculatePosition();
-    setIsOpen(true);
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => {
+      calculatePosition();
+      setActiveDropdown(dropdownId);
+      setIsOpen(true);
+    }, 120);
   };
 
   const handleMouseLeave = () => {
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
     closeTimeoutRef.current = setTimeout(() => {
       setIsOpen(false);
-    }, 180);
+      if (activeDropdownId === dropdownId) {
+        setActiveDropdown(null);
+      }
+    }, 150);
   };
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     if (!isOpen) {
       calculatePosition();
+      setActiveDropdown(dropdownId);
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+      if (activeDropdownId === dropdownId) {
+        setActiveDropdown(null);
+      }
     }
-    setIsOpen((prev) => !prev);
   };
 
   useEffect(() => {
@@ -100,10 +149,32 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (triggerRef.current?.contains(target)) return;
+      if (portalRef.current?.contains(target)) return;
+      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+      setIsOpen(false);
+      if (activeDropdownId === dropdownId) {
+        setActiveDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+    };
+  }, [isOpen, dropdownId]);
+
+  useEffect(() => {
     return () => {
       if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
+      if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
+      if (activeDropdownId === dropdownId) {
+        setActiveDropdown(null);
+      }
     };
-  }, []);
+  }, [dropdownId]);
 
   const getMncKey = (r: RateItem) => {
     if (r.MNC !== undefined && r.MNC !== null) return String(r.MNC);
@@ -131,46 +202,54 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
       onClick={handleClick}
     >
       <div className="cursor-pointer inline-flex items-center hover:opacity-85 transition-opacity">
-        {selectedMnc ? (
-          <span
-            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border border-blue-300 dark:border-blue-700 shadow-sm transition-all hover:bg-blue-100 dark:hover:bg-blue-900/50"
-            title={`Rate for MNC ${selectedMnc}. Hover or click to switch.`}
-          >
-            <span className="font-mono">{displayRateText || `Rates (${selectedMnc})`}</span>
-            <ChevronDown
-              size={11}
-              strokeWidth={2.5}
-              className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
-            />
-          </span>
-        ) : (
-          <StatusBadge
-            status="MULTIPLE_RATES"
-            customText={
-              <span className="inline-flex items-center gap-1 font-medium">
-                <span>Multiple Rates</span>
-                <ChevronDown
-                  size={11}
-                  strokeWidth={2.5}
-                  className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
-                />
-              </span>
-            }
-          />
-        )}
+        <StatusBadge
+          status="MULTIPLE_RATES"
+          customText={
+            <span className="inline-flex items-center gap-1 font-medium">
+              <span className="font-mono">{selectedMnc ? (displayRateText || `Rates (${selectedMnc})`) : "Multiple Rates"}</span>
+              {selectedMnc && onSelectMnc && (
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectMnc(null);
+                    setIsOpen(false);
+                    if (activeDropdownId === dropdownId) {
+                      setActiveDropdown(null);
+                    }
+                  }}
+                  className="hover:text-red-600 dark:hover:text-red-400 p-0.5 -mr-0.5 rounded text-[10px] font-bold leading-none cursor-pointer"
+                >
+                  ✕
+                </span>
+              )}
+              <ChevronDown
+                size={11}
+                strokeWidth={2.5}
+                className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
+              />
+            </span>
+          }
+        />
       </div>
 
       {isOpen &&
         createPortal(
           <div
-            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl p-2.5 min-w-[210px] max-w-[290px] pointer-events-auto animate-fade-in"
+            ref={portalRef}
+            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl p-2.5 min-w-[210px] max-w-[290px] pointer-events-auto"
             style={{
               position: "fixed",
               left: `${coords.left}px`,
               ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : { top: `${coords.top}px` }),
-              transform: "translateX(-50%)",
             }}
-            onMouseEnter={handleMouseEnter}
+            onMouseEnter={() => {
+              if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+                closeTimeoutRef.current = null;
+              }
+            }}
             onMouseLeave={handleMouseLeave}
             onClick={(e) => e.stopPropagation()}
           >
@@ -198,6 +277,10 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
                           e.stopPropagation();
                           if (onSelectMnc) {
                             onSelectMnc(isSelected ? null : mncKey);
+                          }
+                          setIsOpen(false);
+                          if (activeDropdownId === dropdownId) {
+                            setActiveDropdown(null);
                           }
                         }}
                         className={`transition-colors ${onSelectMnc ? "cursor-pointer" : ""
@@ -231,6 +314,10 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       onSelectMnc(null);
+                      setIsOpen(false);
+                      if (activeDropdownId === dropdownId) {
+                        setActiveDropdown(null);
+                      }
                     }}
                     className="p-0.5 rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
                     title="Clear selection"

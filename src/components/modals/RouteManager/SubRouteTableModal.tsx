@@ -2298,42 +2298,22 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                                                 return (
                                                   <>
-                                                    <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-20 ${
-                                                      effectiveMargin !== null && effectiveMargin !== undefined
-                                                        ? effectiveMargin < 0
-                                                          ? 'text-red-500 font-medium'
-                                                          : effectiveMargin > 0
-                                                          ? 'text-green-600 font-medium'
-                                                          : 'text-gray-500'
-                                                        : 'text-gray-400'
-                                                    }`}>
+                                                    <td
+                                                      className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap text-center w-20 ${
+                                                        effectiveMargin !== null && effectiveMargin !== undefined
+                                                          ? effectiveMargin < 0
+                                                            ? 'text-red-500 font-medium'
+                                                            : effectiveMargin > 0
+                                                            ? 'text-green-600 font-medium'
+                                                            : 'text-gray-500'
+                                                          : 'text-gray-400'
+                                                      }`}
+                                                    >
                                                       {effectiveMargin !== null && effectiveMargin !== undefined ? (
-                                                        <div className="inline-flex flex-col items-center leading-tight">
-                                                          <span>
-                                                            {effectiveMargin > 0 ? "+" : ""}
-                                                            {Number(effectiveMargin).toFixed(6)} {row.baseCurrencyCode || ''}
-                                                          </span>
-                                                          {rowSelectedMnc && (
-                                                            <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded font-sans mt-0.5 border border-blue-200 dark:border-blue-800">
-                                                              MNC {rowSelectedMnc}
-                                                              <button
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                  e.stopPropagation();
-                                                                  setSelectedMncByRoute((prev) => {
-                                                                    const next = { ...prev };
-                                                                    delete next[row._id];
-                                                                    return next;
-                                                                  });
-                                                                }}
-                                                                className="hover:text-red-500 ml-0.5 text-[9px] font-bold"
-                                                                title="Clear MNC selection"
-                                                              >
-                                                                ✕
-                                                              </button>
-                                                            </span>
-                                                          )}
-                                                        </div>
+                                                        <span>
+                                                          {effectiveMargin > 0 ? "+" : ""}
+                                                          {Number(effectiveMargin).toFixed(6)} {row.baseCurrencyCode || ''}
+                                                        </span>
                                                       ) : (
                                                         "—"
                                                       )}
@@ -2502,32 +2482,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     }`}
                                                   >
                                                     {displayMargin !== null && displayMargin !== undefined ? (
-                                                      <div className="inline-flex flex-col items-center leading-tight">
-                                                        <span>
-                                                          {displayMargin > 0 ? "+" : ""}
-                                                          {Number(displayMargin).toFixed(6)} {(route as any).baseCurrencyCode || ""}
-                                                        </span>
-                                                        {routeSelectedMnc && (
-                                                          <span className="inline-flex items-center gap-0.5 text-[9px] px-1 py-0.2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 rounded font-sans mt-0.5 border border-blue-200 dark:border-blue-800">
-                                                            MNC {routeSelectedMnc}
-                                                            <button
-                                                              type="button"
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                setSelectedMncByRoute((prev) => {
-                                                                  const next = { ...prev };
-                                                                  delete next[route.id!];
-                                                                  return next;
-                                                                });
-                                                              }}
-                                                              className="hover:text-red-500 ml-0.5 text-[9px] font-bold"
-                                                              title="Clear MNC selection"
-                                                            >
-                                                              ✕
-                                                            </button>
-                                                          </span>
-                                                        )}
-                                                      </div>
+                                                      <span>
+                                                        {displayMargin > 0 ? "+" : ""}
+                                                        {Number(displayMargin).toFixed(6)} {(route as any).baseCurrencyCode || ""}
+                                                      </span>
                                                     ) : (
                                                       "—"
                                                     )}

@@ -25,11 +25,12 @@ const ALL_COLUMNS: ColumnDef[] = [
   { key: "reference", label: "Reference" },
   { key: "type", label: "Type" },
   { key: "amount", label: "Amount / Limit" },
-  { key: "remarks", label: "Remarks" },
   { key: "status", label: "Status" },
+  { key: "created_by_name", label: "Created By" },
+  { key: "remarks", label: "Remarks" },
 ];
 
-const DEFAULT_COLUMN_KEYS = ["date", "reference", "type", "amount", "remarks", "status"];
+const DEFAULT_COLUMN_KEYS = ["date", "reference", "type", "amount", "status", "created_by_name", "remarks"];
 
 export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = ({
   isOpen,
@@ -173,6 +174,11 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
           valB = Number(b.newLimit) || Number(b.amount) || 0;
           break;
         }
+        case "created_by_name":
+        case "createdBy":
+          valA = (a.created_by_name || a.createdByName || "").toLowerCase();
+          valB = (b.created_by_name || b.createdByName || "").toLowerCase();
+          break;
         case "remarks":
           valA = (a.remarks || "").toLowerCase();
           valB = (b.remarks || "").toLowerCase();
@@ -315,6 +321,16 @@ export const TransactionHistoryModal: React.FC<TransactionHistoryModalProps> = (
                           className="px-4 py-2.5 text-sm font-semibold text-primary dark:text-primary-light whitespace-nowrap"
                         >
                           {amountVal.toFixed(4)}
+                        </td>
+                      );
+                    case "created_by_name":
+                    case "createdBy":
+                      return (
+                        <td
+                          key="created_by_name"
+                          className="px-4 py-2.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                        >
+                          {row.created_by_name || row.createdByName || (typeof row.createdBy === "string" ? row.createdBy : "") || "-"}
                         </td>
                       );
                     case "remarks":

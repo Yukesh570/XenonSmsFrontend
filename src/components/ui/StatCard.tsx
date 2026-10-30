@@ -7,14 +7,24 @@ interface StatCardProps {
   icon: React.ReactNode;
   trend?: number;
   trendText?: string;
+  className?: string;
+  valueClassName?: string;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trend, trendText }) => {
+const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon,
+  trend,
+  trendText,
+  className = "",
+  valueClassName = "",
+}) => {
   const isPositive = trend !== undefined && trend > 0;
   const isNegative = trend !== undefined && trend < 0;
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm flex items-center justify-between gap-3 transition-shadow hover:shadow-md min-h-[68px]">
+    <div className={`bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm flex items-center justify-between gap-3 transition-shadow hover:shadow-md min-h-[68px] ${className}`}>
       {/* Left side: Title, Value & optional trend text */}
       <div className="min-w-0 flex-1">
         <h3
@@ -24,7 +34,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, trend, trendTex
           {title}
         </h3>
         <div className="flex items-baseline gap-2 mt-0.5">
-          <h2 className="text-lg sm:text-xl font-bold text-text-primary dark:text-white leading-tight">
+          <h2 className={`text-lg sm:text-xl font-bold text-text-primary dark:text-white leading-tight ${valueClassName}`}>
             {value}
           </h2>
           {trend !== undefined && (

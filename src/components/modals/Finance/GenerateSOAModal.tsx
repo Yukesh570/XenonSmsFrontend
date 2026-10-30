@@ -4,13 +4,14 @@ import {
   FileText,
   DollarSign,
   FileSpreadsheet,
-  Loader2,
+  Wallet,
 } from "lucide-react";
 
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Select from "../../ui/Select";
 import DatePicker from "../../ui/DatePicker";
+import ToggleSwitch from "../../ui/ToggleSwitch";
 import { getCompaniesApi } from "../../../api/companyApi/companyApi";
 import {
   getCompanySOAMetaApi,
@@ -68,6 +69,22 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isExportingExcel, setIsExportingExcel] = useState(false);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setCompanyId("");
+      const d = new Date();
+      d.setDate(1);
+      setFromDate(d);
+      setToDate(new Date());
+      setCurrency("USD");
+      setOpeningBalance(null);
+      setIncludeInvoices(true);
+      setIncludePayments(true);
+      setIncludeCreditNotes(true);
+    }
+  }, [isOpen]);
 
   // Load Companies
   useEffect(() => {
@@ -213,167 +230,158 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={accountType === "VENDOR" ? "Generate Vendor Statement of Account (SOA)" : "Generate Statement of Account (SOA)"}
+      className="max-w-xl"
     >
-      <div className="space-y-5">
+      <div className="space-y-4">
         {/* Company Selector */}
-        <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
-            Select Company <span className="text-red-500">*</span>
-          </label>
-          <Select
-            options={companyOptions}
-            value={companyId}
-            onChange={(val) => setCompanyId(String(val))}
-            placeholder={accountType === "VENDOR" ? "Choose vendor company..." : "Choose client company..."}
-          />
-        </div>
+        <Select
+          label="Select Company"
+          required
+          options={companyOptions}
+          value={companyId}
+          onChange={(val) => setCompanyId(String(val))}
+          placeholder={accountType === "VENDOR" ? "Choose vendor company..." : "Choose client company..."}
+        />
 
         {/* Date Ranges */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <DatePicker
-              label="Statement From *"
-              selected={fromDate}
-              onChange={(d: Date | null) => setFromDate(d)}
-              placeholder="Start date"
-            />
-          </div>
-          <div>
-            <DatePicker
-              label="Statement To *"
-              selected={toDate}
-              onChange={(d: Date | null) => setToDate(d)}
-              placeholder="End date"
-            />
-          </div>
+          <DatePicker
+            label="Statement From"
+            selected={fromDate}
+            onChange={(d: Date | null) => setFromDate(d)}
+            placeholder="Select Start Date"
+            isClearable={false}
+          />
+          <DatePicker
+            label="Statement To"
+            selected={toDate}
+            onChange={(d: Date | null) => setToDate(d)}
+            placeholder="Select End Date"
+            isClearable={false}
+          />
         </div>
 
-        {/* Currency & Opening Balance (Read-only / Auto-filled) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700">
-          <div>
-            <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-              Billing Currency
-            </span>
-            <div className="flex items-center gap-1.5 text-sm font-bold text-gray-800 dark:text-gray-200">
-              <DollarSign size={16} className="text-primary" />
-              <span>{currency}</span>
-              <span className="text-[10px] text-gray-400 font-normal">
-                (Company default)
+        {/* Currency & Opening Balance */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <div className="bg-gray-50/70 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm">
+            <div className="min-w-0 flex-1">
+              <span className="text-text-secondary dark:text-gray-400 text-xs font-medium block truncate">
+                Billing Currency
               </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
+                  {currency}
+                </span>
+                <span className="text-[11px] text-text-secondary dark:text-gray-500 font-normal">
+                  (Company default)
+                </span>
+              </div>
+            </div>
+            <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg text-primary shrink-0 flex items-center justify-center">
+              <DollarSign size={18} />
             </div>
           </div>
 
-          <div>
-            <span className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
-              Opening Balance
-            </span>
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 flex items-center gap-1.5">
-              {isLoadingMeta ? (
-                <Loader2 size={14} className="animate-spin text-gray-400" />
-              ) : (
-                <span>
-                  {currency} {formatMoney(openingBalance)}
-                </span>
-              )}
+          <div className="bg-gray-50/70 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-sm">
+            <div className="min-w-0 flex-1">
+              <span className="text-text-secondary dark:text-gray-400 text-xs font-medium block truncate">
+                Opening Balance
+              </span>
+              <div className="flex items-baseline gap-2 mt-1">
+                {isLoadingMeta ? (
+                  <span className="text-xs text-text-secondary dark:text-gray-400 animate-pulse">
+                    Loading...
+                  </span>
+                ) : (
+                  <span className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
+                    {currency} {formatMoney(openingBalance)}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="p-2 bg-primary/10 dark:bg-primary/20 rounded-lg text-primary shrink-0 flex items-center justify-center">
+              <Wallet size={18} />
             </div>
           </div>
         </div>
 
         {/* Ledger Scope / Toggles */}
         <div>
-          <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+          <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400">
             Include in Statement
           </label>
-          <div className="space-y-2.5 p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/30">
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-200">
-              <input
-                type="checkbox"
-                checked={includeInvoices}
-                onChange={(e) => setIncludeInvoices(e.target.checked)}
-                className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600"
-              />
-              <span>
-                {accountType === "VENDOR"
-                  ? "Include Vendor Invoices (Generated Vendor Invoices / Billed)"
-                  : "Include Invoices (Generated Client Invoices / Debits)"}
-              </span>
-            </label>
-
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-200">
-              <input
-                type="checkbox"
-                checked={includePayments}
-                onChange={(e) => setIncludePayments(e.target.checked)}
-                className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600"
-              />
-              <span>
-                {accountType === "VENDOR"
-                  ? "Include Payments (Paid Wire/Top-up to Vendor / Credits)"
-                  : "Include Payments (Received Wire/Online Payments / Credits)"}
-              </span>
-            </label>
-
-            <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-200">
-              <input
-                type="checkbox"
-                checked={includeCreditNotes}
-                onChange={(e) => setIncludeCreditNotes(e.target.checked)}
-                className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600"
-              />
-              <span>Include Adjustments & Credit Notes (Debit/Credit Adjustments & Refunds)</span>
-            </label>
+          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/40 space-y-3 shadow-sm">
+            <ToggleSwitch
+              label={accountType === "VENDOR" ? "Vendor Invoices" : "Invoices"}
+              description={
+                accountType === "VENDOR"
+                  ? "Include generated vendor invoices / billed"
+                  : "Include generated client invoices / debits"
+              }
+              checked={includeInvoices}
+              onChange={setIncludeInvoices}
+            />
+            <div className="border-t border-gray-100 dark:border-gray-700/60" />
+            <ToggleSwitch
+              label="Payments"
+              description={
+                accountType === "VENDOR"
+                  ? "Include paid wire/top-up to vendor / credits"
+                  : "Include received wire / online payments / credits"
+              }
+              checked={includePayments}
+              onChange={setIncludePayments}
+            />
+            <div className="border-t border-gray-100 dark:border-gray-700/60" />
+            <ToggleSwitch
+              label="Adjustments & Credit Notes"
+              description="Include debit/credit adjustments and refund notes"
+              checked={includeCreditNotes}
+              onChange={setIncludeCreditNotes}
+            />
           </div>
         </div>
 
         {/* Modal Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
           <div className="flex items-center gap-2">
             <Button
+              type="button"
               variant="secondary"
               size="sm"
               onClick={handleExportExcel}
               disabled={isExportingExcel || !companyId}
-              className="text-xs"
+              isLoading={isExportingExcel}
+              leftIcon={<FileSpreadsheet size={15} className="text-emerald-600 dark:text-emerald-400" />}
             >
-              {isExportingExcel ? (
-                <Loader2 size={13} className="animate-spin mr-1" />
-              ) : (
-                <FileSpreadsheet size={13} className="mr-1 text-emerald-600" />
-              )}
               Export Excel
             </Button>
             <Button
+              type="button"
               variant="secondary"
               size="sm"
               onClick={handleExportPDF}
               disabled={isExportingPDF || !companyId}
-              className="text-xs"
+              isLoading={isExportingPDF}
+              leftIcon={<FileText size={15} className="text-indigo-600 dark:text-indigo-400" />}
             >
-              {isExportingPDF ? (
-                <Loader2 size={13} className="animate-spin mr-1" />
-              ) : (
-                <FileText size={13} className="mr-1 text-indigo-600" />
-              )}
               Export PDF
             </Button>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Button variant="secondary" size="sm" onClick={onClose}>
+            <Button type="button" variant="secondary" size="sm" onClick={onClose}>
               Cancel
             </Button>
             <Button
+              type="button"
               variant="primary"
               size="sm"
               onClick={handleGeneratePreview}
               disabled={isGenerating || !companyId}
-              className="flex items-center gap-1.5"
+              isLoading={isGenerating}
+              leftIcon={<FileText size={15} />}
             >
-              {isGenerating ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <FileText size={14} />
-              )}
               Preview Statement
             </Button>
           </div>
