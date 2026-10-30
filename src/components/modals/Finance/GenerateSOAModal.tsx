@@ -27,6 +27,7 @@ interface GenerateSOAModalProps {
   isOpen: boolean;
   onClose: () => void;
   onPreviewSuccess: (data: SOAResponseData, payload: SOARequestPayload) => void;
+  accountType?: "CLIENT" | "VENDOR";
 }
 
 interface Option {
@@ -45,6 +46,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
   isOpen,
   onClose,
   onPreviewSuccess,
+  accountType = "CLIENT",
 }) => {
   const [companyId, setCompanyId] = useState<string>("");
   const [fromDate, setFromDate] = useState<Date | null>(() => {
@@ -91,7 +93,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
 
     const fromDateStr = fromDate ? formatLocalDate(fromDate) : undefined;
     setIsLoadingMeta(true);
-    getCompanySOAMetaApi(Number(companyId), fromDateStr)
+    getCompanySOAMetaApi(Number(companyId), fromDateStr, accountType)
       .then((res) => {
         setCurrency(res.currency || "USD");
         setOpeningBalance(res.openingBalance);
@@ -102,7 +104,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       .finally(() => {
         setIsLoadingMeta(false);
       });
-  }, [companyId, fromDate]);
+  }, [companyId, fromDate, accountType]);
 
   const validatePayload = (): SOARequestPayload | null => {
     if (!companyId) {
@@ -110,15 +112,15 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       return null;
     }
     if (!fromDate) {
-      toast.error("Please choose a start date (Statement From).");
+      toast.error("Please select a start date.");
       return null;
     }
     if (!toDate) {
-      toast.error("Please choose an end date (Statement To).");
+      toast.error("Please select an end date.");
       return null;
     }
     if (fromDate > toDate) {
-      toast.error("Statement From date cannot be after Statement To date.");
+      toast.error("Start date cannot be after end date.");
       return null;
     }
 
@@ -129,6 +131,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       includeInvoices,
       includePayments,
       includeCreditNotes,
+      accountType,
     };
   };
 
@@ -141,7 +144,9 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       const data = await generateSOAPreviewApi(payload);
       onPreviewSuccess(data, payload);
     } catch (err: any) {
-      toast.error(err?.response?.data?.error || "Failed to generate SOA statement.");
+      toast.error(
+        err?.response?.data?.error || "Failed to generate statement preview."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -157,7 +162,8 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SOA_Statement_${payload.fromDate}_${payload.toDate}.pdf`;
+      const prefix = accountType === "VENDOR" ? "SOA_Vendor_Statement_" : "SOA_Statement_";
+      a.download = `${prefix}${payload.fromDate}_${payload.toDate}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -180,7 +186,8 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SOA_Statement_${payload.fromDate}_${payload.toDate}.xlsx`;
+      const prefix = accountType === "VENDOR" ? "SOA_Vendor_Statement_" : "SOA_Statement_";
+      a.download = `${prefix}${payload.fromDate}_${payload.toDate}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -205,8 +212,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Generate Statement of Account (SOA)"
-      
+      title={accountType === "VENDOR" ? "Generate Vendor Statement of Account (SOA)" : "Generate Statement of Account (SOA)"}
     >
       <div className="space-y-5">
         {/* Company Selector */}
@@ -218,8 +224,7 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
             options={companyOptions}
             value={companyId}
             onChange={(val) => setCompanyId(String(val))}
-            placeholder="Choose client company..."
-            
+            placeholder={accountType === "VENDOR" ? "Choose vendor company..." : "Choose client company..."}
           />
         </div>
 
@@ -287,7 +292,11 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
                 onChange={(e) => setIncludeInvoices(e.target.checked)}
                 className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600"
               />
-              <span>Include Invoices (Generated Client Invoices / Debits)</span>
+              <span>
+                {accountType === "VENDOR"
+                  ? "Include Vendor Invoices (Generated Vendor Invoices / Billed)"
+                  : "Include Invoices (Generated Client Invoices / Debits)"}
+              </span>
             </label>
 
             <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-200">
@@ -297,7 +306,11 @@ export const GenerateSOAModal: React.FC<GenerateSOAModalProps> = ({
                 onChange={(e) => setIncludePayments(e.target.checked)}
                 className="w-4 h-4 rounded text-primary focus:ring-primary border-gray-300 dark:border-gray-600"
               />
-              <span>Include Payments (Received Wire/Online Payments / Credits)</span>
+              <span>
+                {accountType === "VENDOR"
+                  ? "Include Payments (Paid Wire/Top-up to Vendor / Credits)"
+                  : "Include Payments (Received Wire/Online Payments / Credits)"}
+              </span>
             </label>
 
             <label className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-gray-700 dark:text-gray-200">

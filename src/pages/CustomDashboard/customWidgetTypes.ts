@@ -9,7 +9,10 @@ export type MetricType =
   | "profit_margin"
   | "margin_percent"
   | "revenue"
-  | "vendor_cost";
+  | "vendor_cost"
+  | "tps"
+  | "peak_tps"
+  | "tps_utilization";
 
 export type VisualizationType = "table" | "bar" | "donut" | "kpi";
 
@@ -62,6 +65,9 @@ export const METRIC_LABELS: Record<MetricType, string> = {
   margin_percent: "Margin %",
   revenue: "Revenue ($)",
   vendor_cost: "Vendor Cost ($)",
+  tps: "Average Throughput (TPS)",
+  peak_tps: "Peak Throughput (TPS)",
+  tps_utilization: "TPS Capacity Utilization (%)",
 };
 
 export const ENTITY_LABELS: Record<EntityGroupBy, string> = {
@@ -82,6 +88,50 @@ export const OPERATOR_LABELS: Record<ConditionOperator, string> = {
 };
 
 export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
+  {
+    id: "tab-throughput-tps",
+    name: "Throughput & TPS",
+    description: "Live and windowed TPS monitoring, peak throughput, and capacity utilization",
+    widgets: [
+      {
+        id: "w-tps-overview-kpi",
+        title: "Switch Peak & Average TPS",
+        entity: "overview",
+        primaryMetric: "peak_tps",
+        visualization: "kpi",
+        size: "small",
+        filters: { datePreset: "all" },
+      },
+      {
+        id: "w-vendor-tps-ranking",
+        title: "Vendor Trunks — TPS & Capacity",
+        entity: "vendor",
+        primaryMetric: "peak_tps",
+        visualization: "table",
+        size: "medium",
+        filters: { datePreset: "all" },
+        sortBy: "metric_desc",
+        limit: 15,
+      },
+      {
+        id: "w-client-tps-utilization",
+        title: "Client TPS Saturation Watchlist",
+        entity: "client",
+        primaryMetric: "tps_utilization",
+        visualization: "bar",
+        size: "medium",
+        filters: { datePreset: "all" },
+        condition: {
+          metric: "tps_utilization",
+          operator: "gt",
+          value: 80,
+          mode: "highlight",
+        },
+        sortBy: "metric_desc",
+        limit: 10,
+      },
+    ],
+  },
   {
     id: "tab-vendor-watch",
     name: "Vendor Quality Watchlist",

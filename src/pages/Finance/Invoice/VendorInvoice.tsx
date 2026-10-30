@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Trash, Eye, Download, Users } from "lucide-react";
+import { Home, Trash, Eye, Download, Users, FileText } from "lucide-react";
+import Button from "../../../components/ui/Button";
+import { GenerateSOAModal } from "../../../components/modals/Finance/GenerateSOAModal";
+import { SOAPreviewModal } from "../../../components/modals/Finance/SOAPreviewModal";
+import type { SOAResponseData, SOARequestPayload } from "../../../api/financeApi/soaApi";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../../../api/axiosInstance";
@@ -74,6 +78,10 @@ const VendorInvoice: React.FC = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const [isViewVendorModalOpen, setIsViewVendorModalOpen] = useState(false);
+  const [isGenerateSOAModalOpen, setIsGenerateSOAModalOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [soaPreviewData, setSoaPreviewData] = useState<SOAResponseData | null>(null);
+  const [soaRequestPayload, setSoaRequestPayload] = useState<SOARequestPayload | null>(null);
   const [viewVendorCompanyName, setViewVendorCompanyName] = useState<string | null>(null);
   const [viewVendorInvoiceId, setViewVendorInvoiceId] = useState<number | null>(null);
 
@@ -602,6 +610,16 @@ const VendorInvoice: React.FC = () => {
               buttonLabel="Search Fields"
             />
           </div>
+          <div className="relative z-20">
+            <Button
+              variant="secondary"
+              onClick={() => setIsGenerateSOAModalOpen(true)}
+              className="flex items-center gap-1.5 h-10 px-3.5 text-xs font-semibold text-primary border-primary/40 hover:bg-primary/5 hover:border-primary transition-all shadow-sm"
+            >
+              <FileText size={15} />
+              <span>Generate SOA</span>
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2 text-sm text-text-secondary">
@@ -826,6 +844,25 @@ const VendorInvoice: React.FC = () => {
         onClose={() => setIsViewVendorModalOpen(false)}
         companyName={viewVendorCompanyName}
         companyInvoiceId={viewVendorInvoiceId}
+      />
+
+      <GenerateSOAModal
+        isOpen={isGenerateSOAModalOpen}
+        onClose={() => setIsGenerateSOAModalOpen(false)}
+        accountType="VENDOR"
+        onPreviewSuccess={(data, payload) => {
+          setSoaPreviewData(data);
+          setSoaRequestPayload(payload);
+          setIsGenerateSOAModalOpen(false);
+          setIsPreviewModalOpen(true);
+        }}
+      />
+
+      <SOAPreviewModal
+        isOpen={isPreviewModalOpen}
+        onClose={() => setIsPreviewModalOpen(false)}
+        soaData={soaPreviewData}
+        requestPayload={soaRequestPayload}
       />
     </div>
   );

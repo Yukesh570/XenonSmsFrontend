@@ -7,6 +7,7 @@ export interface SOARequestPayload {
   includeInvoices?: boolean;
   includePayments?: boolean;
   includeCreditNotes?: boolean;
+  accountType?: "CLIENT" | "VENDOR";
 }
 
 export interface SOALedgerItem {
@@ -38,6 +39,7 @@ export interface SOAResponseData {
     toDate: string;
     formatted: string;
   };
+  accountType?: "CLIENT" | "VENDOR";
   currency: string;
   openingBalance: number;
   closingBalance: number;
@@ -49,15 +51,18 @@ export interface SOAResponseData {
 
 export const getCompanySOAMetaApi = async (
   companyId: number,
-  fromDate?: string
+  fromDate?: string,
+  accountType: "CLIENT" | "VENDOR" = "CLIENT"
 ): Promise<{
   companyId: number;
   companyName: string;
   currency: string;
+  accountType?: string;
   fromDate: string;
   openingBalance: number;
 }> => {
-  const params = fromDate ? { fromDate } : {};
+  const params: Record<string, any> = { accountType };
+  if (fromDate) params.fromDate = fromDate;
   const response = await api.get(`/finance/soa/company-meta/${companyId}/`, {
     params,
   });

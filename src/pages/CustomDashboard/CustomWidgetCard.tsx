@@ -55,8 +55,11 @@ export const cleanDisplayName = (name: string): string => {
 
 const formatMetricValue = (metric: MetricType, value: number): string => {
   if (value === undefined || value === null || isNaN(value)) return "0";
-  if (metric === "dlr_percent" || metric === "margin_percent") {
+  if (metric === "dlr_percent" || metric === "margin_percent" || metric === "tps_utilization") {
     return `${Number(value).toFixed(1)}%`;
+  }
+  if (metric === "tps" || metric === "peak_tps") {
+    return `${Number(value).toFixed(2)} TPS`;
   }
   if (metric === "profit_margin" || metric === "revenue" || metric === "vendor_cost") {
     return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -163,6 +166,11 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           const marginPct = Number(row.margin_percent || 0);
           const rev = Number(row.revenue || 0);
           const cost = Number(row.vendor_cost || 0);
+          const tps = Number(row.avg_tps ?? row.tps ?? 0);
+          const peakTps = Number(row.peak_tps ?? 0);
+          const configuredTps = row.configured_tps !== undefined && row.configured_tps !== null ? Number(row.configured_tps) : null;
+          const tpsUtilization = Number(row.tps_utilization ?? 0);
+          const avgTpsUtilization = Number(row.avg_tps_utilization ?? 0);
 
           return {
             name,
@@ -176,6 +184,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             margin_percent: marginPct,
             revenue: rev,
             vendor_cost: cost,
+            tps,
+            avg_tps: tps,
+            peak_tps: peakTps,
+            configured_tps: configuredTps,
+            tps_utilization: tpsUtilization,
+            avg_tps_utilization: avgTpsUtilization,
             raw: row,
           };
         });
@@ -381,49 +395,90 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             {widget.visualization === "kpi" && (
               <div className="flex flex-col justify-between h-full py-2">
                 <div className="flex items-baseline justify-between">
-                  <div className="text-3xl font-bold font-mono text-gray-900 dark:text-white tracking-tight">
-                    {widget.entity === "overview" && totals
-                      ? formatMetricValue(widget.primaryMetric, totals[widget.primaryMetric] || 0)
-                      : processedData[0]
-                      ? formatMetricValue(widget.primaryMetric, processedData[0][widget.primaryMetric] || 0)
-                      : "0"}
+                  <div>
+                    <div className="text-3xl font-bold font-mono text-gray-900 dark:text-white tracking-tight">
+                      {widget.entity === "overview" && totals
+                        ? formatMetricValue(widget.primaryMetric, totals[widget.primaryMetric] || 0)
+                        : processedData[0]
+                        ? formatMetricValue(widget.primaryMetric, processedData[0][widget.primaryMetric] || 0)
+                        : "0"}
+                    </div>
+                    {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) && (
+                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                        {widget.primaryMetric === "peak_tps" && "Peak hourly throughput rate observed"}
+                        {widget.primaryMetric === "tps" && "Average sustained window throughput"}
+                        {widget.primaryMetric === "tps_utilization" && "Capacity saturation vs configured policy limit"}
+                      </div>
+                    )}
                   </div>
-                  {processedData.length > 0 && (
+                  {processedData.length > 0 && widget.entity !== "overview" && (
                     <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                       {processedData.length} records found
                     </span>
                   )}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                  <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Volume</div>
-                    <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
-                      {Number(
-                        (widget.entity === "overview" && totals?.attempts) ||
-                          processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
-                      ).toLocaleString()}
+                {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) ? (
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Rate</div>
+                      <div className="text-xs font-semibold text-primary dark:text-blue-400 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && totals?.peak_tps) ||
+                            (processedData[0]?.peak_tps) || 0
+                        ).toFixed(2)} TPS
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Avg Rate</div>
+                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && (totals?.avg_tps ?? totals?.tps)) ||
+                            (processedData[0]?.avg_tps ?? processedData[0]?.tps) || 0
+                        ).toFixed(2)} TPS
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Saturation</div>
+                      <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && totals?.tps_utilization) ||
+                            (processedData[0]?.tps_utilization) || 0
+                        ).toFixed(1)}%
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Delivered</div>
-                    <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                      {Number(
-                        (widget.entity === "overview" && totals?.delivered) ||
-                          processedData.reduce((acc, x) => acc + (x.delivered || 0), 0)
-                      ).toLocaleString()}
+                ) : (
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Volume</div>
+                      <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && totals?.attempts) ||
+                            processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Delivered</div>
+                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && totals?.delivered) ||
+                            processedData.reduce((acc, x) => acc + (x.delivered || 0), 0)
+                        ).toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Failures</div>
+                      <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                        {Number(
+                          (widget.entity === "overview" && totals?.failed) ||
+                            processedData.reduce((acc, x) => acc + (x.failed || 0), 0)
+                        ).toLocaleString()}
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                    <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Failures</div>
-                    <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
-                      {Number(
-                        (widget.entity === "overview" && totals?.failed) ||
-                          processedData.reduce((acc, x) => acc + (x.failed || 0), 0)
-                      ).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -598,10 +653,22 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           : "Failure Reason"}
                       </th>
                       <th className="py-2.5 px-3 text-right">Volume</th>
-                      <th className="py-2.5 px-3 text-right">Delivered</th>
-                      <th className="py-2.5 px-3 text-right">Failed</th>
-                      <th className="py-2.5 px-3 text-right">DLR %</th>
-                      <th className="py-2.5 px-3 text-right">Margin ($)</th>
+                      {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) ? (
+                        <>
+                          <th className="py-2.5 px-3 text-right">Avg TPS</th>
+                          <th className="py-2.5 px-3 text-right">Peak TPS</th>
+                          <th className="py-2.5 px-3 text-right">Config Limit</th>
+                          <th className="py-2.5 px-3 text-right">Saturation</th>
+                          <th className="py-2.5 px-3 text-right">DLR %</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="py-2.5 px-3 text-right">Delivered</th>
+                          <th className="py-2.5 px-3 text-right">Failed</th>
+                          <th className="py-2.5 px-3 text-right">DLR %</th>
+                          <th className="py-2.5 px-3 text-right">Margin ($)</th>
+                        </>
+                      )}
                       {widget.condition && widget.condition.operator !== "none" && (
                         <th className="py-2.5 px-3 text-center">Status</th>
                       )}
@@ -611,6 +678,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     {processedData.map((row, idx) => {
                       const isAlert = row._isMatch;
                       const dlr = Number(row.dlr_percent || 0);
+                      const isTps = ["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric);
 
                       return (
                         <tr
@@ -631,34 +699,96 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
                             {Number(row.attempts || 0).toLocaleString()}
                           </td>
-                          <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">
-                            {Number(row.delivered || 0).toLocaleString()}
-                          </td>
-                          <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">
-                            {Number(row.failed || 0).toLocaleString()}
-                          </td>
-                          <td className="py-2 px-3 text-right">
-                            <span
-                              className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                dlr >= 90
-                                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
-                                  : dlr >= 75
-                                  ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
-                                  : "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300"
-                              }`}
-                            >
-                              {dlr.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td
-                            className={`py-2 px-3 text-right ${
-                              Number(row.profit_margin || 0) >= 0
-                                ? "text-gray-700 dark:text-gray-300"
-                                : "text-red-600 dark:text-red-400 font-semibold"
-                            }`}
-                          >
-                            ${Number(row.profit_margin || 0).toFixed(2)}
-                          </td>
+
+                          {isTps ? (
+                            <>
+                              <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
+                                {Number(row.avg_tps || 0).toFixed(2)}
+                              </td>
+                              <td className="py-2 px-3 text-right font-semibold text-primary dark:text-blue-400">
+                                {Number(row.peak_tps || 0).toFixed(2)}
+                              </td>
+                              <td className="py-2 px-3 text-right text-gray-500 dark:text-gray-400">
+                                {row.configured_tps ? `${row.configured_tps} TPS` : "Uncapped"}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                {row.configured_tps ? (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <span
+                                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                        row.tps_utilization >= 90
+                                          ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30"
+                                          : row.tps_utilization >= 70
+                                          ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30"
+                                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30"
+                                      }`}
+                                    >
+                                      {row.tps_utilization.toFixed(1)}%
+                                    </span>
+                                    <div className="w-16 bg-gray-200 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
+                                      <div
+                                        className={`h-full rounded-full ${
+                                          row.tps_utilization >= 90
+                                            ? "bg-red-500"
+                                            : row.tps_utilization >= 70
+                                            ? "bg-amber-500"
+                                            : "bg-emerald-500"
+                                        }`}
+                                        style={{ width: `${Math.min(100, row.tps_utilization)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-400 dark:text-gray-500 text-[11px]">-</span>
+                                )}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <span
+                                  className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                                    dlr >= 90
+                                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                      : dlr >= 75
+                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                                      : "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                  }`}
+                                >
+                                  {dlr.toFixed(1)}%
+                                </span>
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">
+                                {Number(row.delivered || 0).toLocaleString()}
+                              </td>
+                              <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">
+                                {Number(row.failed || 0).toLocaleString()}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <span
+                                  className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                                    dlr >= 90
+                                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                      : dlr >= 75
+                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
+                                      : "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                  }`}
+                                >
+                                  {dlr.toFixed(1)}%
+                                </span>
+                              </td>
+                              <td
+                                className={`py-2 px-3 text-right ${
+                                  Number(row.profit_margin || 0) >= 0
+                                    ? "text-gray-700 dark:text-gray-300"
+                                    : "text-red-600 dark:text-red-400 font-semibold"
+                                }`}
+                              >
+                                ${Number(row.profit_margin || 0).toFixed(2)}
+                              </td>
+                            </>
+                          )}
+
                           {widget.condition && widget.condition.operator !== "none" && (
                             <td className="py-2 px-3 text-center">
                               {isAlert ? (

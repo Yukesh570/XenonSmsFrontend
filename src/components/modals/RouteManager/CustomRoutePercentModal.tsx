@@ -280,7 +280,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
               setDynamicCustomerCurrency(custResults[0].currencyCode ?? null);
               setDynamicBaseCurrency(custResults[0].baseCurrencyCode ?? null);
             } else if (custResults.length === 1) {
-              if (cleanMnc === "ALL" && custResults[0].MNC === "ALL" && (editingRoute as any)?.allCustomerRates?.length > 1) {
+              if (cleanMnc === "ALL" && String(custResults[0].MNC) === "ALL" && (editingRoute as any)?.allCustomerRates?.length > 1) {
                 setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
                 setDynamicCustomerRate("Multiple Rates");
               } else {
@@ -318,7 +318,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           // Vendor Rate
           const currentTerminatingVendor = (vendorRows.length > 0 && vendorRows[0].terminatingVendor)
             ? vendorRows[0].terminatingVendor
-            : (editingRoute ? String(editingRoute.terminatingVendor || "") : null);
+            : ((editingRoute as any) ? String((editingRoute as any).terminatingVendor || "") : null);
           if (currentTerminatingVendor) {
             try {
               const vendParams: any = {

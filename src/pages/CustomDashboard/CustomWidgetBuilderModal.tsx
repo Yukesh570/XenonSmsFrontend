@@ -160,6 +160,26 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setCondValue(0);
       setCondMode("filter");
       setSortBy("metric_asc");
+    } else if (presetKey === "tps_saturation") {
+      setTitle("High TPS Saturation (>80%)");
+      setEntity("client");
+      setPrimaryMetric("tps_utilization");
+      setVisualization("table");
+      setSize("medium");
+      setHasCondition(true);
+      setCondMetric("tps_utilization");
+      setCondOperator("gt");
+      setCondValue(80);
+      setCondMode("highlight");
+      setSortBy("metric_desc");
+    } else if (presetKey === "top_peak_tps") {
+      setTitle("Top Throughput Routes (Peak TPS)");
+      setEntity("vendor");
+      setPrimaryMetric("peak_tps");
+      setVisualization("bar");
+      setSize("medium");
+      setHasCondition(false);
+      setSortBy("metric_desc");
     }
   };
 
@@ -258,6 +278,20 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               >
                 ⚠️ Negative Margin Routes
               </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("tps_saturation")}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+              >
+                ⚡ High TPS Saturation (&gt;80%)
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset("top_peak_tps")}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+              >
+                🚀 Top Peak TPS
+              </button>
             </div>
           </div>
         )}
@@ -355,6 +389,9 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
               >
                 <option value="dlr_percent">Delivery Rate (DLR %)</option>
+                <option value="peak_tps">Peak Throughput (Peak TPS)</option>
+                <option value="tps">Average Throughput (TPS)</option>
+                <option value="tps_utilization">TPS Capacity Utilization (%)</option>
                 <option value="attempts">Total Attempts / Volume</option>
                 <option value="delivered">Delivered Messages</option>
                 <option value="failed">Failed Messages</option>
@@ -472,6 +509,9 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                     className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
                   >
                     <option value="dlr_percent">DLR %</option>
+                    <option value="tps_utilization">TPS Capacity Utilization (%)</option>
+                    <option value="peak_tps">Peak TPS</option>
+                    <option value="tps">Average TPS</option>
                     <option value="margin_percent">Margin %</option>
                     <option value="profit_margin">Profit Margin ($)</option>
                     <option value="failed">Failed Count</option>

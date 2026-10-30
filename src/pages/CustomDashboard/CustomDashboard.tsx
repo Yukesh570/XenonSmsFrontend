@@ -18,7 +18,7 @@ import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
-const STORAGE_KEY = "xenon_custom_data_workspace_v5";
+const STORAGE_KEY = "xenon_custom_data_workspace_v6";
 
 export const CustomDashboard: React.FC = () => {
   // Theme listener (Light vs Dark)

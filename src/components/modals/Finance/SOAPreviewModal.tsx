@@ -31,6 +31,7 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
   if (!isOpen || !soaData) return null;
 
   const currency = soaData.currency || "USD";
+  const isVendor = soaData.accountType === "VENDOR" || requestPayload?.accountType === "VENDOR";
 
   const formatMoney = (val: number | null | undefined) => {
     if (val === null || val === undefined) return "—";
@@ -48,7 +49,8 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SOA_${soaData.company.name.replace(/\s+/g, "_")}_${requestPayload.fromDate}_${requestPayload.toDate}.pdf`;
+      const prefix = isVendor ? "SOA_Vendor_" : "SOA_";
+      a.download = `${prefix}${soaData.company.name.replace(/\s+/g, "_")}_${requestPayload.fromDate}_${requestPayload.toDate}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -69,7 +71,8 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `SOA_${soaData.company.name.replace(/\s+/g, "_")}_${requestPayload.fromDate}_${requestPayload.toDate}.xlsx`;
+      const prefix = isVendor ? "SOA_Vendor_" : "SOA_";
+      a.download = `${prefix}${soaData.company.name.replace(/\s+/g, "_")}_${requestPayload.fromDate}_${requestPayload.toDate}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -86,7 +89,7 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Statement of Account"
+      title={isVendor ? "Vendor Statement of Account" : "Statement of Account"}
       className="max-w-5xl"
     >
       <div className="space-y-5">
@@ -94,7 +97,7 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-3.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
             <label className="block text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-1">
-              Client Company
+              {isVendor ? "Vendor Company" : "Client Company"}
             </label>
             <p className="text-sm font-bold text-text-primary dark:text-white truncate">
               {soaData.company.name}
@@ -127,7 +130,9 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
 
           <div className="p-3.5 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20">
             <label className="block text-[11px] font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wider mb-1">
-              Closing Balance (Due)
+              {isVendor
+                ? (soaData.closingBalance >= 0 ? "Closing Balance (Payable)" : "Closing Balance (Advance)")
+                : (soaData.closingBalance > 0 ? "Closing Balance (Due)" : "Closing Balance (Credit)")}
             </label>
             <p
               className={`text-base font-bold ${
@@ -249,7 +254,9 @@ export const SOAPreviewModal: React.FC<SOAPreviewModalProps> = ({
         {/* Footer Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
           <span className="text-xs text-text-secondary dark:text-gray-400">
-            Debits increase amount owed; Credits decrease amount owed.
+            {isVendor
+              ? "Debits increase payable to vendor; Credits decrease payable to vendor."
+              : "Debits increase amount owed; Credits decrease amount owed."}
           </span>
           <div className="flex items-center gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>
