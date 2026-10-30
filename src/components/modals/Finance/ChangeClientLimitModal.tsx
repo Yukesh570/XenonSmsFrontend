@@ -56,7 +56,7 @@ export const ChangeClientLimitModal: React.FC<ChangeClientLimitModalProps> = ({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`Change Credit Limit - ${company.name}`} className="max-w-md">
+    <Modal isOpen={isOpen} onClose={onClose} title={`Change Client Limit - ${company.name}`} className="max-w-md">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 gap-5">
           <Input
