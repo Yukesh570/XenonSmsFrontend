@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Globe, 
-  Save, 
-  Layers, 
-  Zap, 
-  CheckCircle2, 
-  AlertCircle, 
-  Sparkles, 
-  TrendingDown, 
+import {
+  Globe,
+  Save,
+  Layers,
+  Zap,
+  CheckCircle2,
+  AlertCircle,
+  Sparkles,
+  TrendingDown,
   FileText,
   Activity,
   Search,
@@ -67,6 +67,50 @@ const SAMPLE_PRESETS = [
     text: "Limited time discount! 🚀 Use code SUPER50 now! 🎉",
   },
 ];
+
+const LANGUAGE_META: Record<string, {
+  characters: string;
+}> = {
+  tr: {
+    characters: "ş, ğ, ı, ç, ö, ü, Ş, Ğ, İ, Ç, Ö, Ü",
+  },
+  es: {
+    characters: "á, é, í, ó, ú, ¿, ¡",
+  },
+  pt: {
+    characters: "ã, õ, ç, á, é, í, ó, ú, à, ê, ô",
+  },
+  bn: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  gu: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  hi: {
+    characters: "Hinglish: 160 chars GSM-7 • Native: Unicode",
+  },
+  kn: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  ml: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  or: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  pa: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  ta: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  te: {
+    characters: "Roman: 160 chars GSM-7 • Native: Unicode",
+  },
+  ur: {
+    characters: "Roman Urdu: 160 chars GSM-7 • Native: Unicode",
+  },
+};
 
 interface Props {
   canUpdate?: boolean;
@@ -194,11 +238,10 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
           <button
             type="button"
             onClick={() => setActiveSubTab("simulator")}
-            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeSubTab === "simulator"
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeSubTab === "simulator"
                 ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
+              }`}
           >
             <Zap className="w-4 h-4 text-amber-500" />
             SMS Simulator
@@ -206,11 +249,10 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
           <button
             type="button"
             onClick={() => setActiveSubTab("configuration")}
-            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeSubTab === "configuration"
+            className={`flex items-center gap-2 px-5 py-2 text-sm font-semibold rounded-lg transition-all ${activeSubTab === "configuration"
                 ? "bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
                 : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-            }`}
+              }`}
           >
             <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
             Configuration & Tables
@@ -249,11 +291,10 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                 key={idx}
                 type="button"
                 onClick={() => handleSelectPreset(preset.text)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-medium ${
-                  testText === preset.text
+                className={`text-xs px-3 py-1.5 rounded-lg border transition-all font-medium ${testText === preset.text
                     ? "bg-indigo-50 border-indigo-300 text-indigo-700 dark:bg-indigo-950/60 dark:border-indigo-700 dark:text-indigo-300 font-semibold"
                     : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
+                  }`}
               >
                 {preset.label}
               </button>
@@ -344,13 +385,12 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="p-4 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
                   <span className="text-xs text-gray-500 dark:text-gray-400 block font-medium">Encoding</span>
-                  <span className={`text-base font-bold block mt-1 ${
-                    analysisResult.encoding === "GSM7_NLI"
+                  <span className={`text-base font-bold block mt-1 ${analysisResult.encoding === "GSM7_NLI"
                       ? "text-emerald-600 dark:text-emerald-400"
                       : analysisResult.encoding === "GSM7"
-                      ? "text-blue-600 dark:text-blue-400"
-                      : "text-amber-600 dark:text-amber-400"
-                  }`}>
+                        ? "text-blue-600 dark:text-blue-400"
+                        : "text-amber-600 dark:text-amber-400"
+                    }`}>
                     {analysisResult.encoding === "GSM7_NLI" ? `${analysisResult.language} NLI` : analysisResult.encoding}
                   </span>
                   <span className="text-[11px] text-gray-400 block mt-0.5">
@@ -515,55 +555,63 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                 <thead>
                   <tr className="border-b border-gray-100 dark:border-gray-700 text-gray-400 uppercase tracking-wider text-[11px]">
                     <th className="py-2.5 px-3">Language</th>
-                    <th className="py-2.5 px-3">3GPP ID</th>
-                    <th className="py-2.5 px-3">Single Shift</th>
-                    <th className="py-2.5 px-3">Locking Shift</th>
+                    <th className="py-2.5 px-3">Supported Accents & Characters</th>
                     <th className="py-2.5 px-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-medium">
-                  {filteredLanguages.map((lang) => (
-                    <tr
-                      key={lang.id}
-                      className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${
-                        lang.enabled ? "bg-indigo-50/20 dark:bg-indigo-950/10" : ""
-                      }`}
-                    >
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-2 h-2 rounded-full ${lang.enabled ? "bg-emerald-500" : "bg-gray-300 dark:bg-gray-600"}`} />
-                          <span className="font-semibold text-gray-900 dark:text-white text-xs">{lang.language_name}</span>
-                          <span className="text-[10px] font-mono px-1 py-0.2 bg-gray-100 dark:bg-gray-700 text-gray-500 rounded uppercase">
-                            {lang.language_code}
+                  {filteredLanguages.map((lang) => {
+                    const code = lang.language_code.toLowerCase();
+                    const meta = LANGUAGE_META[code] || {
+                      characters: "Standard regional characters",
+                    };
+
+                    return (
+                      <tr
+                        key={lang.id}
+                        className={`hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${lang.enabled ? "bg-indigo-50/20 dark:bg-indigo-950/10" : ""}`}
+                      >
+                        <td className="py-3 px-3">
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-semibold text-gray-900 dark:text-white text-xs">
+                                {lang.language_name}
+                              </span>
+                              <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-200 dark:border-emerald-800">
+                                Global NLI
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-gray-400 font-mono">
+                              {lang.language_code.toUpperCase()}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className="font-mono text-[11px] text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-md border border-indigo-100 dark:border-indigo-900/40 inline-block max-w-[360px] truncate">
+                            {meta.characters}
                           </span>
-                        </div>
-                      </td>
-                      <td className="py-2.5 px-3 font-mono text-gray-600 dark:text-gray-400">{lang.hex_language_id}</td>
-                      <td className="py-2.5 px-3">
-                        {lang.single_shift_available ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-medium">✓ IEI 0x24</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3">
-                        {lang.locking_shift_available ? (
-                          <span className="text-blue-600 dark:text-blue-400 font-medium">✓ IEI 0x25</span>
-                        ) : (
-                          <span className="text-gray-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 px-3 text-center">
-                        <ToggleSwitch
-                          checked={lang.enabled}
-                          onChange={() => handleToggleLanguage(lang)}
-                          disabled={!canUpdate}
-                        />
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="py-3 px-3 text-center">
+                          <ToggleSwitch
+                            checked={lang.enabled}
+                            onChange={() => handleToggleLanguage(lang)}
+                            disabled={!canUpdate}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
+            </div>
+
+            {/* Native Script Auto-Routing Note */}
+            <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-50/60 dark:bg-blue-950/20 border border-blue-100 dark:border-blue-900/30 text-xs text-blue-800 dark:text-blue-300">
+              <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+              <div>
+                <span className="font-semibold">Native Script Auto-Routing:</span>{" "}
+                Non-Latin scripts (Hindi/Devanagari, Urdu/Arabic, Bengali, Tamil, etc.) automatically route to standard UCS-2 Unicode for crisp native rendering across all smartphones. Romanized scripts (e.g. Hinglish, Roman Urdu) are natively handled in standard 160-character GSM-7.
+              </div>
             </div>
           </div>
         </div>
