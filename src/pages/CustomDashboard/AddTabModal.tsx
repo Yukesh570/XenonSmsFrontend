@@ -40,14 +40,14 @@ const TEMPLATES = [
       },
       {
         id: "w-client-tps-utilization",
-        title: "Client TPS Saturation Watchlist (>80%)",
+        title: "Client Peak Load Watchlist (>80%)",
         entity: "client" as const,
-        primaryMetric: "tps_utilization" as const,
+        primaryMetric: "peak_tps_utilization" as const,
         visualization: "bar" as const,
         size: "medium" as const,
         filters: { datePreset: "all" as const },
         condition: {
-          metric: "tps_utilization" as const,
+          metric: "peak_tps_utilization" as const,
           operator: "gt" as const,
           value: 80,
           mode: "highlight" as const,

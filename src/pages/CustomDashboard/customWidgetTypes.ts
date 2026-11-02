@@ -12,6 +12,8 @@ export type MetricType =
   | "vendor_cost"
   | "tps"
   | "peak_tps"
+  | "peak_tps_utilization"
+  | "avg_tps_utilization"
   | "tps_utilization";
 
 export type VisualizationType = "table" | "bar" | "donut" | "kpi";
@@ -67,7 +69,9 @@ export const METRIC_LABELS: Record<MetricType, string> = {
   vendor_cost: "Vendor Cost ($)",
   tps: "Average Throughput (TPS)",
   peak_tps: "Peak Throughput (TPS)",
-  tps_utilization: "TPS Capacity Utilization (%)",
+  peak_tps_utilization: "Peak Load (%)",
+  avg_tps_utilization: "Average Load (%)",
+  tps_utilization: "Peak Load (%)",
 };
 
 export const ENTITY_LABELS: Record<EntityGroupBy, string> = {
@@ -115,14 +119,14 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
       },
       {
         id: "w-client-tps-utilization",
-        title: "Client TPS Saturation Watchlist",
+        title: "Client Peak Load Watchlist",
         entity: "client",
-        primaryMetric: "tps_utilization",
+        primaryMetric: "peak_tps_utilization",
         visualization: "bar",
         size: "medium",
         filters: { datePreset: "all" },
         condition: {
-          metric: "tps_utilization",
+          metric: "peak_tps_utilization",
           operator: "gt",
           value: 80,
           mode: "highlight",
