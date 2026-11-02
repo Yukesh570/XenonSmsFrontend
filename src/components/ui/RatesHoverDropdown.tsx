@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check, X } from "lucide-react";
-import { StatusBadge } from "./StatusBadge";
 
 export interface RateItem {
   MNC?: string | number;
@@ -21,6 +20,8 @@ export interface RatesHoverDropdownProps {
   selectedMnc?: string | null;
   onSelectMnc?: (mnc: string | null) => void;
   allMargins?: Record<string, { margin?: number; marginPercentage?: number; customerRate?: number | string; vendorRate?: number | string }>;
+  variant?: "input" | "table";
+  disabled?: boolean;
 }
 
 let activeDropdownId: string | null = null;
@@ -44,10 +45,12 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   currencyCode,
   selectedMnc,
   onSelectMnc,
+  variant = "table",
+  disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [openUpwards, setOpenUpwards] = useState(false);
-  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
+  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number; width?: number }>({ left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,7 +76,7 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
 
     setOpenUpwards(shouldOpenUp);
 
-    const dropdownWidth = 240;
+    const dropdownWidth = variant === "input" ? Math.max(240, rect.width) : 240;
     let left = rect.left;
     if (left + dropdownWidth > window.innerWidth - 16) {
       left = Math.max(16, window.innerWidth - dropdownWidth - 16);
@@ -85,16 +88,19 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
       setCoords({
         bottom: window.innerHeight - rect.top + 6,
         left,
+        width: rect.width,
       });
     } else {
       setCoords({
         top: rect.bottom + 6,
         left,
+        width: rect.width,
       });
     }
   };
 
   const handleMouseEnter = () => {
+    if (disabled) return;
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
       closeTimeoutRef.current = null;
@@ -108,6 +114,7 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   };
 
   const handleMouseLeave = () => {
+    if (disabled) return;
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
@@ -122,6 +129,7 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (disabled) return;
     if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
     if (!isOpen) {
       calculatePosition();
@@ -196,43 +204,75 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
   return (
     <div
       ref={triggerRef}
-      className="relative inline-block select-none"
+      className={`relative select-none ${variant === "input" ? "w-full" : "inline-block"}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={handleClick}
     >
-      <div className="cursor-pointer inline-flex items-center hover:opacity-85 transition-opacity">
-        <StatusBadge
-          status="MULTIPLE_RATES"
-          customText={
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span className="font-mono">{selectedMnc ? (displayRateText || `Rates (${selectedMnc})`) : "Multiple Rates"}</span>
-              {selectedMnc && onSelectMnc && (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSelectMnc(null);
-                    setIsOpen(false);
-                    if (activeDropdownId === dropdownId) {
-                      setActiveDropdown(null);
-                    }
-                  }}
-                  className="hover:text-red-600 dark:hover:text-red-400 p-0.5 -mr-0.5 rounded text-[10px] font-bold leading-none cursor-pointer"
-                >
-                  ✕
-                </span>
-              )}
-              <ChevronDown
-                size={11}
-                strokeWidth={2.5}
-                className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
-              />
-            </span>
-          }
-        />
-      </div>
+      {variant === "input" ? (
+        <div className={`w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center justify-between text-xs sm:text-sm shadow-input transition-colors ${
+          disabled ? "cursor-not-allowed" : "cursor-pointer hover:border-gray-300 dark:hover:border-gray-600"
+        }`}>
+          <span className={`font-mono text-xs sm:text-sm truncate ${
+            disabled ? "text-gray-500 dark:text-gray-500 font-normal" : "text-text-primary dark:text-gray-200"
+          }`}>
+            {selectedMnc ? (displayRateText || `Rates (${selectedMnc})`) : "Multiple Rates"}
+          </span>
+          <span className={`inline-flex items-center gap-1.5 shrink-0 ml-2 ${disabled ? "text-gray-400 dark:text-gray-600" : "text-gray-400"}`}>
+            {!disabled && selectedMnc && onSelectMnc && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectMnc(null);
+                  setIsOpen(false);
+                  if (activeDropdownId === dropdownId) {
+                    setActiveDropdown(null);
+                  }
+                }}
+                className="hover:text-red-500 p-0.5 rounded text-xs leading-none cursor-pointer"
+                title="Clear selection"
+              >
+                ✕
+              </span>
+            )}
+            <ChevronDown
+              size={14}
+              className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
+            />
+          </span>
+        </div>
+      ) : (
+        <div className={`inline-flex items-center ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/90 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs font-mono transition-colors shadow-sm">
+            <span>{selectedMnc ? (displayRateText || `Rates (${selectedMnc})`) : "Multiple Rates"}</span>
+            {!disabled && selectedMnc && onSelectMnc && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectMnc(null);
+                  setIsOpen(false);
+                  if (activeDropdownId === dropdownId) {
+                    setActiveDropdown(null);
+                  }
+                }}
+                className="hover:text-red-500 p-0.5 rounded text-[10px] font-bold leading-none cursor-pointer"
+                title="Clear selection"
+              >
+                ✕
+              </span>
+            )}
+            <ChevronDown
+              size={12}
+              strokeWidth={2}
+              className={`text-gray-400 transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
+            />
+          </span>
+        </div>
+      )}
 
       {isOpen &&
         createPortal(
@@ -243,6 +283,7 @@ export const RatesHoverDropdown: React.FC<RatesHoverDropdownProps> = ({
               position: "fixed",
               left: `${coords.left}px`,
               ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : { top: `${coords.top}px` }),
+              ...(variant === "input" && coords.width ? { width: `${Math.min(290, Math.max(210, coords.width))}px` } : {}),
             }}
             onMouseEnter={() => {
               if (closeTimeoutRef.current) {

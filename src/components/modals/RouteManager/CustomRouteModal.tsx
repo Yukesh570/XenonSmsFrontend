@@ -1140,17 +1140,17 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                       <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
                         Customer Rate
                       </label>
-                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
-                        <RatesHoverDropdown
-                          title="All Customer Rates"
-                          rates={custRates}
-                          currencyCode={custCurrency}
-                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
-                          allMargins={(editingRoute as any)?.allMargins}
-                          selectedMnc={selectedRateMnc}
-                          onSelectMnc={setSelectedRateMnc}
-                        />
-                      </div>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Customer Rates"
+                        rates={custRates}
+                        currencyCode={custCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
                     </div>
                   ) : (
                     <Input
@@ -1167,17 +1167,17 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                       <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
                         Vendor Rate
                       </label>
-                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
-                        <RatesHoverDropdown
-                          title="All Network Rates"
-                          rates={vendRates}
-                          currencyCode={vendCurrency}
-                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
-                          allMargins={(editingRoute as any)?.allMargins}
-                          selectedMnc={selectedRateMnc}
-                          onSelectMnc={setSelectedRateMnc}
-                        />
-                      </div>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Network Rates"
+                        rates={vendRates}
+                        currencyCode={vendCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
                     </div>
                   ) : (
                     <Input
@@ -1209,13 +1209,21 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                     className={(() => {
                       if (hasMultipleRates) {
                         if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
-                          return activeMncMargin.margin < 0 ? "!text-red-500 font-medium" : activeMncMargin.margin > 0 ? "!text-green-600 font-medium" : "";
+                          return activeMncMargin.margin < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.margin > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
                         }
                         return "";
                       }
                       if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
                         const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                        return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
+                        return margin < 0
+                          ? "!text-red-500 font-medium"
+                          : margin > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
                       }
                       return "";
                     })()}
@@ -1241,13 +1249,21 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                     className={(() => {
                       if (hasMultipleRates) {
                         if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
-                          return activeMncMargin.marginPercentage < 0 ? "!text-red-500 font-medium" : activeMncMargin.marginPercentage > 0 ? "!text-green-600 font-medium" : "";
+                          return activeMncMargin.marginPercentage < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.marginPercentage > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
                         }
                         return "";
                       }
                       if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
                         const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
-                        return marginPct < 0 ? "!text-red-500 font-medium" : marginPct > 0 ? "!text-green-600 font-medium" : "";
+                        return marginPct < 0
+                          ? "!text-red-500 font-medium"
+                          : marginPct > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
                       }
                       return "";
                     })()}

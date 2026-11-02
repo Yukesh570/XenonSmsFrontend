@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Edit,
+  Eye,
   X,
   Filter,
   Loader2,
@@ -313,6 +314,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [isEditPriorityModalOpen, setIsEditPriorityModalOpen] = useState(false);
   const [isEditPercentModalOpen, setIsEditPercentModalOpen] = useState(false);
   const [editingRouteData, setEditingRouteData] = useState<CustomRouteData | null>(null);
+  const [isRouteViewMode, setIsRouteViewMode] = useState(false);
   const [selectedMncByRoute, setSelectedMncByRoute] = useState<Record<string | number, string>>({});
 
   const handleRouteContextMenu = (
@@ -330,6 +332,19 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const routeMenuItems: ContextMenuItem[] = selectedRoute
     ? [
+      {
+        label: "View Route",
+        icon: <Eye size={16} />,
+        onClick: () => {
+          setEditingRouteData(selectedRoute);
+          setIsRouteViewMode(true);
+          if (selectedRoutingType === "PERCENTAGE") {
+            setIsEditPercentModalOpen(true);
+          } else {
+            setIsEditPriorityModalOpen(true);
+          }
+        },
+      },
       ...(canUpdate
         ? [
           {
@@ -337,6 +352,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             icon: <Edit size={16} />,
             onClick: () => {
               setEditingRouteData(selectedRoute);
+              setIsRouteViewMode(false);
               if (selectedRoutingType === "PERCENTAGE") {
                 setIsEditPercentModalOpen(true);
               } else {
@@ -2305,7 +2321,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                             ? 'text-red-500 font-medium'
                                                             : effectiveMargin > 0
                                                             ? 'text-green-600 font-medium'
-                                                            : 'text-gray-500'
+                                                            : 'text-gray-900 dark:text-white font-medium'
                                                           : 'text-gray-400'
                                                       }`}
                                                     >
@@ -2324,7 +2340,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                           ? 'text-red-500 font-medium'
                                                           : effectiveMarginPct > 0
                                                           ? 'text-green-600 font-medium'
-                                                          : 'text-gray-500'
+                                                          : 'text-gray-900 dark:text-white font-medium'
                                                         : 'text-gray-400'
                                                     }`}>
                                                       {effectiveMarginPct !== null && effectiveMarginPct !== undefined ? (
@@ -2477,7 +2493,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                           ? "text-red-500 font-medium"
                                                           : displayMargin > 0
                                                           ? "text-green-600 font-medium"
-                                                          : "text-gray-500"
+                                                          : "text-gray-900 dark:text-white font-medium"
                                                         : "text-gray-400"
                                                     }`}
                                                   >
@@ -2497,7 +2513,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                           ? "text-red-500 font-medium"
                                                           : displayMarginPct > 0
                                                           ? "text-green-600 font-medium"
-                                                          : "text-gray-500"
+                                                          : "text-gray-900 dark:text-white font-medium"
                                                         : "text-gray-400"
                                                     }`}
                                                   >
@@ -2580,6 +2596,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         onClose={() => {
           setIsEditPriorityModalOpen(false);
           setEditingRouteData(null);
+          setIsRouteViewMode(false);
         }}
         onSuccess={() => {
           if (selectedRouteCountryId) fetchSectionRoutes(selectedRouteCountryId);
@@ -2587,6 +2604,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         moduleName={moduleName}
         editingRoute={editingRouteData}
         lockedName={routeGroup || undefined}
+        isViewMode={isRouteViewMode}
       />
 
       {/* EDIT PERCENTAGE ROUTE MODAL */}
@@ -2595,6 +2613,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         onClose={() => {
           setIsEditPercentModalOpen(false);
           setEditingRouteData(null);
+          setIsRouteViewMode(false);
         }}
         onSuccess={() => {
           if (selectedRouteCountryId) fetchSectionRoutes(selectedRouteCountryId);
@@ -2604,6 +2623,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         lockedName={routeGroup || undefined}
         otherRoutesTotal={getOtherRoutesTotal(selectedRouteCountryId, editingRouteData?.id, editingRouteData?.MCC, editingRouteData?.MNC)}
         onSaveLocal={handleLocalRouteSave}
+        isViewMode={isRouteViewMode}
       />
 
       {/* DYNAMIC DELETE ROUTE MODAL */}

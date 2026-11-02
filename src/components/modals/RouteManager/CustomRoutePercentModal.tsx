@@ -32,6 +32,7 @@ interface CustomRoutePercentModalProps {
   moduleName: string;
   lockedName?: string;
   editingRoute?: CustomRouteData | null;
+  isViewMode?: boolean;
   isFirstRoute?: boolean;
   allowedCountryIds?: string[];
   otherRoutesTotal?: number;
@@ -49,6 +50,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   moduleName,
   lockedName,
   editingRoute = null,
+  isViewMode = false,
   allowedCountryIds,
   otherRoutesTotal = 0,
   onSaveLocal,
@@ -707,8 +709,15 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isViewMode) return;
 
     if (isEditMode) {
+      const selectedVendor = vendorRows[0]?.terminatingVendor || editingRoute?.terminatingVendor;
+      if (!selectedVendor) {
+        toast.error("Terminating Vendor is required.");
+        return;
+      }
+
       setIsSubmitting(true);
       try {
         const cleanMnc = extractCleanMncString(formData.MNC);
@@ -717,7 +726,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           name: formData.name,
           status: formData.status || "ACTIVE",
           country: Number(formData.country),
-          terminatingVendor: Number(editingRoute?.terminatingVendor || vendorRows[0]?.terminatingVendor),
+          terminatingVendor: Number(selectedVendor),
         };
 
         const mncArray = Array.isArray(formData.MNC) ? formData.MNC : [];
@@ -758,7 +767,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
         if (onSaveLocal) {
           onSaveLocal({
-            terminatingVendor: Number(editingRoute?.terminatingVendor || vendorRows[0]?.terminatingVendor),
+            terminatingVendor: Number(selectedVendor),
             status: formData.status || "ACTIVE"
           });
         }
@@ -863,7 +872,13 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditMode ? `Edit Route: ${formData.name || ''}` : (lockedName ? `Add New Route to ${lockedName}` : "Create Custom Route")}
+      title={
+        isViewMode
+          ? `View Route: ${formData.name || ''}`
+          : isEditMode
+            ? `Edit Route: ${formData.name || ''}`
+            : (lockedName ? `Add New Route to ${lockedName}` : "Create Custom Route")
+      }
       className="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6 px-1">
@@ -884,13 +899,14 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
               value={formData.status}
               onChange={(v) => handleSelectChange("status", v)}
               options={statusOptions}
+              disabled={isViewMode}
             />
           </div>
         </fieldset>
 
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-visible">
           <legend className="text-sm font-semibold text-primary px-2">
-            {isEditMode ? "Destination (Read Only)" : "Destination"}
+            {isEditMode || isViewMode ? "Destination (Read Only)" : "Destination"}
           </legend>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-3">
@@ -900,7 +916,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                 onChange={(v) => handleSelectChange("country", v)}
                 options={countryOptions}
                 placeholder="Select Country"
-                disabled={isEditMode || isFetchingOptions}
+                disabled={isEditMode || isViewMode || isFetchingOptions}
               />
             </div>
 
@@ -910,7 +926,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                 options={mccOptions}
                 selected={formData.MCC}
                 onChange={handleMccChange}
-                disabled={!formData.country || isEditMode || isFetchingOptions}
+                disabled={!formData.country || isEditMode || isViewMode || isFetchingOptions}
                 placeholder={formData.country ? "Select MCC" : "Country First"}
               />
             </div>
@@ -922,7 +938,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                   options={mncOptions}
                   selected={computeDisplayMnc()}
                   onChange={handleMncChange}
-                  disabled={formData.MCC.length === 0 || isEditMode || isFetchingOptions}
+                  disabled={formData.MCC.length === 0 || isEditMode || isViewMode || isFetchingOptions}
                   placeholder={formData.MCC.length > 0 ? "Select MNC" : "MCC First"}
                 />
               </div>
@@ -964,7 +980,27 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           </div>
         </fieldset>
 
-        {!isEditMode && (
+        {isEditMode ? (
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <legend className="text-sm font-semibold text-primary px-2">
+              Vendor Info
+            </legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Terminating Vendor"
+                value={
+                  vendorRows[0]?.terminatingVendor
+                    ? String(vendorRows[0].terminatingVendor)
+                    : ""
+                }
+                onChange={(v) => updateVendorRow(0, "terminatingVendor", v)}
+                options={vendorOptions}
+                placeholder="Select Vendor"
+                disabled={isViewMode || isFetchingOptions}
+              />
+            </div>
+          </fieldset>
+        ) : (
           <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <legend className="text-sm font-semibold text-primary px-2">Vendor Distribution</legend>
@@ -1077,17 +1113,17 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                       <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
                         Customer Rate
                       </label>
-                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
-                        <RatesHoverDropdown
-                          title="All Customer Rates"
-                          rates={custRates}
-                          currencyCode={custCurrency}
-                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
-                          allMargins={(editingRoute as any)?.allMargins}
-                          selectedMnc={selectedRateMnc}
-                          onSelectMnc={setSelectedRateMnc}
-                        />
-                      </div>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Customer Rates"
+                        rates={custRates}
+                        currencyCode={custCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
                     </div>
                   ) : (
                     <Input
@@ -1102,17 +1138,17 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                       <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
                         Vendor Rate
                       </label>
-                      <div className="w-full h-[34px] rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 px-3 py-1 flex items-center shadow-input">
-                        <RatesHoverDropdown
-                          title="All Network Rates"
-                          rates={vendRates}
-                          currencyCode={vendCurrency}
-                          baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
-                          allMargins={(editingRoute as any)?.allMargins}
-                          selectedMnc={selectedRateMnc}
-                          onSelectMnc={setSelectedRateMnc}
-                        />
-                      </div>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Network Rates"
+                        rates={vendRates}
+                        currencyCode={vendCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
                     </div>
                   ) : (
                     <Input
@@ -1140,13 +1176,21 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                     className={(() => {
                       if (hasMultipleRates) {
                         if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
-                          return activeMncMargin.margin < 0 ? "!text-red-500 font-medium" : activeMncMargin.margin > 0 ? "!text-green-600 font-medium" : "";
+                          return activeMncMargin.margin < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.margin > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
                         }
                         return "";
                       }
                       if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
                         const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                        return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
+                        return margin < 0
+                          ? "!text-red-500 font-medium"
+                          : margin > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
                       }
                       return "";
                     })()}
@@ -1170,13 +1214,21 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                     className={(() => {
                       if (hasMultipleRates) {
                         if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
-                          return activeMncMargin.marginPercentage < 0 ? "!text-red-500 font-medium" : activeMncMargin.marginPercentage > 0 ? "!text-green-600 font-medium" : "";
+                          return activeMncMargin.marginPercentage < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.marginPercentage > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
                         }
                         return "";
                       }
                       if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
-                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                        return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
+                        const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
+                        return marginPct < 0
+                          ? "!text-red-500 font-medium"
+                          : marginPct > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
                       }
                       return "";
                     })()}
@@ -1189,10 +1241,14 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
         )}
 
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || (!isEditMode && isExceeded)}>
-            Save
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {isViewMode ? "Close" : "Cancel"}
           </Button>
+          {!isViewMode && (
+            <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || (!isEditMode && isExceeded)}>
+              Save
+            </Button>
+          )}
         </div>
       </form>
     </Modal>

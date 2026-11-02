@@ -310,15 +310,17 @@ const MultiSelectDropdownContent: React.FC<
       >
         <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
           {singleSelectedOption?.icon && (
-            <span className="shrink-0 flex items-center pointer-events-none">
+            <span className={`shrink-0 flex items-center pointer-events-none ${isEffectivelyDisabled ? "opacity-60" : ""}`}>
               {singleSelectedOption.icon}
             </span>
           )}
           <span
             className={`truncate text-xs sm:text-sm ${
-              isOptionsLoading || selected.length === 0
-                ? "text-gray-400 dark:text-gray-500"
-                : "text-text-primary dark:text-white font-medium"
+              isEffectivelyDisabled
+                ? "text-gray-500 cursor-not-allowed dark:text-gray-500 font-normal"
+                : isOptionsLoading || selected.length === 0
+                  ? "text-gray-400 dark:text-gray-500"
+                  : "text-text-primary dark:text-white font-medium"
             }`}
           >
             {getDisplayText()}
@@ -341,7 +343,7 @@ const MultiSelectDropdownContent: React.FC<
               )}
               <ChevronDown
                 size={16}
-                className={`text-gray-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+                className={`${isEffectivelyDisabled ? "text-gray-400 dark:text-gray-600" : "text-gray-400"} transition-transform duration-200 ${open ? "rotate-180" : ""}`}
               />
             </>
           )}
