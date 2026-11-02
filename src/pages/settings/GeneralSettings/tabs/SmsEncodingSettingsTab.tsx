@@ -8,7 +8,8 @@ import {
   Search,
   Lock,
   RotateCcw,
-  X
+  X,
+  Info
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../../components/ui/Button";
@@ -45,9 +46,9 @@ const fallbackOptions = [
 
 // Fallback initial 3GPP National Language Shift Tables
 const DEFAULT_3GPP_LANGUAGES: SmsNliLanguage[] = [
-  { id: 1, language_code: "tr", language_name: "Turkish", language_id: 1, hex_language_id: "0x01", single_shift_available: true, locking_shift_available: true, enabled: false, display_order: 1, created_at: "", updated_at: "" },
+  { id: 1, language_code: "tr", language_name: "Turkish", language_id: 1, hex_language_id: "0x01", single_shift_available: true, locking_shift_available: true, enabled: true, display_order: 1, created_at: "", updated_at: "" },
   { id: 2, language_code: "es", language_name: "Spanish", language_id: 2, hex_language_id: "0x02", single_shift_available: true, locking_shift_available: false, enabled: true, display_order: 2, created_at: "", updated_at: "" },
-  { id: 3, language_code: "pt", language_name: "Portuguese", language_id: 3, hex_language_id: "0x03", single_shift_available: true, locking_shift_available: true, enabled: false, display_order: 3, created_at: "", updated_at: "" },
+  { id: 3, language_code: "pt", language_name: "Portuguese", language_id: 3, hex_language_id: "0x03", single_shift_available: true, locking_shift_available: true, enabled: true, display_order: 3, created_at: "", updated_at: "" },
   { id: 4, language_code: "bn", language_name: "Bengali", language_id: 4, hex_language_id: "0x04", single_shift_available: true, locking_shift_available: true, enabled: false, display_order: 4, created_at: "", updated_at: "" },
   { id: 5, language_code: "gu", language_name: "Gujarati", language_id: 5, hex_language_id: "0x05", single_shift_available: true, locking_shift_available: true, enabled: false, display_order: 5, created_at: "", updated_at: "" },
   { id: 6, language_code: "hi", language_name: "Hindi", language_id: 6, hex_language_id: "0x06", single_shift_available: true, locking_shift_available: true, enabled: false, display_order: 6, created_at: "", updated_at: "" },
@@ -66,7 +67,7 @@ const DEFAULT_CONFIG: SmsEncodingConfig = {
   rollout_mode: "ENFORCE",
   unicode_normalization: "NFC",
   fallback_encoding: "UCS2",
-  enabled_languages: [DEFAULT_3GPP_LANGUAGES[1]],
+  enabled_languages: [DEFAULT_3GPP_LANGUAGES[0], DEFAULT_3GPP_LANGUAGES[1], DEFAULT_3GPP_LANGUAGES[2]],
   created_at: "",
   updated_at: "",
 };
@@ -109,6 +110,22 @@ const SAMPLE_PRESETS = [
     description: "Emojis trigger standard 16-bit Unicode UCS-2 encoding (70 characters per segment).",
   },
 ];
+
+const LANGUAGE_META: Record<string, { characters: string }> = {
+  tr: { characters: "ş, ğ, ı, ç, ö, ü, Ş, Ğ, İ, Ç, Ö, Ü" },
+  es: { characters: "á, é, í, ó, ú, ¿, ¡" },
+  pt: { characters: "ã, õ, ç, á, é, í, ó, ú, à, ê, ô" },
+  bn: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  gu: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  hi: { characters: "Hinglish: 160 chars GSM-7 • Native: Unicode" },
+  kn: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  ml: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  or: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  pa: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  ta: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  te: { characters: "Roman: 160 chars GSM-7 • Native: Unicode" },
+  ur: { characters: "Roman Urdu: 160 chars GSM-7 • Native: Unicode" },
+};
 
 // Local Client-side Analysis Fallback (prevents blank/stale state when offline or awaiting server)
 const GSM7_BASIC = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
@@ -231,7 +248,7 @@ interface Props {
 }
 
 const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
-  // Navigation: Configuration & Tables is front/default, SMS Simulator is second
+  // Navigation: Configuration & Tables is first, SMS Simulator is second
   const [activeSubTab, setActiveSubTab] = useState<"configuration" | "simulator">("configuration");
 
   const [isLoading, setIsLoading] = useState(true);
@@ -362,11 +379,15 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
 
   // Filtered & sorted languages for DataTable
   const filteredLanguages = useMemo(() => {
-    let result = languages.filter((l) =>
-      l.language_name.toLowerCase().includes(languageSearch.toLowerCase()) ||
-      l.language_code.toLowerCase().includes(languageSearch.toLowerCase()) ||
-      l.hex_language_id.toLowerCase().includes(languageSearch.toLowerCase())
-    );
+    let result = languages.filter((l: SmsNliLanguage) => {
+      const code = l.language_code.toLowerCase();
+      const meta = LANGUAGE_META[code]?.characters || "";
+      return (
+        l.language_name.toLowerCase().includes(languageSearch.toLowerCase()) ||
+        l.language_code.toLowerCase().includes(languageSearch.toLowerCase()) ||
+        meta.toLowerCase().includes(languageSearch.toLowerCase())
+      );
+    });
 
     if (sortColumnIndex !== null && sortDirection) {
       result = [...result].sort((a, b) => {
@@ -376,15 +397,9 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
           valA = a.language_name;
           valB = b.language_name;
         } else if (sortColumnIndex === 2) {
-          valA = a.hex_language_id;
-          valB = b.hex_language_id;
+          valA = LANGUAGE_META[a.language_code.toLowerCase()]?.characters || "";
+          valB = LANGUAGE_META[b.language_code.toLowerCase()]?.characters || "";
         } else if (sortColumnIndex === 3) {
-          valA = a.single_shift_available ? 1 : 0;
-          valB = b.single_shift_available ? 1 : 0;
-        } else if (sortColumnIndex === 4) {
-          valA = a.locking_shift_available ? 1 : 0;
-          valB = b.locking_shift_available ? 1 : 0;
-        } else if (sortColumnIndex === 5) {
           valA = a.enabled ? 1 : 0;
           valB = b.enabled ? 1 : 0;
         }
@@ -483,7 +498,7 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
       </div>
 
       {/* ========================================================================= */}
-      {/* VIEW 1: CONFIGURATION & 3GPP LANGUAGE TABLES (NOW FRONT / DEFAULT)        */}
+      {/* VIEW 1: CONFIGURATION & 3GPP LANGUAGE TABLES                             */}
       {/* ========================================================================= */}
       {activeSubTab === "configuration" && (
         <div className="space-y-6 animate-in fade-in duration-200">
@@ -572,7 +587,7 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
             </div>
           )}
 
-          {/* 3GPP National Language Shift Tables with ADVANCE TABLE (DataTable) */}
+          {/* 3GPP National Language Tables with ADVANCE TABLE (DataTable) */}
           <div className="p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3.5">
               <div>
@@ -588,7 +603,7 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
             {/* Advance DataTable Component */}
             <DataTable
               data={filteredLanguages}
-              headers={["S.N.", "Language", "3GPP ID", "Single Shift", "Locking Shift", "Status"]}
+              headers={["S.N.", "Language", "Supported Accents & Characters", "Status"]}
               density="compact"
               totalItems={filteredLanguages.length}
               currentPage={tablePage}
@@ -610,7 +625,7 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                   <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
                   <input
                     type="text"
-                    placeholder="Search languages or ID..."
+                    placeholder="Search languages..."
                     value={languageSearch}
                     onChange={(e) => setLanguageSearch(e.target.value)}
                     className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-text-primary dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
@@ -628,6 +643,11 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
               }
               renderRow={(lang: SmsNliLanguage, index: number) => {
                 const rowNumber = (tablePage - 1) * tableRowsPerPage + index + 1;
+                const code = lang.language_code.toLowerCase();
+                const meta = LANGUAGE_META[code] || {
+                  characters: "Standard regional characters",
+                };
+
                 return (
                   <tr
                     key={lang.id || index}
@@ -640,48 +660,28 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                       {rowNumber}
                     </td>
 
-                    {/* Language Name & Code */}
+                    {/* Language Name, Code & Global NLI Badge */}
                     <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className={`w-2 h-2 rounded-full shrink-0 ${
-                            lang.enabled ? "bg-accent" : "bg-gray-300 dark:bg-gray-600"
-                          }`}
-                        />
-                        <span className="font-semibold text-text-primary dark:text-white text-xs sm:text-sm">
-                          {lang.language_name}
-                        </span>
-                        <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-text-secondary dark:text-gray-300 font-semibold uppercase">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold text-text-primary dark:text-white text-xs sm:text-sm">
+                            {lang.language_name}
+                          </span>
+                          <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-primary-light text-primary dark:bg-purple-950/40 dark:text-purple-300 rounded border border-purple-200 dark:border-purple-800/60">
+                            Global NLI
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-text-secondary dark:text-gray-400 font-mono uppercase">
                           {lang.language_code}
                         </span>
                       </div>
                     </td>
 
-                    {/* 3GPP Hex ID */}
-                    <td className="px-4 py-3 text-xs font-mono text-text-secondary dark:text-gray-400 whitespace-nowrap">
-                      {lang.hex_language_id}
-                    </td>
-
-                    {/* Single Shift Support */}
-                    <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      {lang.single_shift_available ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60">
-                          ✓ IEI 0x24
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
-                    </td>
-
-                    {/* Locking Shift Support */}
-                    <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      {lang.locking_shift_available ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-primary-light text-primary dark:bg-purple-950/50 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60">
-                          ✓ IEI 0x25
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">—</span>
-                      )}
+                    {/* Supported Accents & Characters */}
+                    <td className="px-4 py-3 text-xs">
+                      <span className="font-mono text-[11px] text-text-primary dark:text-gray-200 bg-gray-50 dark:bg-gray-900/60 px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 inline-block max-w-[420px] truncate shadow-2xs">
+                        {meta.characters}
+                      </span>
                     </td>
 
                     {/* Status Toggle & Badge */}
@@ -699,6 +699,15 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                 );
               }}
             />
+
+            {/* Native Script Auto-Routing Note */}
+            <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-gray-50/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 text-xs text-text-secondary dark:text-gray-300">
+              <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+              <div>
+                <span className="font-semibold text-text-primary dark:text-white">Native Script Auto-Routing:</span>{" "}
+                Non-Latin scripts (Hindi/Devanagari, Urdu/Arabic, Bengali, Tamil, etc.) automatically route to standard UCS-2 Unicode for crisp native rendering across all smartphones. Romanized scripts (e.g. Hinglish, Roman Urdu) are natively handled in standard 160-character GSM-7.
+              </div>
+            </div>
           </div>
         </div>
       )}
