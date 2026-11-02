@@ -83,6 +83,16 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
+  const isActiveRef = React.useRef(isActive);
+  useEffect(() => {
+    const wasInactive = !isActiveRef.current;
+    isActiveRef.current = isActive;
+    if (wasInactive && isActive) {
+      if (activeRangeRef.current === "today") {
+        fetchTrafficTraffic("today", true);
+      }
+    }
+  }, [isActive]);
   const [isDark, setIsDark] = useState(
     document.documentElement.classList.contains("dark")
   );
@@ -574,31 +584,13 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
     const debouncedFetch = () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
       fetchTimeout = setTimeout(() => {
-        if (isMounted) {
+        if (isMounted && isActiveRef.current) {
           fetchClientSessionSummary(true);
         }
       }, 500);
     };
 
-    let trafficFetchTimeout: ReturnType<typeof setTimeout>;
-    let lastTrafficFetchTime = 0;
-    const TRAFFIC_FETCH_MIN_INTERVAL = 10000; // Refetch at most once every 10s when active
 
-    const debouncedTrafficFetch = () => {
-      if (trafficFetchTimeout) clearTimeout(trafficFetchTimeout);
-      const now = Date.now();
-      const timeSinceLast = now - lastTrafficFetchTime;
-      const delay = timeSinceLast < TRAFFIC_FETCH_MIN_INTERVAL
-        ? TRAFFIC_FETCH_MIN_INTERVAL - timeSinceLast
-        : 1000;
-
-      trafficFetchTimeout = setTimeout(() => {
-        if (isMounted && activeRangeRef.current === "today") {
-          lastTrafficFetchTime = Date.now();
-          fetchTrafficTraffic("today", true);
-        }
-      }, delay);
-    };
 
     const connectWebSocket = () => {
       console.log(`Attempting to connect to WebSocket at: ${wsUrl}`);
@@ -639,7 +631,10 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
                 setRejectedCount(Number(data.smsStats.rejectedCount || 0).toLocaleString());
                 setDeliveryRate(`${data.smsStats.deliveryRate}%`);
                 setIsStatsLoading(false);
-                debouncedTrafficFetch();
+              }
+              if (data.trafficData) {
+                setTrafficData(data.trafficData);
+                setIsTrafficLoading(false);
               }
               if (data.dlrStats) {
                 setDlrData([
@@ -753,7 +748,6 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
     return () => {
       isMounted = false;
       if (fetchTimeout) clearTimeout(fetchTimeout);
-      if (trafficFetchTimeout) clearTimeout(trafficFetchTimeout);
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
       if (reconnectDashboardTimeout) clearTimeout(reconnectDashboardTimeout);
       if (ws) ws.close();

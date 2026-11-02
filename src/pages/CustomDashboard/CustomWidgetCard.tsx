@@ -87,11 +87,17 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const activeDatePreset = widget.filters.datePreset || globalDatePreset || "all";
+  // Global timeframe selector on the dashboard overrides individual widget preset unless specified
+  const activeDatePreset = globalDatePreset || widget.filters.datePreset || "all";
 
   const getDateRange = useCallback(() => {
     const today = new Date();
-    const toYMD = (d: Date) => d.toISOString().split("T")[0];
+    const toYMD = (d: Date) => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
 
     if (activeDatePreset === "today") {
       const s = toYMD(today);
