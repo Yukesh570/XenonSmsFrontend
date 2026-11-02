@@ -725,10 +725,24 @@ const DetailedReport: React.FC = () => {
               .replace(/__range$/, "");
             const [gt, lt] = value.split(",");
             if (gt && gt.trim() !== "") {
-              currentSearchParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
+              if (!gt.includes("T")) {
+                currentSearchParams[`${baseKey}__gte`] = `${gt}T00:00:00`;
+              } else if (gt.split(":").length === 2) {
+                currentSearchParams[`${baseKey}__gte`] = `${gt}:00`;
+              } else {
+                currentSearchParams[`${baseKey}__gte`] = gt;
+              }
             }
             if (lt && lt.trim() !== "") {
-              currentSearchParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+              if (!lt.includes("T")) {
+                currentSearchParams[`${baseKey}__lte`] = `${lt}T23:59:59`;
+              } else if (lt.endsWith("T00:00:00")) {
+                currentSearchParams[`${baseKey}__lte`] = lt.replace(/T00:00:00$/, "T23:59:59");
+              } else if (lt.split(":").length === 2) {
+                currentSearchParams[`${baseKey}__lte`] = `${lt}:59`;
+              } else {
+                currentSearchParams[`${baseKey}__lte`] = lt;
+              }
             }
           } else if (
             columnDef?.type === "text" ||
@@ -997,6 +1011,7 @@ const DetailedReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
+                  isEndTime={false}
                   selected={gtStr ? parseDateValue(gtStr) : null}
                   dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {
@@ -1012,6 +1027,7 @@ const DetailedReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
+                  isEndTime={true}
                   selected={ltStr ? parseDateValue(ltStr) : null}
                   dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {
@@ -1090,6 +1106,20 @@ const DetailedReport: React.FC = () => {
               </td>
               {visibleTableFields.map((col) => {
                 const cellData = (log as any)[col.key];
+                if (col.key === "text_message_id") {
+                  return (
+                    <td
+                      key={col.key}
+                      className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                      onClick={() => {
+                        setViewLog(log);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {log.text_message_id || "-"}
+                    </td>
+                  );
+                }
                 if (col.render)
                   return (
                     <td

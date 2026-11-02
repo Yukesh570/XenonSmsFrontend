@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export interface ContextMenuItem {
   label: string;
@@ -61,7 +62,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ position, items, onClose }) =
 
   if (!position) return null;
 
-  return (
+  return createPortal(
     <div
       ref={menuRef}
       // REMOVED: animate-in fade-in zoom-in-95 duration-75
@@ -93,7 +94,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ position, items, onClose }) =
           {item.label}
         </button>
       ))}
-    </div>
+    </div>,
+    document.body
   );
 };
 

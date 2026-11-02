@@ -332,6 +332,8 @@ const SummariseReport: React.FC = () => {
       }
       if (finalFilters.end_date && !finalFilters.end_date.includes("T")) {
         finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
+      } else if (finalFilters.end_date && finalFilters.end_date.endsWith("T00:00:00")) {
+        finalFilters.end_date = finalFilters.end_date.replace(/T00:00:00$/, "T23:59:59");
       }
 
       const payload = {
@@ -406,6 +408,8 @@ const SummariseReport: React.FC = () => {
       }
       if (finalFilters.end_date && !finalFilters.end_date.includes("T")) {
         finalFilters.end_date = `${finalFilters.end_date}T23:59:59`;
+      } else if (finalFilters.end_date && finalFilters.end_date.endsWith("T00:00:00")) {
+        finalFilters.end_date = finalFilters.end_date.replace(/T00:00:00$/, "T23:59:59");
       }
 
       const payload = {
@@ -465,6 +469,8 @@ const SummariseReport: React.FC = () => {
     }
     if (rowFilters.end_date && !rowFilters.end_date.includes("T")) {
       rowFilters.end_date = `${rowFilters.end_date}T23:59:59`;
+    } else if (rowFilters.end_date && rowFilters.end_date.endsWith("T00:00:00")) {
+      rowFilters.end_date = rowFilters.end_date.replace(/T00:00:00$/, "T23:59:59");
     }
 
     appliedGroupBy.forEach((gb) => {
@@ -913,6 +919,7 @@ const SummariseReport: React.FC = () => {
         <DatePicker
           label="Start Date & Time"
           showTimeSelect={true}
+          isEndTime={false}
           selected={
             filterValues.start_date ? parseDateValue(filterValues.start_date) : null
           }
@@ -928,6 +935,7 @@ const SummariseReport: React.FC = () => {
         <DatePicker
           label="End Date & Time"
           showTimeSelect={true}
+          isEndTime={true}
           selected={
             filterValues.end_date ? parseDateValue(filterValues.end_date) : null
           }

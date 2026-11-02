@@ -547,12 +547,22 @@ const Entity: React.FC = () => {
                 cellContent = rawValue || "-";
               }
 
+              if (col.key === "companyName") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(entity)}
+                  >
+                    {cellContent}
+                  </td>
+                );
+              }
+
               return (
                 <td
                   key={col.key}
-                  className={`px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap ${
-                    col.key === "companyName" ? "font-medium text-primary" : ""
-                  }`}
+                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                 >
                   {cellContent}
                 </td>

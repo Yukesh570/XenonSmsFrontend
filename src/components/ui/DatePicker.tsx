@@ -182,6 +182,7 @@ export interface DatePickerProps {
   dateMode?: DatePickerMode;
   onDateModeChange?: (mode: DatePickerMode) => void;
   portalId?: string;
+  isEndTime?: boolean;
 }
 
 const CustomInput = forwardRef<HTMLInputElement, any>(
@@ -258,20 +259,40 @@ interface ManualTimePickerProps {
   selected: Date | null;
   nowInTz: Date;
   onChange: (date: Date) => void;
+  isEndTime?: boolean;
 }
 
 const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
   selected,
   nowInTz,
   onChange,
+  isEndTime = false,
 }) => {
-  const defaultMidnight = useMemo(() => {
+  const defaultBaseDate = useMemo(() => {
     const d = new Date(nowInTz.getTime());
-    d.setHours(0, 0, 0, 0);
+    if (isEndTime) {
+      d.setHours(23, 59, 59, 0);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
     return d;
-  }, [nowInTz]);
+  }, [nowInTz, isEndTime]);
 
-  const currentDate = selected || defaultMidnight;
+  const currentDate = useMemo(() => {
+    if (!selected) return defaultBaseDate;
+    if (
+      isEndTime &&
+      selected.getHours() === 0 &&
+      selected.getMinutes() === 0 &&
+      selected.getSeconds() === 0
+    ) {
+      const d = new Date(selected.getTime());
+      d.setHours(23, 59, 59, 0);
+      return d;
+    }
+    return selected;
+  }, [selected, defaultBaseDate, isEndTime]);
+
   const rawH = currentDate.getHours();
   const currentM = currentDate.getMinutes();
 
@@ -281,18 +302,18 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
   const [isMinFocused, setIsMinFocused] = useState(false);
 
   useEffect(() => {
-    const d = selected || defaultMidnight;
+    const d = currentDate;
     if (!isHourFocused) {
       setHourStr(String(d.getHours()).padStart(2, "0"));
     }
     if (!isMinFocused) {
       setMinStr(String(d.getMinutes()).padStart(2, "0"));
     }
-  }, [selected, defaultMidnight, isHourFocused, isMinFocused]);
+  }, [currentDate, isHourFocused, isMinFocused]);
 
   const commitTime = (h24: number, m: number) => {
     const base = selected ? new Date(selected.getTime()) : new Date(nowInTz.getTime());
-    base.setHours(h24, m, 0, 0);
+    base.setHours(h24, m, isEndTime ? 59 : 0, 0);
     onChange(base);
   };
 
@@ -368,10 +389,10 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             onBlur={() => {
               setIsHourFocused(false);
               let num = parseInt(hourStr, 10);
-              if (isNaN(num) || num < 0) num = 0;
+              if (isNaN(num) || num < 0) num = isEndTime ? 23 : 0;
               if (num > 23) num = 23;
               setHourStr(String(num).padStart(2, "0"));
-              commitTime(num, parseInt(minStr, 10) || 0);
+              commitTime(num, parseInt(minStr, 10) || (isEndTime ? 59 : 0));
             }}
             className="w-8 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
           />
@@ -434,10 +455,10 @@ const ManualTimePicker: React.FC<ManualTimePickerProps> = ({
             onBlur={() => {
               setIsMinFocused(false);
               let num = parseInt(minStr, 10);
-              if (isNaN(num) || num < 0) num = 0;
+              if (isNaN(num) || num < 0) num = isEndTime ? 59 : 0;
               if (num > 59) num = 59;
               setMinStr(String(num).padStart(2, "0"));
-              commitTime(parseInt(hourStr, 10) || 0, num);
+              commitTime(parseInt(hourStr, 10) || (isEndTime ? 23 : 0), num);
             }}
             className="w-8 h-6 text-xs text-center font-semibold font-mono rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-2xs transition-colors"
           />
@@ -704,6 +725,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   dateMode: externalDateMode,
   onDateModeChange,
   portalId = "datepicker-portal",
+  isEndTime,
 }) => {
   const [appTimezone, setAppTimezone] = useState<string>(
     () => localStorage.getItem("app_timezone") || "UTC"
@@ -730,7 +752,14 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
 
   const nowInTz = useMemo(() => getNowInTimezone(appTimezone), [appTimezone]);
 
-  const selectedDate = useMemo(() => parseDateValue(selected), [selected]);
+  // Check if this date picker is an end-of-range date picker
+  const isEndPicker =
+    isEndTime !== undefined
+      ? isEndTime
+      : Boolean(
+          label &&
+            (/\b(to|end|before)\b/i.test(label) || /\(to\)/i.test(label))
+        );
 
   // Enable mode toggle whenever explicitly requested, or by default whenever showTimeSelect is true
   const shouldEnableToggle = enableModeToggle !== undefined ? enableModeToggle : Boolean(showTimeSelect);
@@ -762,6 +791,22 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
 
   const isTimeActive = shouldEnableToggle ? activeMode === "specific_time" : showTimeSelect;
 
+  const selectedDate = useMemo(() => {
+    const parsed = parseDateValue(selected);
+    if (!parsed) return null;
+    if (
+      isEndPicker &&
+      typeof selected === "string" &&
+      !selected.includes("T") &&
+      parsed.getHours() === 0 &&
+      parsed.getMinutes() === 0 &&
+      parsed.getSeconds() === 0
+    ) {
+      parsed.setHours(23, 59, 59, 0);
+    }
+    return parsed;
+  }, [selected, isEndPicker]);
+
   const handleModeToggle = (newMode: DatePickerMode) => {
     setInternalMode(newMode);
     onDateModeChange?.(newMode);
@@ -770,6 +815,15 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
       const nextDate = new Date(selectedDate.getTime());
       if (newMode === "whole_day") {
         nextDate.setHours(0, 0, 0, 0);
+      } else {
+        if (
+          isEndPicker &&
+          nextDate.getHours() === 0 &&
+          nextDate.getMinutes() === 0 &&
+          nextDate.getSeconds() === 0
+        ) {
+          nextDate.setHours(23, 59, 59, 0);
+        }
       }
       (nextDate as any).dateMode = newMode;
       onChange(nextDate, newMode);
@@ -780,9 +834,26 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
     if (disabled) return;
     if (date) {
       if (isTimeActive) {
-        const h = selectedDate ? selectedDate.getHours() : 0;
-        const m = selectedDate ? selectedDate.getMinutes() : 0;
-        date.setHours(h, m, 0, 0);
+        let h = isEndPicker ? 23 : 0;
+        let m = isEndPicker ? 59 : 0;
+        let s = isEndPicker ? 59 : 0;
+        if (selectedDate) {
+          const isMidnight =
+            selectedDate.getHours() === 0 &&
+            selectedDate.getMinutes() === 0 &&
+            selectedDate.getSeconds() === 0;
+
+          if (isEndPicker && isMidnight) {
+            h = 23;
+            m = 59;
+            s = 59;
+          } else {
+            h = selectedDate.getHours();
+            m = selectedDate.getMinutes();
+            s = selectedDate.getSeconds();
+          }
+        }
+        date.setHours(h, m, s, 0);
       } else {
         date.setHours(0, 0, 0, 0);
       }
@@ -800,9 +871,13 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
   const openToDateValue = useMemo(() => {
     if (selectedDate) return selectedDate;
     const d = new Date(nowInTz.getTime());
-    d.setHours(0, 0, 0, 0);
+    if (isEndPicker) {
+      d.setHours(23, 59, 59, 0);
+    } else {
+      d.setHours(0, 0, 0, 0);
+    }
     return d;
-  }, [selectedDate, nowInTz]);
+  }, [selectedDate, nowInTz, isEndPicker]);
 
   const handleClear = () => {
     if (!disabled) {
@@ -912,6 +987,7 @@ const CustomDatePicker: React.FC<DatePickerProps> = ({
                 selected={selectedDate}
                 nowInTz={nowInTz}
                 onChange={handleManualTimeChange}
+                isEndTime={isEndPicker}
               />
             </div>
           )}

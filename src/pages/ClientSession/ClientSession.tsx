@@ -621,6 +621,19 @@ const ClientSession: React.FC = () => {
             </td>
             {visibleTableFields.map((col) => {
               const cellData = (item as any)[col.key];
+              if (col.key === "systemId") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => {
+                      handleView(item);
+                    }}
+                  >
+                    {cellData || "-"}
+                  </td>
+                );
+              }
               if (col.render)
                 return (
                   <td

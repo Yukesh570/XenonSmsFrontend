@@ -752,6 +752,18 @@ const OperatorNetworkCode: React.FC = () => {
                 cellData = match ? match.label : cellData;
               }
 
+              if (col.key === "operator_name") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(item)}
+                  >
+                    {cellData || "-"}
+                  </td>
+                );
+              }
+
               return (
                 <td
                   key={col.key}

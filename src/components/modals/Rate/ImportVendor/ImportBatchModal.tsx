@@ -317,7 +317,7 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
           </div>
         )}
 
-        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50 dark:bg-gray-800/50">
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <legend className="text-sm font-semibold text-primary px-2">Configuration</legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Source Type" name="sourceType" value={formData.sourceType} onChange={handleChange} disabled={isViewMode} />
@@ -427,16 +427,21 @@ export const ImportBatchModal: React.FC<ImportBatchModalProps> = ({
           </>
         )}
 
-        {!isViewMode && (
-          <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700 sticky bottom-0 bg-white dark:bg-gray-900 z-10 pb-2">
-            <Button type="button" variant="secondary" onClick={onClose} className="mr-2">
-              Cancel
-            </Button>
+        <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            className={isViewMode ? "" : "mr-2"}
+          >
+            {isViewMode ? "Close" : "Cancel"}
+          </Button>
+          {!isViewMode && (
             <Button type="submit" variant="primary" disabled={isSubmitting}>
               {isSubmitting ? "Saving..." : "Update Status"}
             </Button>
-          </div>
-        )}
+          )}
+        </div>
       </form>
     </Modal>
   );

@@ -619,10 +619,21 @@ const MappingSetup: React.FC = () => {
                 );
                 cellData = match ? match.label : cellData;
               }
+              if (col.key === "name") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(item)}
+                  >
+                    {cellData || "-"}
+                  </td>
+                );
+              }
               return (
                 <td
                   key={col.key}
-                  className={`px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap ${col.key === "name" ? "font-medium text-text-primary dark:text-white" : ""}`}
+                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                 >
                   {cellData || "-"}
                 </td>

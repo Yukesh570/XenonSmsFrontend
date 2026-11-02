@@ -358,10 +358,24 @@ const AnalyticsReport: React.FC = () => {
       } else if (colDef?.type === "date_gt_lt") {
         const [gt, lt] = val.split(",");
         if (gt && gt.trim() !== "") {
-          params.start_date = gt.includes("T") ? gt : `${gt}T00:00:00`;
+          if (!gt.includes("T")) {
+            params.start_date = `${gt}T00:00:00`;
+          } else if (gt.split(":").length === 2) {
+            params.start_date = `${gt}:00`;
+          } else {
+            params.start_date = gt;
+          }
         }
         if (lt && lt.trim() !== "") {
-          params.end_date = lt.includes("T") ? lt : `${lt}T23:59:59`;
+          if (!lt.includes("T")) {
+            params.end_date = `${lt}T23:59:59`;
+          } else if (lt.endsWith("T00:00:00")) {
+            params.end_date = lt.replace(/T00:00:00$/, "T23:59:59");
+          } else if (lt.split(":").length === 2) {
+            params.end_date = `${lt}:59`;
+          } else {
+            params.end_date = lt;
+          }
         }
       } else {
         params[colDef?.filterKey || key] = val;
@@ -1148,6 +1162,7 @@ const AnalyticsReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
+                  isEndTime={false}
                   selected={gtStr ? parseDateValue(gtStr) : null}
                   dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {
@@ -1163,6 +1178,7 @@ const AnalyticsReport: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
+                  isEndTime={true}
                   selected={ltStr ? parseDateValue(ltStr) : null}
                   dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {

@@ -520,14 +520,27 @@ const State: React.FC = () => {
             <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
               {(currentPage - 1) * rowsPerPage + index + 1}
             </td>
-            {visibleTableFields.map((col) => (
-              <td
-                key={col.key}
-                className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
-              >
-                {col.render(state)}
-              </td>
-            ))}
+            {visibleTableFields.map((col) => {
+              if (col.key === "name") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(state)}
+                  >
+                    {state.name || "-"}
+                  </td>
+                );
+              }
+              return (
+                <td
+                  key={col.key}
+                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                >
+                  {col.render(state)}
+                </td>
+              );
+            })}
           </tr>
         )}
       />

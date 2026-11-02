@@ -59,17 +59,16 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["vendor", "batchStatus", "senderEmail",
-  "vendorName",];
+const DEFAULT_SEARCH_COLUMNS = ["vendorName", "batchStatus", "senderEmail"];
 const DEFAULT_TABLE_COLUMNS = [
-  "vendor",
+  "vendorName",
   "batchStatus",
   "totalRows",
   "senderEmail",
   "failureReason",
-  "vendorName",
   "currency",
-  "createdAt", "updatedAt",
+  "createdAt",
+  "updatedAt",
 ];
 
 const ImportBatch: React.FC = () => {
@@ -80,7 +79,6 @@ const ImportBatch: React.FC = () => {
 
   // Mappings
   const [vendorOptions, setVendorOptions] = useState<Option[]>([]);
-  const [vendorMap, setVendorMap] = useState<Record<string, string>>({});
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -98,7 +96,20 @@ const ImportBatch: React.FC = () => {
   // Filters & Pagination
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("import_batch_search_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+    if (!saved) return DEFAULT_SEARCH_COLUMNS;
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((col: string) => col !== "vendor");
+        if (!filtered.includes("vendorName")) {
+          filtered.unshift("vendorName");
+        }
+        return filtered;
+      }
+    } catch {
+      // fallback
+    }
+    return DEFAULT_SEARCH_COLUMNS;
   });
 
   useEffect(() => {
@@ -113,7 +124,20 @@ const ImportBatch: React.FC = () => {
 
   const [tableColumns, setTableColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("import_batch_table_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_TABLE_COLUMNS;
+    if (!saved) return DEFAULT_TABLE_COLUMNS;
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        const filtered = parsed.filter((col: string) => col !== "vendor");
+        if (!filtered.includes("vendorName")) {
+          filtered.unshift("vendorName");
+        }
+        return filtered;
+      }
+    } catch {
+      // fallback
+    }
+    return DEFAULT_TABLE_COLUMNS;
   });
 
   useEffect(() => {
@@ -143,14 +167,11 @@ const ImportBatch: React.FC = () => {
     getVendorsApi("vendor", 1, 1000)
       .then((res: any) => {
         const list = res.results || (Array.isArray(res) ? res : []);
-        const map: Record<string, string> = {};
         const options: Option[] = [];
         list.forEach((v: any) => {
           const name = v.profileName || v.name || `Vendor ${v.id}`;
-          map[String(v.id)] = name;
           options.push({ label: name, value: name });
         });
-        setVendorMap(map);
         setVendorOptions(options.sort((a, b) => a.label.localeCompare(b.label)));
       })
       .catch(console.error);
@@ -168,11 +189,11 @@ const ImportBatch: React.FC = () => {
 
   const allColumns: ColumnConfig[] = [
     {
-      key: "vendor",
-      label: "Vendor",
+      key: "vendorName",
+      label: "Vendor Name",
       type: "text",
       options: vendorOptions,
-      filterKey: "vendor__profileName__icontains",
+      filterKey: "vendorName__icontains",
     },
     {
       key: "batchStatus",
@@ -197,13 +218,6 @@ const ImportBatch: React.FC = () => {
 
         return <StatusBadge status={colorKey} customText={label} />;
       },
-    },
-
-    {
-      key: "vendorName",
-      label: "Vendor Name",
-      type: "text",
-      filterKey: "vendorName__icontains",
     },
     {
       key: "senderEmail",
@@ -713,10 +727,20 @@ const ImportBatch: React.FC = () => {
             </td>
             {visibleTableFields.map((col) => {
               let cellData = (item as any)[col.key];
-              if (col.key === "vendor")
-                cellData =
-                  vendorMap[String(item.vendor)] ||
-                  String(item.vendor || "-");
+              if (col.key === "vendorName") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => {
+                      handleEdit(item);
+                    }}
+                  >
+                    {cellData || "-"}
+                  </td>
+                );
+              }
+
               if (col.render)
                 return (
                   <td
