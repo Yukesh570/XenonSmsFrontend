@@ -648,7 +648,12 @@ const DetailedReport: React.FC = () => {
     }));
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "request_time" || key === "request_time__gt_lt") {
+    const colDef = allColumns.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -658,8 +663,11 @@ const DetailedReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.request_time;
-    delete nextFilters.request_time__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchReports(nextFilters, 1, false, presetKey);
   };
@@ -823,15 +831,18 @@ const DetailedReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, reports.length]);
 
   const handleSearch = () => {
-    const hasActiveFilters = Object.values(filterValues).some(
-      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
-    );
-    if (!hasActiveFilters) {
-      setActivePreset("today");
-      fetchReports(undefined, 1, false, "today");
-    } else {
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = allColumns.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
       setActivePreset("custom");
       fetchReports(undefined, 1, false, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchReports(undefined, 1, false, presetToUse);
     }
   };
   const handleClearFilters = () => {

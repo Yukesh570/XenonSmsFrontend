@@ -90,6 +90,7 @@ const encodingOptions: Option[] = [
 ];
 
 const DEFAULT_SEARCH_COLUMNS = [
+  "createdAt__gt_lt",
   "clientName",
   "countryName",
   "mccmnc",
@@ -98,7 +99,6 @@ const DEFAULT_SEARCH_COLUMNS = [
   "status",
   "source_addr",
   "vendorName",
-  "segmentNumber",
   "effectiveSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
@@ -157,16 +157,7 @@ const MessageReport: React.FC = () => {
     try {
       const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
       return Array.isArray(parsed)
-        ? parsed.filter(
-          (col: string) =>
-            ![
-              "createdAt__gt_lt",
-              "queued_at__gt_lt",
-              "submitted_at__gt_lt",
-              "delivered_at__gt_lt",
-              "failed_at__gt_lt",
-            ].includes(col),
-        )
+        ? Array.from(new Set([...DEFAULT_SEARCH_COLUMNS, ...parsed]))
         : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
@@ -295,6 +286,41 @@ const MessageReport: React.FC = () => {
       },
       { key: "systemId", label: "System ID", type: "text", filterKey: "systemId__icontains" },
       { key: "failure_reason", label: "Failure Reason", type: "text", filterKey: "failure_reason__icontains" },
+      {
+        key: "createdAt__gt_lt",
+        label: "Created At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "createdAt",
+        isSearchOnly: true,
+      },
+      {
+        key: "queued_at__gt_lt",
+        label: "Queued At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "queued_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "submitted_at__gt_lt",
+        label: "Submitted At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "submitted_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "delivered_at__gt_lt",
+        label: "Delivered At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "delivered_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "failed_at__gt_lt",
+        label: "Failed At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "failed_at",
+        isSearchOnly: true,
+      },
       {
         key: "encoding",
         label: "Encoding",
@@ -671,7 +697,12 @@ const MessageReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, appliedFilters, logs.length]);
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "createdAt" || key === "createdAt__gt_lt") {
+    const colDef = filterOptionsConfig.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -681,8 +712,11 @@ const MessageReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.createdAt;
-    delete nextFilters.createdAt__gt_lt;
+    filterOptionsConfig.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     setAppliedFilters(nextFilters);
     fetchLogs(nextFilters, 1, false, false, presetKey);
@@ -690,15 +724,18 @@ const MessageReport: React.FC = () => {
 
   const handleSearch = () => {
     setAppliedFilters(filterValues);
-    const hasActiveFilters = Object.values(filterValues).some(
-      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
-    );
-    if (!hasActiveFilters) {
-      setActivePreset("today");
-      fetchLogs(filterValues, 1, false, false, "today");
-    } else {
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = filterOptionsConfig.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
       setActivePreset("custom");
       fetchLogs(filterValues, 1, false, false, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchLogs(filterValues, 1, false, false, presetToUse);
     }
   };
 

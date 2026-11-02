@@ -578,8 +578,11 @@ const AnalyticsReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.date;
-    delete nextFilters.date__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
 
     resetTreeState();
@@ -587,7 +590,12 @@ const AnalyticsReport: React.FC = () => {
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "date" || key === "date__gt_lt") {
+    const colDef = allColumns.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -595,15 +603,18 @@ const AnalyticsReport: React.FC = () => {
 
   const handleSearch = () => {
     resetTreeState();
-    const hasActiveFilters = Object.values(filterValues).some(
-      (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
-    );
-    if (!hasActiveFilters) {
-      setActivePreset("today");
-      fetchCompanyData(1, false, undefined, "today");
-    } else {
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = allColumns.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
       setActivePreset("custom");
       fetchCompanyData(1, false, undefined, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchCompanyData(1, false, undefined, presetToUse);
     }
   };
 

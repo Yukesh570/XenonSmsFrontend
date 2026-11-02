@@ -399,8 +399,11 @@ const SmsMessagePart: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.created_at;
-    delete nextFilters.created_at__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchSegments(nextFilters, 1, false, presetKey);
   };
@@ -591,15 +594,18 @@ const SmsMessagePart: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          const hasActiveFilters = Object.values(filterValues).some(
-            (val) => Boolean(val && val.replace(/,/g, "").trim() !== "")
-          );
-          if (!hasActiveFilters) {
-            setActivePreset("today");
-            fetchSegments(undefined, 1, false, "today");
-          } else {
+          const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+            if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+            const colDef = allColumns.find((c) => c.key === k);
+            return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+          });
+          if (hasExplicitDate) {
             setActivePreset("custom");
             fetchSegments(undefined, 1, false, "custom");
+          } else {
+            const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+            setActivePreset(presetToUse);
+            fetchSegments(undefined, 1, false, presetToUse);
           }
         }}
         onClear={() => {
