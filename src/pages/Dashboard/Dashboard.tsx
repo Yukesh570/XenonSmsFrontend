@@ -78,7 +78,11 @@ const DLR_COLORS: Record<string, string> = {
   Rejected: "#6b7280",
 };
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  isActive?: boolean;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
   const [isDark, setIsDark] = useState(
     document.documentElement.classList.contains("dark")
   );
@@ -510,6 +514,8 @@ const Dashboard: React.FC = () => {
   const refreshTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (!isActive) return;
+
     const refreshData = () => {
       fetchFailureBreakdown(activeRange);
       fetchVendorPerformance(activeRange);
@@ -537,17 +543,20 @@ const Dashboard: React.FC = () => {
       if (refreshTimeoutRef.current) clearTimeout(refreshTimeoutRef.current);
       window.removeEventListener("timezoneChanged", handleTimezoneChange);
     };
-  }, [activeRange]);
+  }, [activeRange, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
     if (selectedFailureCategory) {
       fetchFailureReasonCounts(activeRange, selectedFailureCategory);
     } else {
       setFailureReasonCounts([]);
     }
-  }, [activeRange, selectedFailureCategory]);
+  }, [activeRange, selectedFailureCategory, isActive]);
 
   useEffect(() => {
+    if (!isActive) return;
+
     fetchClientSessionSummary();
     fetchOnlineVendors();
     const wsBase = import.meta.env.VITE_WS_BASE_URL;
@@ -565,18 +574,30 @@ const Dashboard: React.FC = () => {
     const debouncedFetch = () => {
       if (fetchTimeout) clearTimeout(fetchTimeout);
       fetchTimeout = setTimeout(() => {
-        fetchClientSessionSummary(true);
+        if (isMounted) {
+          fetchClientSessionSummary(true);
+        }
       }, 500);
     };
 
     let trafficFetchTimeout: ReturnType<typeof setTimeout>;
+    let lastTrafficFetchTime = 0;
+    const TRAFFIC_FETCH_MIN_INTERVAL = 10000; // Refetch at most once every 10s when active
+
     const debouncedTrafficFetch = () => {
       if (trafficFetchTimeout) clearTimeout(trafficFetchTimeout);
+      const now = Date.now();
+      const timeSinceLast = now - lastTrafficFetchTime;
+      const delay = timeSinceLast < TRAFFIC_FETCH_MIN_INTERVAL
+        ? TRAFFIC_FETCH_MIN_INTERVAL - timeSinceLast
+        : 1000;
+
       trafficFetchTimeout = setTimeout(() => {
-        if (activeRangeRef.current === "today") {
+        if (isMounted && activeRangeRef.current === "today") {
+          lastTrafficFetchTime = Date.now();
           fetchTrafficTraffic("today", true);
         }
-      }, 1000);
+      }, delay);
     };
 
     const connectWebSocket = () => {
@@ -738,7 +759,7 @@ const Dashboard: React.FC = () => {
       if (ws) ws.close();
       if (wsDashboard) wsDashboard.close();
     };
-  }, []);
+  }, [isActive]);
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
   const formatLatency = (seconds: number | null | undefined) => {

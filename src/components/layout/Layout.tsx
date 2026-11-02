@@ -36,7 +36,7 @@ const TabPane: React.FC<{
         style={{ display: isActive ? "block" : "none" }}
       >
         <LocationContext.Provider value={scopedLocationValue}>
-          <Component />
+          <Component isActive={isActive} />
         </LocationContext.Provider>
       </div>
     );
@@ -59,7 +59,7 @@ const Layout: React.FC = () => {
   const { navItems } = useContext(NavItemsContext);
   const { tabs } = useContext(TabContext);
 
-  // Normalize initial path so /dashboard is always marked as visited from start
+  // Track visited tabs so inactive tabs can be lazily mounted only after being opened
   const [visitedTabs, setVisitedTabs] = useState<Record<string, boolean>>(() => {
     const rawPath = window.location.pathname;
     const currentPath =
@@ -67,7 +67,6 @@ const Layout: React.FC = () => {
         ? "/dashboard"
         : rawPath;
     return {
-      "/dashboard": true,
       [currentPath]: true,
     };
   });
@@ -87,9 +86,8 @@ const Layout: React.FC = () => {
   // Clean up visited tabs list when tabs are closed
   useEffect(() => {
     const openPaths = new Set(tabs.map((t) => t.path));
-    openPaths.add("/dashboard");
     setVisitedTabs((prev) => {
-      const next: Record<string, boolean> = { "/dashboard": true };
+      const next: Record<string, boolean> = {};
       Object.keys(prev).forEach((path) => {
         if (openPaths.has(path)) next[path] = true;
       });
@@ -207,7 +205,7 @@ const Layout: React.FC = () => {
                 activeNormalizedPath === tab.path ||
                 (tab.path !== "/dashboard" && activeNormalizedPath.startsWith(`${tab.path}/`));
 
-              const hasBeenVisited = visitedTabs[tab.path] || isActive || tab.path === "/dashboard";
+              const hasBeenVisited = Boolean(visitedTabs[tab.path] || isActive);
 
               if (!hasBeenVisited) return null;
 
