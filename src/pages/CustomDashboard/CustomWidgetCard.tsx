@@ -299,27 +299,27 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
   return (
     <div
-      className={`${sizeClass} flex flex-col bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700/80 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden ${
+      className={`${sizeClass} flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden ${
         isDragging ? "opacity-40 scale-[0.98]" : ""
       }`}
     >
       {/* Widget Header */}
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-gray-700/60 bg-gray-50/50 dark:bg-gray-800/60 select-none">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 p-1 -ml-1 rounded transition-colors">
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 select-none">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-text-primary dark:hover:text-gray-300 p-0.5 rounded transition-colors" title="Drag to reorder">
             <GripVertical size={16} />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate" title={widget.title}>
+              <h3 className="font-semibold text-sm sm:text-base text-text-primary dark:text-white truncate" title={widget.title}>
                 {widget.title}
               </h3>
               {widget.condition && widget.condition.operator !== "none" && (
                 <span
                   className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
                     widget.condition.mode === "filter"
-                      ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
-                      : "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30"
+                      ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/40"
+                      : "bg-primary/10 text-primary border border-primary/20"
                   }`}
                 >
                   <AlertTriangle size={10} />
@@ -327,7 +327,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 </span>
               )}
             </div>
-            <div className="text-[11px] text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5">
+            <div className="text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2 mt-0.5">
               <span>{METRIC_LABELS[widget.primaryMetric] || widget.primaryMetric}</span>
               {widget.filters.client && <span>• Client: {widget.filters.client}</span>}
               {widget.filters.vendor && <span>• Vendor: {widget.filters.vendor}</span>}
@@ -337,32 +337,36 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
+        <div className="flex items-center gap-1 text-text-secondary dark:text-gray-400">
           <button
+            type="button"
             onClick={fetchData}
             title="Refresh Widget"
-            className="p-1.5 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-1.5 hover:text-text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <RefreshCw size={13} className={loading ? "animate-spin text-primary" : ""} />
           </button>
           <button
+            type="button"
             onClick={() => onResize(widget.id)}
             title={`Current size: ${widget.size}. Click to toggle width.`}
-            className="p-1.5 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-xs font-mono font-medium"
+            className="h-[26px] px-2 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-700 text-text-secondary dark:text-gray-300 hover:border-primary hover:text-primary transition-colors font-mono"
           >
             {widget.size === "small" ? "1x" : widget.size === "medium" ? "2x" : "Full"}
           </button>
           <button
+            type="button"
             onClick={() => onEdit(widget)}
             title="Configure Widget"
-            className="p-1.5 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            className="p-1.5 hover:text-text-primary dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             <Settings size={14} />
           </button>
           <button
+            type="button"
             onClick={() => onRemove(widget.id)}
             title="Remove Widget"
-            className="p-1.5 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+            className="p-1.5 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors"
           >
             <Trash2 size={14} />
           </button>
@@ -370,7 +374,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
       </div>
 
       {/* Widget Body */}
-      <div className="p-4 flex-1 min-h-[200px] flex flex-col justify-center">
+      <div className="p-3.5 sm:p-4 flex-1 min-h-[200px] flex flex-col justify-center">
         {loading && (
           <div className="flex flex-col items-center justify-center py-10 text-gray-400 dark:text-gray-500 gap-2">
             <RefreshCw size={24} className="animate-spin text-primary" />
@@ -379,17 +383,17 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
         )}
 
         {error && !loading && (
-          <div className="p-4 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-700 dark:text-red-300 text-xs flex items-start gap-2.5">
-            <AlertTriangle size={16} className="text-red-500 shrink-0 mt-0.5" />
+          <div className="p-3.5 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl text-rose-700 dark:text-rose-300 text-xs flex items-start gap-2.5">
+            <AlertTriangle size={16} className="text-rose-500 shrink-0 mt-0.5" />
             <div>
               <div className="font-semibold">Query Failed</div>
-              <div className="text-red-600 dark:text-red-400/80 mt-0.5">{error}</div>
+              <div className="text-rose-600 dark:text-rose-400 mt-0.5">{error}</div>
             </div>
           </div>
         )}
 
         {!loading && !error && processedData.length === 0 && widget.entity !== "overview" && (
-          <div className="text-center py-10 text-gray-400 dark:text-gray-500 text-xs">
+          <div className="text-center py-10 text-text-secondary dark:text-gray-400 text-xs">
             <HelpCircle size={24} className="mx-auto mb-2 opacity-60" />
             <div>No records match this custom query and condition.</div>
             <div className="text-[11px] mt-1">Try loosening the threshold or date filter.</div>
@@ -400,10 +404,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           <>
             {/* KPI CARD VISUALIZATION */}
             {widget.visualization === "kpi" && (
-              <div className="flex flex-col justify-between h-full py-2">
+              <div className="flex flex-col justify-between h-full py-1">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <div className="text-3xl font-bold font-mono text-gray-900 dark:text-white tracking-tight">
+                    <div className="text-2xl sm:text-3xl font-bold font-mono text-text-primary dark:text-white tracking-tight">
                       {widget.entity === "overview" && totals
                         ? formatMetricValue(widget.primaryMetric, totals[widget.primaryMetric] || 0)
                         : processedData[0]
@@ -411,7 +415,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         : "0"}
                     </div>
                     {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) && (
-                      <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 mt-1">
                         {widget.primaryMetric === "peak_tps" && "Peak hourly throughput rate observed"}
                         {widget.primaryMetric === "tps" && "Average sustained window throughput"}
                         {widget.primaryMetric === "tps_utilization" && "Capacity saturation vs configured policy limit"}
@@ -419,25 +423,25 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     )}
                   </div>
                   {processedData.length > 0 && widget.entity !== "overview" && (
-                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    <span className="text-xs text-text-secondary dark:text-gray-400">
                       {processedData.length} records found
                     </span>
                   )}
                 </div>
 
                 {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Rate</div>
-                      <div className="text-xs font-semibold text-primary dark:text-blue-400 mt-0.5">
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Peak Rate</div>
+                      <div className="text-xs font-semibold text-primary mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.peak_tps) ||
                             (processedData[0]?.peak_tps) || 0
                         ).toFixed(2)} TPS
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Avg Rate</div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Avg Rate</div>
                       <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {Number(
                           (widget.entity === "overview" && (totals?.avg_tps ?? totals?.tps)) ||
@@ -445,9 +449,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         ).toFixed(2)} TPS
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Load</div>
-                      <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Peak Load</div>
+                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.tps_utilization) ||
                             (processedData[0]?.tps_utilization) || 0
@@ -456,18 +460,18 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Volume</div>
-                      <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
+                  <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Volume</div>
+                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.attempts) ||
                             processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
                         ).toLocaleString()}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Delivered</div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Delivered</div>
                       <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.delivered) ||
@@ -475,8 +479,8 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         ).toLocaleString()}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Failures</div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Failures</div>
                       <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.failed) ||
@@ -504,12 +508,14 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       angle={-20}
                       textAnchor="end"
                       height={42}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
                       tickFormatter={(val) => (String(val).length > 12 ? `${String(val).slice(0, 11)}…` : String(val))}
                     />
                     <YAxis
                       stroke={isDark ? "#9ca3af" : "#64748b"}
                       fontSize={11}
                       tickLine={false}
+                      tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
                       tickFormatter={(val) =>
                         widget.primaryMetric.includes("percent")
                           ? `${val}%`
@@ -519,13 +525,23 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       }
                     />
                     <Tooltip
+                      cursor={false}
                       contentStyle={{
-                        backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                        borderColor: isDark ? "#374151" : "#e2e8f0",
-                        borderRadius: "0.75rem",
+                        backgroundColor: isDark ? "#1f2937" : "#fff",
+                        borderColor: isDark ? "#374151" : "#e5e7eb",
+                        borderRadius: "0.5rem",
                         fontSize: "12px",
-                        color: isDark ? "#f8fafc" : "#1e293b",
-                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        color: isDark ? "#f3f4f6" : "#111827",
+                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      }}
+                      labelStyle={{
+                        color: isDark ? "#f9fafb" : "#111827",
+                        fontWeight: 600,
+                        marginBottom: 2,
+                      }}
+                      itemStyle={{
+                        color: "var(--color-primary)",
+                        fontWeight: 600,
                       }}
                       formatter={(value: any) => [formatMetricValue(widget.primaryMetric, Number(value)), METRIC_LABELS[widget.primaryMetric]]}
                       labelFormatter={(lbl: any) => cleanDisplayName(String(lbl))}
@@ -549,10 +565,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 <div className="w-[170px] h-[170px] shrink-0 relative flex items-center justify-center">
                   {/* Center Text inside Donut Hole (rendered behind the chart tooltip) */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-0">
-                    <span className="text-sm font-bold font-mono text-gray-900 dark:text-white leading-tight">
+                    <span className="text-base font-bold font-mono text-text-primary dark:text-white leading-tight">
                       {totalSum >= 1000 ? `${(totalSum / 1000).toFixed(1)}k` : totalSum}
                     </span>
-                    <span className="text-[9px] uppercase font-semibold text-gray-400 dark:text-gray-500 tracking-wider">
+                    <span className="text-[10px] uppercase font-semibold text-text-secondary dark:text-gray-400 tracking-wider">
                       Total
                     </span>
                   </div>
@@ -562,12 +578,21 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       <Tooltip
                         wrapperStyle={{ zIndex: 50, pointerEvents: "none" }}
                         contentStyle={{
-                          backgroundColor: isDark ? "#1f2937" : "#ffffff",
-                          borderColor: isDark ? "#374151" : "#e2e8f0",
-                          borderRadius: "0.75rem",
+                          backgroundColor: isDark ? "#1f2937" : "#fff",
+                          borderColor: isDark ? "#374151" : "#e5e7eb",
+                          borderRadius: "0.5rem",
                           fontSize: "12px",
-                          color: isDark ? "#f8fafc" : "#1e293b",
-                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          color: isDark ? "#f3f4f6" : "#111827",
+                          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                        }}
+                        labelStyle={{
+                          color: isDark ? "#f9fafb" : "#111827",
+                          fontWeight: 600,
+                          marginBottom: 2,
+                        }}
+                        itemStyle={{
+                          color: "var(--color-primary)",
+                          fontWeight: 600,
                         }}
                         formatter={(val: any) => [
                           formatMetricValue(widget.primaryMetric, Number(val)),
@@ -599,7 +624,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 {/* Right: Clean Compact Ranked Legend List with Column Headers */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   {/* Legend Column Header */}
-                  <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 pb-1.5 mb-1 border-b border-gray-200 dark:border-gray-700 select-none">
+                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 pb-1.5 mb-1 border-b border-gray-100 dark:border-gray-700 select-none">
                     <span className="truncate pr-2">
                       {widget.entity === "vendor"
                         ? "Vendor / Trunk"
@@ -616,7 +641,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                   </div>
 
                   {/* Legend Rows */}
-                  <div className="divide-y divide-gray-100 dark:divide-gray-700/50">
+                  <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
                     {donutData.map((item, idx) => {
                       const val = Number(item[widget.primaryMetric] || 0);
                       const pct = totalSum > 0 ? (val / totalSum) * 100 : 0;
@@ -625,13 +650,13 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         <div key={idx} className="flex items-center justify-between text-xs py-1.5" title={item.name}>
                           <div className="flex items-center gap-2 min-w-0 pr-2">
                             <span className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm" style={{ backgroundColor: color }} />
-                            <span className="truncate font-medium text-gray-700 dark:text-gray-200 text-xs">
+                            <span className="truncate font-medium text-text-primary dark:text-white text-xs">
                               {cleanDisplayName(item.name)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0 font-mono text-[11px]">
-                            <span className="text-gray-500 dark:text-gray-400">{val.toLocaleString()}</span>
-                            <span className="font-semibold text-gray-800 dark:text-gray-100 w-12 text-right">
+                            <span className="text-text-secondary dark:text-gray-400">{val.toLocaleString()}</span>
+                            <span className="font-semibold text-text-primary dark:text-white w-12 text-right">
                               {pct.toFixed(1)}%
                             </span>
                           </div>
@@ -645,12 +670,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
             {/* TABLE VISUALIZATION */}
             {widget.visualization === "table" && processedData.length > 0 && (
-              <div className="overflow-x-auto max-h-[300px] scrollbar-thin">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-gray-700 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold bg-gray-50/80 dark:bg-gray-900/50 sticky top-0 backdrop-blur-md">
-                      <th className="py-2.5 px-3 w-8">#</th>
-                      <th className="py-2.5 px-3">
+              <div className="overflow-x-auto overflow-y-auto max-h-[260px] custom-scrollbar">
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
+                    <tr className="border-b border-gray-100 dark:border-gray-700">
+                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider w-8">#</th>
+                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">
                         {widget.entity === "vendor"
                           ? "Vendor / Trunk"
                           : widget.entity === "client"
@@ -659,25 +684,25 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           ? "Destination"
                           : "Failure Reason"}
                       </th>
-                      <th className="py-2.5 px-3 text-right">Volume</th>
+                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Volume</th>
                       {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                         <>
-                          <th className="py-2.5 px-3 text-right">Avg TPS</th>
-                          <th className="py-2.5 px-3 text-right">Peak TPS</th>
-                          <th className="py-2.5 px-3 text-right">Config Limit</th>
-                          <th className="py-2.5 px-3 text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
-                          <th className="py-2.5 px-3 text-right">DLR %</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Avg TPS</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Peak TPS</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Config Limit</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
                         </>
                       ) : (
                         <>
-                          <th className="py-2.5 px-3 text-right">Delivered</th>
-                          <th className="py-2.5 px-3 text-right">Failed</th>
-                          <th className="py-2.5 px-3 text-right">DLR %</th>
-                          <th className="py-2.5 px-3 text-right">Margin ($)</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Delivered</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Failed</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Margin ($)</th>
                         </>
                       )}
                       {widget.condition && widget.condition.operator !== "none" && (
-                        <th className="py-2.5 px-3 text-center">Status</th>
+                        <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-center">Status</th>
                       )}
                     </tr>
                   </thead>
@@ -690,44 +715,44 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       return (
                         <tr
                           key={idx}
-                          className={`transition-colors ${
+                          className={`transition-colors border-b border-gray-100 dark:border-gray-700/60 ${
                             isAlert
-                              ? "bg-red-50/60 dark:bg-red-500/10 text-red-900 dark:text-red-200"
-                              : "hover:bg-gray-50/80 dark:hover:bg-gray-700/40 text-gray-700 dark:text-gray-300"
+                              ? "bg-rose-50/70 dark:bg-rose-950/20 text-rose-900 dark:text-rose-200"
+                              : "hover:bg-gray-50 dark:hover:bg-gray-700/50 text-text-secondary dark:text-gray-300"
                           }`}
                         >
-                          <td className="py-2 px-3 text-gray-400 dark:text-gray-500 text-[11px] font-sans">{idx + 1}</td>
+                          <td className="px-3 py-2 text-text-secondary dark:text-gray-400 text-xs font-sans">{idx + 1}</td>
                           <td
-                            className="py-2 px-3 font-sans font-medium text-gray-900 dark:text-gray-100 max-w-[220px] truncate"
+                            className="px-3 py-2 font-sans font-medium text-text-primary dark:text-white max-w-[220px] truncate"
                             title={row.name}
                           >
                             {cleanDisplayName(row.name)}
                           </td>
-                          <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
+                          <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
                             {Number(row.attempts || 0).toLocaleString()}
                           </td>
 
                           {isTps ? (
                             <>
-                              <td className="py-2 px-3 text-right text-gray-700 dark:text-gray-300">
+                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
                                 {Number(row.avg_tps || 0).toFixed(2)}
                               </td>
-                              <td className="py-2 px-3 text-right font-semibold text-primary dark:text-blue-400">
+                              <td className="px-3 py-2 text-right font-semibold text-primary">
                                 {Number(row.peak_tps || 0).toFixed(2)}
                               </td>
-                              <td className="py-2 px-3 text-right text-gray-500 dark:text-gray-400">
+                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-400">
                                 {row.configured_tps ? `${row.configured_tps} TPS` : "Uncapped"}
                               </td>
-                              <td className="py-2 px-3 text-right">
+                              <td className="px-3 py-2 text-right">
                                 {row.configured_tps ? (
                                   <div className="flex flex-col items-end gap-1">
                                     <span
                                       className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                         row.tps_utilization >= 90
-                                          ? "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30"
+                                          ? "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
                                           : row.tps_utilization >= 70
-                                          ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30"
-                                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30"
+                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                                          : "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
                                       }`}
                                     >
                                       {row.tps_utilization.toFixed(1)}%
@@ -736,7 +761,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                                       <div
                                         className={`h-full rounded-full ${
                                           row.tps_utilization >= 90
-                                            ? "bg-red-500"
+                                            ? "bg-rose-500"
                                             : row.tps_utilization >= 70
                                             ? "bg-amber-500"
                                             : "bg-emerald-500"
@@ -746,17 +771,17 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                                     </div>
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400 dark:text-gray-500 text-[11px]">-</span>
+                                  <span className="text-text-secondary dark:text-gray-500 text-xs">-</span>
                                 )}
                               </td>
-                              <td className="py-2 px-3 text-right">
+                              <td className="px-3 py-2 text-right">
                                 <span
                                   className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
                                     dlr >= 90
-                                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                      ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
                                       : dlr >= 75
-                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
-                                      : "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                      ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
+                                      : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
                                   }`}
                                 >
                                   {dlr.toFixed(1)}%
@@ -765,30 +790,30 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                             </>
                           ) : (
                             <>
-                              <td className="py-2 px-3 text-right text-emerald-600 dark:text-emerald-400">
+                              <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">
                                 {Number(row.delivered || 0).toLocaleString()}
                               </td>
-                              <td className="py-2 px-3 text-right text-rose-600 dark:text-rose-400">
+                              <td className="px-3 py-2 text-right text-rose-600 dark:text-rose-400">
                                 {Number(row.failed || 0).toLocaleString()}
                               </td>
-                              <td className="py-2 px-3 text-right">
+                              <td className="px-3 py-2 text-right">
                                 <span
                                   className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
                                     dlr >= 90
-                                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
+                                      ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
                                       : dlr >= 75
-                                      ? "bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300"
-                                      : "bg-red-50 text-red-700 dark:bg-red-500/20 dark:text-red-300"
+                                      ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
+                                      : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
                                   }`}
                                 >
                                   {dlr.toFixed(1)}%
                                 </span>
                               </td>
                               <td
-                                className={`py-2 px-3 text-right ${
+                                className={`px-3 py-2 text-right ${
                                   Number(row.profit_margin || 0) >= 0
-                                    ? "text-gray-700 dark:text-gray-300"
-                                    : "text-red-600 dark:text-red-400 font-semibold"
+                                    ? "text-text-primary dark:text-white"
+                                    : "text-rose-600 dark:text-rose-400 font-semibold"
                                 }`}
                               >
                                 ${Number(row.profit_margin || 0).toFixed(2)}
@@ -797,13 +822,13 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           )}
 
                           {widget.condition && widget.condition.operator !== "none" && (
-                            <td className="py-2 px-3 text-center">
+                            <td className="px-3 py-2 text-center">
                               {isAlert ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-300 border border-red-200 dark:border-red-500/30 font-medium">
+                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
                                   Alert
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-500/30 font-medium">
+                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                                   OK
                                 </span>
                               )}
