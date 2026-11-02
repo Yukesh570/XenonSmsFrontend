@@ -477,6 +477,19 @@ const VendorTransaction: React.FC = () => {
               <td className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{index + 1}</td>
               {visibleTableFields.map((col) => {
                 let cellData = (log as any)[col.key];
+                if (col.key === "message_id") {
+                  return (
+                    <td
+                      key={col.key}
+                      className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                      onClick={() => {
+                        handleView(log);
+                      }}
+                    >
+                      {cellData || "-"}
+                    </td>
+                  );
+                }
                 if (col.render) return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{col.render(log)}</td>;
                 if (col.options) { const match = col.options.find((opt) => opt.value === String(cellData)); cellData = match ? match.label : cellData; }
                 return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{cellData || "-"}</td>;

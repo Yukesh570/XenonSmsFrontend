@@ -1,4 +1,5 @@
 import React, { useContext, useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { TabContext, type TabItem } from "../../context/TabContext";
 import * as Icons from "lucide-react";
 import { X, ChevronDown, Search } from "lucide-react";
@@ -233,7 +234,7 @@ export const PageTabs: React.FC = () => {
     : [];
 
   return (
-    <div className="w-full bg-gray-100 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-2 py-1 select-none relative z-50 shrink-0">
+    <div className="w-full bg-gray-100 dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-2 py-1 select-none relative z-[70] shrink-0">
       {/* Hidden Mirror Container with identical dimensions, icon, and text for exact measurement */}
       <div
         ref={hiddenContainerRef}
@@ -327,8 +328,8 @@ export const PageTabs: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Dropdown Menu - Rendered with fixed positioning so it NEVER gets clipped */}
-      {isDropdownOpen && dropdownPos && (
+      {/* Floating Dropdown Menu - Rendered with fixed positioning via portal so it NEVER gets clipped or hidden by Navbar */}
+      {isDropdownOpen && dropdownPos && createPortal(
         <div
           ref={dropdownRef}
           style={{
@@ -336,7 +337,7 @@ export const PageTabs: React.FC = () => {
             ...(dropdownPos.left !== undefined ? { left: `${dropdownPos.left}px` } : {}),
             ...(dropdownPos.right !== undefined ? { right: `${dropdownPos.right}px` } : {}),
           }}
-          className="fixed w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[9999] overflow-hidden text-xs"
+          className="fixed w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-2xl z-[99999] overflow-hidden text-xs"
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-800">
@@ -427,7 +428,8 @@ export const PageTabs: React.FC = () => {
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Context Menu for right-clicked tab */}

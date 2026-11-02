@@ -448,10 +448,24 @@ const SmsMessagePart: React.FC = () => {
             const baseKey = rawKey.replace(/__gt_lt$/, "").replace(/__exact$/, "").replace(/__range$/, "");
             const [gt, lt] = value.split(",");
             if (gt && gt.trim() !== "") {
-              cleanParams[`${baseKey}__gte`] = gt.includes("T") ? gt : `${gt}T00:00:00`;
+              if (!gt.includes("T")) {
+                cleanParams[`${baseKey}__gte`] = `${gt}T00:00:00`;
+              } else if (gt.split(":").length === 2) {
+                cleanParams[`${baseKey}__gte`] = `${gt}:00`;
+              } else {
+                cleanParams[`${baseKey}__gte`] = gt;
+              }
             }
             if (lt && lt.trim() !== "") {
-              cleanParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+              if (!lt.includes("T")) {
+                cleanParams[`${baseKey}__lte`] = `${lt}T23:59:59`;
+              } else if (lt.endsWith("T00:00:00")) {
+                cleanParams[`${baseKey}__lte`] = lt.replace(/T00:00:00$/, "T23:59:59");
+              } else if (lt.split(":").length === 2) {
+                cleanParams[`${baseKey}__lte`] = `${lt}:59`;
+              } else {
+                cleanParams[`${baseKey}__lte`] = lt;
+              }
             }
           } else if (colDef?.type === "text" || colDef?.type === "number" || colDef?.type === "boolean") {
             const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -658,6 +672,7 @@ const SmsMessagePart: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (From)`}
                   showTimeSelect={true}
+                  isEndTime={false}
                   selected={gtStr ? parseDateValue(gtStr) : null}
                   dateMode={gtStr ? (gtStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {
@@ -676,6 +691,7 @@ const SmsMessagePart: React.FC = () => {
                 <DatePicker
                   label={`Search ${baseLabel} (To)`}
                   showTimeSelect={true}
+                  isEndTime={true}
                   selected={ltStr ? parseDateValue(ltStr) : null}
                   dateMode={ltStr ? (ltStr.includes("T") ? "specific_time" : "whole_day") : undefined}
                   onChange={(val: Date | null, mode?: DatePickerMode) => {
@@ -758,6 +774,20 @@ const SmsMessagePart: React.FC = () => {
               {visibleTableFields.map((col) => {
                 const rawValue = (segment as any)[col.key];
                 const cellContent = col.render ? col.render(segment) : (rawValue ?? "-");
+                if (col.key === "client_msg_id") {
+                  return (
+                    <td
+                      key={col.key}
+                      className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                      onClick={() => {
+                        setViewLog(segment);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {cellContent}
+                    </td>
+                  );
+                }
                 return (
                   <td key={col.key} className={`px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap`}>
                     {cellContent}

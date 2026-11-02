@@ -456,7 +456,11 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                         }
                         if (col.key === "sourceSenderId") {
                           return (
-                            <td key={col.key} className={col.className}>
+                            <td
+                              key={col.key}
+                              className={`${col.className} cursor-pointer hover:underline text-primary font-medium`}
+                              onClick={() => handleEditRule(rule)}
+                            >
                               {rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}
                             </td>
                           );

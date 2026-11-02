@@ -5,6 +5,8 @@ import {
   Trash,
   PhoneCall,
   AlertTriangle,
+  RotateCcw,
+  Info,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
@@ -58,7 +60,7 @@ interface DestinationRulesTabProps {
   countries: any[];
 }
 
-const DEFAULT_SEARCH_COLUMNS = ["name", "client", "isActive"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "country", "isActive"];
 const DEFAULT_TABLE_COLUMNS = [
   "priority",
   "name",
@@ -103,7 +105,10 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
       const saved = localStorage.getItem("destination_rules_search_columns_v2");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter((k) => k !== "client");
+          if (filtered.length > 0) return filtered;
+        }
       }
     } catch (e) {
       console.error("Error reading saved search columns", e);
@@ -206,17 +211,18 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
 
   // Load Rules
   const loadRules = async (customFilters?: Record<string, string>) => {
+    if (!selectedClientId) {
+      setRules([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const activeFilters = customFilters !== undefined ? customFilters : appliedFilters;
       const params: Record<string, any> = {
         targetEntity: "DESTINATION",
+        client: selectedClientId,
       };
-
-      const clientParam = activeFilters.client ? Number(activeFilters.client) : selectedClientId || undefined;
-      if (clientParam) {
-        params.client = clientParam;
-      }
 
       for (const [key, rawVal] of Object.entries(activeFilters)) {
         const val = rawVal?.trim();
@@ -249,7 +255,12 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
   };
 
   useEffect(() => {
-    loadRules();
+    if (selectedClientId) {
+      loadRules();
+    } else {
+      setRules([]);
+      setLoading(false);
+    }
   }, [selectedClientId]);
 
   // Debounced Regex Validation
@@ -369,6 +380,7 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
       tableLabel: "Client",
       type: "text",
       filterKey: "client",
+      isSearchable: false,
       options: clientOptions,
       render: (rule) => {
         const clientName =
@@ -593,8 +605,9 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
     setFilterValues({});
     setAppliedFilters({});
     setCurrentPage(1);
-    setSelectedClientId(null);
-    loadRules({});
+    if (selectedClientId) {
+      loadRules({});
+    }
   };
 
   const handleSort = (columnIndex: number) => {
@@ -856,146 +869,194 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
 
   return (
     <div className="space-y-4" onClick={() => setContextMenuPos(null)}>
-      {/* Top Filter Bar Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative z-20">
-            <AdvancedFilter
-              columns={tableFilterColumns as any}
-              selectedColumns={tableColumns}
-              defaultColumns={DEFAULT_TABLE_COLUMNS}
-              onFilter={(cols: string[]) => setTableColumns(cols)}
-              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
-              buttonLabel="Columns"
-              enableReorder={true}
+      {/* Sleek, Compact Selector Box */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-5">
+        <div className="flex flex-col md:flex-row items-end gap-4">
+          <div className="flex-1 w-full max-w-md">
+            <Select
+              label="Client"
+              placeholder="Select Client"
+              value={selectedClientId ? String(selectedClientId) : ""}
+              onChange={(val) => {
+                setSelectedClientId(val ? Number(val) : null);
+              }}
+              options={clients.map((c) => ({
+                value: String(c.id),
+                label: c.name
+                  ? c.companyName
+                    ? `${c.name} (${c.companyName})`
+                    : c.name
+                  : c.companyName || `Client #${c.id}`,
+              }))}
             />
           </div>
-          <div className="relative z-20">
-            <AdvancedFilter
-              columns={searchableColumns as any}
-              selectedColumns={searchColumns}
-              defaultColumns={DEFAULT_SEARCH_COLUMNS}
-              onFilter={(newCols: string[]) => {
-                setSearchColumns(newCols);
-                setFilterValues((prev) => {
-                  const next = { ...prev };
-                  Object.keys(next).forEach((k) => {
-                    if (!newCols.includes(k)) delete next[k];
-                  });
-                  return next;
-                });
-              }}
-              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
-              isLoading={loading}
-              buttonLabel="Search Fields"
-            />
+          <div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setSelectedClientId(null)}
+              leftIcon={<RotateCcw size={15} />}
+            >
+              Clear
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Dynamic FilterCard */}
-      <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
-        {visibleSearchFields.map((col) => {
-          const baseLabel = getBaseLabel(col.label || "");
-          if (col.options) {
-            return (
-              <Select
-                key={col.key}
-                label={baseLabel}
-                value={filterValues[col.key] || ""}
-                onChange={(val) => handleFilterChange(col.key, val)}
-                options={col.options}
-                placeholder={`Select ${baseLabel}`}
-                allowCustomValue={true}
-              />
-            );
-          }
-          return (
-            <Input
-              key={col.key}
-              type={col.type === "number" ? "number" : "text"}
-              label={baseLabel}
-              value={filterValues[col.key] || ""}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                handleFilterChange(col.key, e.target.value)
-              }
-              placeholder={`Search ${baseLabel}`}
-            />
-          );
-        })}
-      </FilterCard>
+      {/* Instruction Note if no client selected */}
+      {!selectedClientId && (
+        <div className="p-3.5 rounded-lg bg-blue-50/50 dark:bg-gray-800/60 border border-blue-100 dark:border-gray-700/80 flex items-center space-x-2.5 text-blue-700 dark:text-blue-400 text-xs sm:text-sm">
+          <Info size={16} className="shrink-0 text-blue-500 dark:text-blue-400" />
+          <p>
+            <span className="font-semibold">Instruction:</span> Please select a client to configure and manage its destination phone number translation rules.
+          </p>
+        </div>
+      )}
 
-      {/* Reusable DataTable */}
-      <DataTable
-        density="compact"
-        headers={tableHeaders}
-        data={filteredAndSortedRules}
-        totalItems={filteredAndSortedRules.length}
-        currentPage={currentPage}
-        rowsPerPage={rowsPerPage}
-        onPageChange={setCurrentPage}
-        onRowsPerPageChange={setRowsPerPage}
-        isLoading={loading}
-        onSort={handleSort}
-        sortColumnIndex={
-          sortConfig
-            ? visibleTableFields.findIndex((c) => c.key === sortConfig.key) + 1
-            : null
-        }
-        sortDirection={sortConfig?.direction || null}
-        onReorderColumns={(fromIdx, toIdx) => {
-          setTableColumns((prev) => {
-            const validKeys = prev.filter((key) =>
-              allColumns.some((c) => c.key === key)
-            );
-            const next = [...validKeys];
-            const [moved] = next.splice(fromIdx, 1);
-            next.splice(toIdx, 0, moved);
-            return next;
-          });
-        }}
-        headerActions={
-          <Button
-            variant="primary"
-            onClick={handleOpenAdd}
-            leftIcon={<Plus size={16} />}
-          >
-            Add Destination Rule
-          </Button>
-        }
-        renderRow={(rule, index) => (
-          <tr
-            key={rule.id || index}
-            onContextMenu={(e) => handleContextMenu(e, rule)}
-            className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors"
-          >
-            <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
-              {(currentPage - 1) * rowsPerPage + index + 1}
-            </td>
-            {visibleTableFields.map((col) => {
-              if (col.render) {
+      {selectedClientId && (
+        <>
+          {/* Top Filter Bar Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative z-20">
+                <AdvancedFilter
+                  columns={tableFilterColumns as any}
+                  selectedColumns={tableColumns}
+                  defaultColumns={DEFAULT_TABLE_COLUMNS}
+                  onFilter={(cols: string[]) => setTableColumns(cols)}
+                  onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
+                  buttonLabel="Columns"
+                  enableReorder={true}
+                />
+              </div>
+              <div className="relative z-20">
+                <AdvancedFilter
+                  columns={searchableColumns as any}
+                  selectedColumns={searchColumns}
+                  defaultColumns={DEFAULT_SEARCH_COLUMNS}
+                  onFilter={(newCols: string[]) => {
+                    setSearchColumns(newCols);
+                    setFilterValues((prev) => {
+                      const next = { ...prev };
+                      Object.keys(next).forEach((k) => {
+                        if (!newCols.includes(k)) delete next[k];
+                      });
+                      return next;
+                    });
+                  }}
+                  onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
+                  isLoading={loading}
+                  buttonLabel="Search Fields"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Dynamic FilterCard */}
+          <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
+            {visibleSearchFields.map((col) => {
+              const baseLabel = getBaseLabel(col.label || "");
+              if (col.options) {
                 return (
-                  <td
+                  <Select
                     key={col.key}
-                    className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
-                  >
-                    {col.render(rule)}
-                  </td>
+                    label={baseLabel}
+                    value={filterValues[col.key] || ""}
+                    onChange={(val) => handleFilterChange(col.key, val)}
+                    options={col.options}
+                    placeholder={`Select ${baseLabel}`}
+                    allowCustomValue={true}
+                  />
                 );
               }
-              const cellData = (rule as any)[col.key];
               return (
-                <td
+                <Input
                   key={col.key}
-                  className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
-                >
-                  {cellData ?? "-"}
-                </td>
+                  type={col.type === "number" ? "number" : "text"}
+                  label={baseLabel}
+                  value={filterValues[col.key] || ""}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    handleFilterChange(col.key, e.target.value)
+                  }
+                  placeholder={`Search ${baseLabel}`}
+                />
               );
             })}
-          </tr>
-        )}
-      />
+          </FilterCard>
+
+          {/* Reusable DataTable */}
+          <DataTable
+            density="compact"
+            headers={tableHeaders}
+            data={filteredAndSortedRules}
+            totalItems={filteredAndSortedRules.length}
+            currentPage={currentPage}
+            rowsPerPage={rowsPerPage}
+            onPageChange={setCurrentPage}
+            onRowsPerPageChange={setRowsPerPage}
+            isLoading={loading}
+            onSort={handleSort}
+            sortColumnIndex={
+              sortConfig
+                ? visibleTableFields.findIndex((c) => c.key === sortConfig.key) + 1
+                : null
+            }
+            sortDirection={sortConfig?.direction || null}
+            onReorderColumns={(fromIdx, toIdx) => {
+              setTableColumns((prev) => {
+                const validKeys = prev.filter((key) =>
+                  allColumns.some((c) => c.key === key)
+                );
+                const next = [...validKeys];
+                const [moved] = next.splice(fromIdx, 1);
+                next.splice(toIdx, 0, moved);
+                return next;
+              });
+            }}
+            headerActions={
+              <Button
+                variant="primary"
+                onClick={handleOpenAdd}
+                leftIcon={<Plus size={16} />}
+              >
+                Add Destination Rule
+              </Button>
+            }
+            renderRow={(rule, index) => (
+              <tr
+                key={rule.id || index}
+                onContextMenu={(e) => handleContextMenu(e, rule)}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors"
+              >
+                <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
+                  {(currentPage - 1) * rowsPerPage + index + 1}
+                </td>
+                {visibleTableFields.map((col) => {
+                  if (col.render) {
+                    return (
+                      <td
+                        key={col.key}
+                        className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                      >
+                        {col.render(rule)}
+                      </td>
+                    );
+                  }
+                  const cellData = (rule as any)[col.key];
+                  return (
+                    <td
+                      key={col.key}
+                      className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                    >
+                      {cellData ?? "-"}
+                    </td>
+                  );
+                })}
+              </tr>
+            )}
+          />
+        </>
+      )}
 
       {/* Context Menu */}
       <ContextMenu

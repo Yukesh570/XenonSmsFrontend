@@ -489,6 +489,18 @@ const EmailSource: React.FC = () => {
               if (col.key === "vendor") cellData = vendorMap[String(item.vendor)] || String(item.vendor || "-");
               if (col.key === "mappingSetup") cellData = mappingMap[String(item.mappingSetup)] || String(item.mappingSetup || "-");
 
+              if (col.key === "vendor") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(item)}
+                  >
+                    {cellData || "-"}
+                  </td>
+                );
+              }
+
               if (col.render) return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{col.render(item)}</td>;
               if (col.options) { const match = col.options.find((opt) => opt.value === String(cellData)); cellData = match ? match.label : cellData; }
               return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{cellData || "-"}</td>;

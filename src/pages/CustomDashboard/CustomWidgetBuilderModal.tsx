@@ -161,13 +161,13 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setCondMode("filter");
       setSortBy("metric_asc");
     } else if (presetKey === "tps_saturation") {
-      setTitle("High TPS Saturation (>80%)");
+      setTitle("High Traffic Load (>80%)");
       setEntity("client");
-      setPrimaryMetric("tps_utilization");
+      setPrimaryMetric("peak_tps_utilization");
       setVisualization("table");
       setSize("medium");
       setHasCondition(true);
-      setCondMetric("tps_utilization");
+      setCondMetric("peak_tps_utilization");
       setCondOperator("gt");
       setCondValue(80);
       setCondMode("highlight");
@@ -283,7 +283,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 onClick={() => applyPreset("tps_saturation")}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                ⚡ High TPS Saturation (&gt;80%)
+                ⚡ High Load (&gt;80%)
               </button>
               <button
                 type="button"
@@ -391,7 +391,8 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="dlr_percent">Delivery Rate (DLR %)</option>
                 <option value="peak_tps">Peak Throughput (Peak TPS)</option>
                 <option value="tps">Average Throughput (TPS)</option>
-                <option value="tps_utilization">TPS Capacity Utilization (%)</option>
+                <option value="peak_tps_utilization">Peak Load (%)</option>
+                <option value="avg_tps_utilization">Average Load (%)</option>
                 <option value="attempts">Total Attempts / Volume</option>
                 <option value="delivered">Delivered Messages</option>
                 <option value="failed">Failed Messages</option>
@@ -509,7 +510,8 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                     className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
                   >
                     <option value="dlr_percent">DLR %</option>
-                    <option value="tps_utilization">TPS Capacity Utilization (%)</option>
+                    <option value="peak_tps_utilization">Peak Load (%)</option>
+                    <option value="avg_tps_utilization">Average Load (%)</option>
                     <option value="peak_tps">Peak TPS</option>
                     <option value="tps">Average TPS</option>
                     <option value="margin_percent">Margin %</option>

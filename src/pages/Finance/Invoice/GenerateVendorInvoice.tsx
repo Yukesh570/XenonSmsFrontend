@@ -159,7 +159,6 @@ const GenerateVendorInvoice: React.FC = () => {
       if (res && res.pdfBase64) {
         setPreviewPdfUrl(`data:application/pdf;base64,${res.pdfBase64}`);
         setIsPreviewModalOpen(true);
-        toast.success(res.message || "PDF preview generated!");
       } else {
         toast.error("Could not generate PDF preview.");
       }

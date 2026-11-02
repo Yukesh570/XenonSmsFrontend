@@ -495,6 +495,7 @@ const LiveTraffic: React.FC = () => {
               <React.Fragment key="timeRange-group">
                 <CustomDatePicker
                   label="Start Time"
+                  isEndTime={false}
                   selected={
                     filterValues.startDate
                       ? new Date(filterValues.startDate)
@@ -512,6 +513,7 @@ const LiveTraffic: React.FC = () => {
                 />
                 <CustomDatePicker
                   label="End Time"
+                  isEndTime={true}
                   selected={
                     filterValues.endDate ? new Date(filterValues.endDate) : null
                   }

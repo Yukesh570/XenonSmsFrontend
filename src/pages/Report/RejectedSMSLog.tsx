@@ -506,6 +506,20 @@ const RejectedSMSLog: React.FC = () => {
               {visibleTableFields.map((col) => {
                 const rawValue = (event as any)[col.key];
                 const cellContent = col.render ? col.render(event) : (rawValue || "-");
+                if (col.key === "message_id" || col.key === "id") {
+                  return (
+                    <td
+                      key={col.key}
+                      className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                      onClick={() => {
+                        setViewLog(event);
+                        setIsModalOpen(true);
+                      }}
+                    >
+                      {cellContent}
+                    </td>
+                  );
+                }
                 return (
                   <td key={col.key} className={`px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap`}>
                     {cellContent}

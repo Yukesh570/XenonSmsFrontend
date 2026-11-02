@@ -55,7 +55,13 @@ export const cleanDisplayName = (name: string): string => {
 
 const formatMetricValue = (metric: MetricType, value: number): string => {
   if (value === undefined || value === null || isNaN(value)) return "0";
-  if (metric === "dlr_percent" || metric === "margin_percent" || metric === "tps_utilization") {
+  if (
+    metric === "dlr_percent" ||
+    metric === "margin_percent" ||
+    metric === "tps_utilization" ||
+    metric === "peak_tps_utilization" ||
+    metric === "avg_tps_utilization"
+  ) {
     return `${Number(value).toFixed(1)}%`;
   }
   if (metric === "tps" || metric === "peak_tps") {
@@ -169,7 +175,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           const tps = Number(row.avg_tps ?? row.tps ?? 0);
           const peakTps = Number(row.peak_tps ?? 0);
           const configuredTps = row.configured_tps !== undefined && row.configured_tps !== null ? Number(row.configured_tps) : null;
-          const tpsUtilization = Number(row.tps_utilization ?? 0);
+          const peakTpsUtilization = Number(row.peak_tps_utilization ?? row.tps_utilization ?? 0);
           const avgTpsUtilization = Number(row.avg_tps_utilization ?? 0);
 
           return {
@@ -188,7 +194,8 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             avg_tps: tps,
             peak_tps: peakTps,
             configured_tps: configuredTps,
-            tps_utilization: tpsUtilization,
+            peak_tps_utilization: peakTpsUtilization,
+            tps_utilization: peakTpsUtilization,
             avg_tps_utilization: avgTpsUtilization,
             raw: row,
           };
@@ -403,7 +410,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         ? formatMetricValue(widget.primaryMetric, processedData[0][widget.primaryMetric] || 0)
                         : "0"}
                     </div>
-                    {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) && (
+                    {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) && (
                       <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
                         {widget.primaryMetric === "peak_tps" && "Peak hourly throughput rate observed"}
                         {widget.primaryMetric === "tps" && "Average sustained window throughput"}
@@ -418,7 +425,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                   )}
                 </div>
 
-                {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) ? (
+                {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700/60">
                     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
                       <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Rate</div>
@@ -439,7 +446,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center">
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Saturation</div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">Peak Load</div>
                       <div className="text-xs font-semibold text-gray-800 dark:text-gray-200 mt-0.5">
                         {Number(
                           (widget.entity === "overview" && totals?.tps_utilization) ||
@@ -653,12 +660,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           : "Failure Reason"}
                       </th>
                       <th className="py-2.5 px-3 text-right">Volume</th>
-                      {["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric) ? (
+                      {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                         <>
                           <th className="py-2.5 px-3 text-right">Avg TPS</th>
                           <th className="py-2.5 px-3 text-right">Peak TPS</th>
                           <th className="py-2.5 px-3 text-right">Config Limit</th>
-                          <th className="py-2.5 px-3 text-right">Saturation</th>
+                          <th className="py-2.5 px-3 text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
                           <th className="py-2.5 px-3 text-right">DLR %</th>
                         </>
                       ) : (
@@ -678,7 +685,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     {processedData.map((row, idx) => {
                       const isAlert = row._isMatch;
                       const dlr = Number(row.dlr_percent || 0);
-                      const isTps = ["tps", "peak_tps", "tps_utilization"].includes(widget.primaryMetric);
+                      const isTps = ["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric);
 
                       return (
                         <tr

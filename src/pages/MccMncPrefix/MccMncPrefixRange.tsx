@@ -550,6 +550,32 @@ const MccMncPrefixRange: React.FC = () => {
             <td className="px-4 py-4 text-sm text-text-primary dark:text-white">{(currentPage - 1) * rowsPerPage + index + 1}</td>
             {visibleTableFields.map((col) => {
               let cellData = (item as any)[col.key];
+              if (col.key === "countryName") {
+                const match = countryOptions.find((opt) => opt.value === item.countryName);
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(item)}
+                  >
+                    <div className="flex items-center gap-2">
+                      {match?.iso2 && <CountryFlag iso2={match.iso2} />}
+                      <span>{item.countryName || "-"}</span>
+                    </div>
+                  </td>
+                );
+              }
+              if (col.key === "mccmnc") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(item)}
+                  >
+                    {item.mccmnc || "-"}
+                  </td>
+                );
+              }
               if (col.render) return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{col.render(item)}</td>;
               if (col.options) { const match = col.options.find((opt) => opt.value === String(cellData)); cellData = match ? match.label : cellData; }
               return <td key={col.key} className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">{cellData || "-"}</td>;

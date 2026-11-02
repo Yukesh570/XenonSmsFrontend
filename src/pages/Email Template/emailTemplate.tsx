@@ -611,11 +611,24 @@ const EmailTemplatePage: React.FC = () => {
             <td className="px-4 py-4 whitespace-nowrap text-sm text-text-primary dark:text-white">
               {(currentPage - 1) * rowsPerPage + index + 1}
             </td>
-            {visibleTableFields.map((col) => (
-              <td key={col.key} className="px-4 py-4 whitespace-nowrap text-sm text-text-secondary dark:text-gray-300">
-                {col.render ? col.render(template) : (template as any)[col.key] || "-"}
-              </td>
-            ))}
+            {visibleTableFields.map((col) => {
+              if (col.key === "name") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-primary cursor-pointer hover:underline"
+                    onClick={() => handleEdit(template)}
+                  >
+                    {template.name || "-"}
+                  </td>
+                );
+              }
+              return (
+                <td key={col.key} className="px-4 py-4 whitespace-nowrap text-sm text-text-secondary dark:text-gray-300">
+                  {col.render ? col.render(template) : (template as any)[col.key] || "-"}
+                </td>
+              );
+            })}
           </tr>
         )}
       />

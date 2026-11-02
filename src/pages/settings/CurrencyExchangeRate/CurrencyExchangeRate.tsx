@@ -667,6 +667,18 @@ const CurrencyExchangeRate: React.FC = () => {
             {visibleTableFields.map((col) => {
               let cellData = (rate as any)[col.key];
 
+              if (col.key === "baseCurrency") {
+                return (
+                  <td
+                    key={col.key}
+                    className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+                    onClick={() => handleEdit(rate)}
+                  >
+                    {rate.baseCurrency_name ? rate.baseCurrency_name : rate.baseCurrency || "-"}
+                  </td>
+                );
+              }
+
               if (col.render) {
                 return (
                   <td

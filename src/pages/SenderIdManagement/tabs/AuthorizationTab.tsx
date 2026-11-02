@@ -609,7 +609,13 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
                       onContextMenu={(e) => handleContextMenu(e, rule)}
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                     >
-                      <td className="px-4 py-3 font-semibold text-text-primary dark:text-white">
+                      <td
+                        className="px-4 py-3 font-semibold text-primary cursor-pointer hover:underline"
+                        onClick={() => {
+                          setEditingRule(rule);
+                          setIsRuleFormOpen(true);
+                        }}
+                      >
                         {rule.senderId}
                       </td>
                       <td className="px-4 py-3">
