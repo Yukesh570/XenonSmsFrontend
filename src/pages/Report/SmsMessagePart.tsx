@@ -139,7 +139,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["parent_message_destination", "submit_status", "vendor_msg_id"];
-const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at"];
+const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendor_msg_id", "parent_message_destination", "part_no", "part_total", "submit_status", "created_at", "updated_at"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -366,13 +366,6 @@ const SmsMessagePart: React.FC = () => {
       render: (data: any) => data.updated_at ? formatDateTime(data.updated_at) : "-"
     },
     {
-      key: "updated_at__gt_lt",
-      label: "Updated At (From / To)",
-      type: "date_gt_lt",
-      filterKey: "updated_at",
-      isSearchOnly: true
-    },
-    {
       key: "last_submit_at",
       label: "Last Submit At",
       isSearchable: false,
@@ -406,8 +399,11 @@ const SmsMessagePart: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.created_at;
-    delete nextFilters.created_at__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchSegments(nextFilters, 1, false, presetKey);
   };
@@ -598,7 +594,19 @@ const SmsMessagePart: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchSegments(undefined, 1, false);
+          const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+            if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+            const colDef = allColumns.find((c) => c.key === k);
+            return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+          });
+          if (hasExplicitDate) {
+            setActivePreset("custom");
+            fetchSegments(undefined, 1, false, "custom");
+          } else {
+            const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+            setActivePreset(presetToUse);
+            fetchSegments(undefined, 1, false, presetToUse);
+          }
         }}
         onClear={() => {
           setActivePreset("today");

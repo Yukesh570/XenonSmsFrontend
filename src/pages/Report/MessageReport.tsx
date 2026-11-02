@@ -90,14 +90,15 @@ const encodingOptions: Option[] = [
 ];
 
 const DEFAULT_SEARCH_COLUMNS = [
+  "createdAt__gt_lt",
   "clientName",
   "countryName",
+  "mccmnc",
   "destination",
   "message_id",
   "status",
   "source_addr",
   "vendorName",
-  "segmentNumber",
   "effectiveSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
@@ -105,12 +106,13 @@ const DEFAULT_TABLE_COLUMNS = [
   "destination",
   "source_addr",
   "countryName",
+  "mccmnc",
   "status",
   "clientName",
   "vendorName",
   "segmentNumber",
   "failure_reason",
-  "createdAt",
+  "createdAt", "updatedAt",
   "effectiveSenderId",
 ];
 
@@ -155,16 +157,7 @@ const MessageReport: React.FC = () => {
     try {
       const parsed = saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
       return Array.isArray(parsed)
-        ? parsed.filter(
-          (col: string) =>
-            ![
-              "createdAt__gt_lt",
-              "queued_at__gt_lt",
-              "submitted_at__gt_lt",
-              "delivered_at__gt_lt",
-              "failed_at__gt_lt",
-            ].includes(col),
-        )
+        ? Array.from(new Set([...DEFAULT_SEARCH_COLUMNS, ...parsed]))
         : DEFAULT_SEARCH_COLUMNS;
     } catch (e) {
       return DEFAULT_SEARCH_COLUMNS;
@@ -266,6 +259,12 @@ const MessageReport: React.FC = () => {
         options: countryOptions,
         filterKey: "country__name__icontains",
       },
+      {
+        key: "mccmnc",
+        label: "MCCMNC",
+        type: "text",
+        filterKey: "mccmnc",
+      },
       { key: "destination", label: "Destination", type: "text", filterKey: "destination__icontains" },
       { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
       { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
@@ -287,6 +286,41 @@ const MessageReport: React.FC = () => {
       },
       { key: "systemId", label: "System ID", type: "text", filterKey: "systemId__icontains" },
       { key: "failure_reason", label: "Failure Reason", type: "text", filterKey: "failure_reason__icontains" },
+      {
+        key: "createdAt__gt_lt",
+        label: "Created At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "createdAt",
+        isSearchOnly: true,
+      },
+      {
+        key: "queued_at__gt_lt",
+        label: "Queued At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "queued_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "submitted_at__gt_lt",
+        label: "Submitted At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "submitted_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "delivered_at__gt_lt",
+        label: "Delivered At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "delivered_at",
+        isSearchOnly: true,
+      },
+      {
+        key: "failed_at__gt_lt",
+        label: "Failed At (From / To)",
+        type: "date_gt_lt",
+        filterKey: "failed_at",
+        isSearchOnly: true,
+      },
       {
         key: "encoding",
         label: "Encoding",
@@ -347,6 +381,21 @@ const MessageReport: React.FC = () => {
               {match?.icon}
               <span>{log.countryName}</span>
             </div>
+          );
+        },
+      },
+      {
+        key: "mccmnc",
+        label: "MCCMNC",
+        type: "text",
+        render: (log: any) => {
+          const mcc = log.mcc ? String(log.mcc).padStart(3, "0") : "";
+          const mnc = log.mnc ? String(log.mnc).padStart(3, "0") : "";
+          const combined = mcc && mnc ? `${mcc}${mnc}` : (mcc || mnc || "-");
+          return (
+            <span className="text-sm font-mono">
+              {combined}
+            </span>
           );
         },
       },
@@ -443,6 +492,15 @@ const MessageReport: React.FC = () => {
           </span>
         ),
       },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
     ],
     [countryOptions],
   );
@@ -514,6 +572,14 @@ const MessageReport: React.FC = () => {
             }
             if (lt && lt.trim() !== "") {
               currentSearchParams[`${baseKey}__lte`] = lt.includes("T") ? lt : `${lt}T23:59:59`;
+            }
+          } else if (key === "mccmnc") {
+            const clean = value.replace(/[^0-9]/g, "");
+            if (clean.length > 3) {
+              currentSearchParams["mcc"] = clean.substring(0, 3);
+              currentSearchParams["mnc"] = clean.substring(3);
+            } else if (clean.length > 0) {
+              currentSearchParams["mcc"] = clean;
             }
           } else if (colDef?.type === "text") {
             const filterKey = colDef.filterKey || `${key}__icontains`;
@@ -631,7 +697,12 @@ const MessageReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, appliedFilters, logs.length]);
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "createdAt" || key === "createdAt__gt_lt") {
+    const colDef = filterOptionsConfig.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -641,8 +712,11 @@ const MessageReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.createdAt;
-    delete nextFilters.createdAt__gt_lt;
+    filterOptionsConfig.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     setAppliedFilters(nextFilters);
     fetchLogs(nextFilters, 1, false, false, presetKey);
@@ -650,7 +724,19 @@ const MessageReport: React.FC = () => {
 
   const handleSearch = () => {
     setAppliedFilters(filterValues);
-    fetchLogs(filterValues, 1, false);
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = filterOptionsConfig.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
+      setActivePreset("custom");
+      fetchLogs(filterValues, 1, false, false, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchLogs(filterValues, 1, false, false, presetToUse);
+    }
   };
 
   const handleClearFilters = () => {

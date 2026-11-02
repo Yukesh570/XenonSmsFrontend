@@ -4,7 +4,7 @@ import { X, Loader2 } from "lucide-react";
 import FastTooltip from "./FastTooltip";
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+  label?: string;
   leftIcon?: ReactNode;
   rightIcon?: ReactNode;
   isClearable?: boolean;
@@ -27,7 +27,7 @@ const Input: React.FC<InputProps> = ({
   isLoading = false,
   ...props 
 }) => {
-  const inputId = id || label.replace(/\s+/g, "-").toLowerCase();
+  const inputId = id || (label ? label.replace(/\s+/g, "-").toLowerCase() : props.name || "input");
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
 
@@ -77,14 +77,16 @@ const Input: React.FC<InputProps> = ({
 
   return (
     <div className="flex flex-col w-full">
-      <label
-        htmlFor={inputId}
-        title={label}
-        className={`mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate ${labelClassName || ""}`}
-      >
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
+      {label && (
+        <label
+          htmlFor={inputId}
+          title={label}
+          className={`mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate ${labelClassName || ""}`}
+        >
+          {label}
+          {required && <span className="text-red-500 ml-1">*</span>}
+        </label>
+      )}
       <FastTooltip text={hoverTooltip} disabled={isFocused || !hasValue || isPassword || isLoading}>
         <div className="relative flex items-center w-full">
           {leftIcon && (

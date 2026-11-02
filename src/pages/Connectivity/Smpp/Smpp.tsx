@@ -52,7 +52,7 @@ const formatLocalDate = (date: Date) => {
 
 // --- Default Configuration ---
 const DEFAULT_SEARCH_COLUMNS = ["smppHost", "systemID", "bindMode"];
-const DEFAULT_TABLE_COLUMNS = ["smppHost", "smppPort", "systemID", "bindMode"];
+const DEFAULT_TABLE_COLUMNS = ["smppHost", "smppPort", "systemID", "bindMode", "updatedAt"];
 
 const Smpp: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -155,6 +155,15 @@ const Smpp: React.FC = () => {
     { key: "createdAt", label: "Created At", tableLabel: "Created At", type: "date", filterKey: "createdAt", isSearchable: false, render: (c: any) => (c.createdAt ? formatDateTime(c.createdAt) : "-") },
     { key: "createdAt__range", label: "Created At (From/To)", type: "date_range", isSearchOnly: true, filterKey: "createdAt" },
     { key: "createdAt__gt_lt", label: "Created At (From / To)", type: "date_gt_lt", isSearchOnly: true, filterKey: "createdAt" },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);

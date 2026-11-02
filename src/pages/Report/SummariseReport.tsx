@@ -273,7 +273,7 @@ const SummariseReport: React.FC = () => {
   }, []);
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "start_date" || key === "end_date") {
+    if ((key === "start_date" || key === "end_date") && value && value.trim() !== "") {
       setActivePreset("custom");
     }
     setFilterValues((prev) => {
@@ -508,7 +508,19 @@ const SummariseReport: React.FC = () => {
 
 
   const handleSearch = () => {
-    fetchReports();
+    const currentFilters = filterValuesRef.current || filterValues;
+    const hasExplicitDate = Boolean(
+      (currentFilters.start_date && String(currentFilters.start_date).trim() !== "") ||
+      (currentFilters.end_date && String(currentFilters.end_date).trim() !== "")
+    );
+    if (hasExplicitDate) {
+      setActivePreset("custom");
+      fetchReports(undefined, undefined, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchReports(undefined, undefined, presetToUse);
+    }
   };
 
   const handleClearFilters = () => {

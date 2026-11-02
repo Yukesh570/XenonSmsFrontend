@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Home, ArrowUp, ArrowDown, ArrowUpDown, GripVertical } from "lucide-react";
+import { Home, ArrowUp, ArrowDown, ArrowUpDown, GripVertical, Database } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { toast } from "react-toastify";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
 
 import FilterCard from "../../components/ui/FilterCard";
 import DatePicker, { type DatePickerMode } from "../../components/ui/DatePicker";
@@ -577,8 +578,11 @@ const AnalyticsReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.date;
-    delete nextFilters.date__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
 
     resetTreeState();
@@ -586,7 +590,12 @@ const AnalyticsReport: React.FC = () => {
   };
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "date" || key === "date__gt_lt") {
+    const colDef = allColumns.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -594,7 +603,19 @@ const AnalyticsReport: React.FC = () => {
 
   const handleSearch = () => {
     resetTreeState();
-    fetchCompanyData(1, false);
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = allColumns.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
+      setActivePreset("custom");
+      fetchCompanyData(1, false, undefined, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchCompanyData(1, false, undefined, presetToUse);
+    }
   };
 
   const handleClearFilters = () => {
@@ -1267,7 +1288,9 @@ const AnalyticsReport: React.FC = () => {
                         ? "sticky left-0 z-40 border-r border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                         : ""
                         } ${isSorted
-                          ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
+                          ? isEntity
+                            ? "text-primary dark:text-primary bg-gray-100 dark:bg-gray-900"
+                            : "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"
                           : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"
                         } hover:bg-gray-100 dark:hover:bg-gray-800 ${isBeingDragged ? "opacity-40 bg-gray-200 dark:bg-gray-700" : ""
                         } ${isDragOver
@@ -1331,18 +1354,32 @@ const AnalyticsReport: React.FC = () => {
                 <tr>
                   <td
                     colSpan={orderedColumnKeys.length}
-                    className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
+                    className="p-0 border-none"
                   >
-                    Loading analytics data...
+                    <div
+                      className="sticky left-0 flex items-center justify-center py-16"
+                      style={{ width: containerWidth ? `${containerWidth}px` : "100%" }}
+                    >
+                      <LoadingSpinner text="Loading analytics data..." className="py-0" />
+                    </div>
                   </td>
                 </tr>
               ) : companyRows.length === 0 ? (
                 <tr>
                   <td
                     colSpan={orderedColumnKeys.length}
-                    className="px-4 py-12 text-center text-text-secondary dark:text-gray-400"
+                    className="p-0 border-none"
                   >
-                    No analytics records found.
+                    <div
+                      className="empty-state-container sticky left-0 flex flex-col items-center justify-center py-16 text-center text-text-secondary dark:text-gray-400"
+                      style={{ width: containerWidth ? `${containerWidth}px` : "100%" }}
+                    >
+                      <Database
+                        size={32}
+                        className="text-gray-300 dark:text-gray-600 mb-2"
+                      />
+                      <span>No analytics records found.</span>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -1368,7 +1405,7 @@ const AnalyticsReport: React.FC = () => {
                                   minWidth: `${entityWidth}px`,
                                   maxWidth: `${entityWidth}px`,
                                 }}
-                                className="px-3 py-2 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
+                                className="px-3 py-2 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                               >
                                 <button
                                   type="button"
@@ -1422,7 +1459,7 @@ const AnalyticsReport: React.FC = () => {
                                             minWidth: `${entityWidth}px`,
                                             maxWidth: `${entityWidth}px`,
                                           }}
-                                          className="px-3 py-2 pl-8 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
+                                          className="px-3 py-2 pl-8 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                         >
                                           <button
                                             type="button"
@@ -1477,7 +1514,7 @@ const AnalyticsReport: React.FC = () => {
                                                       minWidth: `${entityWidth}px`,
                                                       maxWidth: `${entityWidth}px`,
                                                     }}
-                                                    className="px-3 py-2 pl-12 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
+                                                    className="px-3 py-2 pl-12 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                                   >
                                                     <button
                                                       type="button"
@@ -1530,7 +1567,7 @@ const AnalyticsReport: React.FC = () => {
                                                               minWidth: `${entityWidth}px`,
                                                               maxWidth: `${entityWidth}px`,
                                                             }}
-                                                            className="px-3 py-2 pl-16 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700/50 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
+                                                            className="px-3 py-2 pl-16 whitespace-nowrap overflow-hidden border-r border-gray-200 dark:border-gray-700 sticky left-0 z-20 bg-white dark:bg-gray-800 group-hover/row:bg-gray-50 dark:group-hover/row:bg-gray-700 shadow-[1px_0_0_0_rgba(229,231,235,1)] dark:shadow-[1px_0_0_0_rgba(55,65,81,1)]"
                                                           >
                                                             <div
                                                               title={vendorName}
@@ -1600,10 +1637,33 @@ const AnalyticsReport: React.FC = () => {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
         .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        .app-data-table th.sticky,
+        .app-data-table th.sticky {
+          position: sticky !important;
+          left: 0 !important;
+          z-index: 40 !important;
+          background-color: #f9fafb !important;
+          isolation: isolate;
+        }
+        .dark .app-data-table th.sticky {
+          background-color: #111827 !important;
+        }
         .app-data-table td.sticky {
           position: sticky !important;
           left: 0 !important;
+          z-index: 20 !important;
+          background-color: #ffffff !important;
+          isolation: isolate;
+        }
+        .dark .app-data-table td.sticky {
+          background-color: #1f2937 !important;
+        }
+        .app-data-table tr:hover > td.sticky,
+        .app-data-table tr.group\/row:hover > td.sticky {
+          background-color: #f9fafb !important;
+        }
+        .dark .app-data-table tr:hover > td.sticky,
+        .dark .app-data-table tr.group\/row:hover > td.sticky {
+          background-color: #374151 !important;
         }
         `,
         }}

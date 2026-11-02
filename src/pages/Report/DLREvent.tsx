@@ -87,7 +87,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["client_msg_id", "destination", "event_type", "vendorMessageId"];
-const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendorMessageId", "event_type", "segment_number", "status_code", "received_at"];
+const DEFAULT_TABLE_COLUMNS = ["id", "client_msg_id", "vendorMessageId", "event_type", "segment_number", "status_code", "received_at", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -191,6 +191,15 @@ const DLREvent: React.FC = () => {
     },
 
     { key: "raw_payload", label: "Raw Payload", type: "text", render: (data: any) => data.raw_payload ? "{...}" : "-", isSearchable: false },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -207,8 +216,11 @@ const DLREvent: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.received_at;
-    delete nextFilters.received_at__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchEvents(nextFilters, 1, false, presetKey);
   };
@@ -403,7 +415,19 @@ const DLREvent: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchEvents(undefined, 1, false);
+          const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+            if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+            const colDef = allColumns.find((c) => c.key === k);
+            return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+          });
+          if (hasExplicitDate) {
+            setActivePreset("custom");
+            fetchEvents(undefined, 1, false, "custom");
+          } else {
+            const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+            setActivePreset(presetToUse);
+            fetchEvents(undefined, 1, false, presetToUse);
+          }
         }}
         onClear={() => {
           setActivePreset("today");

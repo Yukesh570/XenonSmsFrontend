@@ -51,7 +51,7 @@ const DATE_PRESETS: DatePresetOption[] = [
 
 
 const DEFAULT_SEARCH_COLUMNS = ["client__name", "system_id", "destination_addr", "message_id"];
-const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit"];
+const DEFAULT_TABLE_COLUMNS = ["id", "timestamp", "client__name", "system_id", "destination_addr", "message_id", "reason", "required_amount", "available_credit", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -99,6 +99,15 @@ const RejectedSMSLog: React.FC = () => {
     { key: "smpp_command_status", label: "Status Code", type: "text", isSearchable: false },
     { key: "timestamp", label: "Timestamp", tableLabel: "Timestamp", type: "date", filterKey: "timestamp__range", isSearchable: false, render: (data: any) => data.timestamp ? formatDateTime(data.timestamp) : "-" },
     { key: "timestamp__range", label: "Timestamp (From / To)", type: "date_range", filterKey: "timestamp__range", isSearchOnly: true },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -115,8 +124,11 @@ const RejectedSMSLog: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.timestamp;
-    delete nextFilters.timestamp__range;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchEvents(nextFilters, 1, false, presetKey);
   };
@@ -289,7 +301,19 @@ const RejectedSMSLog: React.FC = () => {
 
       <FilterCard
         onSearch={() => {
-          fetchEvents(undefined, 1, false);
+          const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+            if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+            const colDef = allColumns.find((c) => c.key === k);
+            return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+          });
+          if (hasExplicitDate) {
+            setActivePreset("custom");
+            fetchEvents(undefined, 1, false, "custom");
+          } else {
+            const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+            setActivePreset(presetToUse);
+            fetchEvents(undefined, 1, false, presetToUse);
+          }
         }}
         onClear={() => {
           setActivePreset("today");

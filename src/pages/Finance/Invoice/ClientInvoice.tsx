@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Trash, Eye, Download, Users } from "lucide-react";
+import { Home, Trash, Eye, Download, Users, FileText } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import api from "../../../api/axiosInstance";
@@ -14,6 +14,10 @@ import { getCompaniesApi as getClientsApi } from "../../../api/companyApi/compan
 
 // --- Modals ---
 import { ClientInvoiceViewClientModal } from "../../../components/modals/Finance/ClientInvoiceViewClientModal";
+import Button from "../../../components/ui/Button";
+import { GenerateSOAModal } from "../../../components/modals/Finance/GenerateSOAModal";
+import { SOAPreviewModal } from "../../../components/modals/Finance/SOAPreviewModal";
+import type { SOAResponseData, SOARequestPayload } from "../../../api/financeApi/soaApi";
 
 // --- Components ---
 import Select from "../../../components/ui/Select";
@@ -56,8 +60,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "totalSegments",
   "totalAmount",
   "taxAmount",
-  "accountManagerName",
-];
+  "accountManagerName", "updatedAt"];
 
 const formatLocalDate = (date: Date) => {
   const year = date.getFullYear();
@@ -84,6 +87,10 @@ const ClientInvoice: React.FC = () => {
     y: number;
   } | null>(null);
   const [selectedRow, setSelectedRow] = useState<ClientInvoiceData | null>(null);
+  const [isGenerateSOAModalOpen, setIsGenerateSOAModalOpen] = useState(false);
+  const [isSOAPreviewModalOpen, setIsSOAPreviewModalOpen] = useState(false);
+  const [soaPreviewData, setSoaPreviewData] = useState<SOAResponseData | null>(null);
+  const [soaRequestPayload, setSoaRequestPayload] = useState<SOARequestPayload | null>(null);
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("clientInvoice_search_columns_v3");
@@ -267,6 +274,15 @@ const ClientInvoice: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 
@@ -758,6 +774,15 @@ const ClientInvoice: React.FC = () => {
             return next;
           });
         }}
+        headerActions={
+          <Button
+            variant="primary"
+            onClick={() => setIsGenerateSOAModalOpen(true)}
+            leftIcon={<FileText size={16} />}
+          >
+            Generate SOA
+          </Button>
+        }
         renderRow={(invoice, index) => (
           <tr
             key={invoice.id || index}
@@ -821,6 +846,26 @@ const ClientInvoice: React.FC = () => {
         onClose={() => setIsViewClientModalOpen(false)}
         companyName={viewClientCompanyName}
         companyInvoiceId={viewClientInvoiceId}
+      />
+      <GenerateSOAModal
+        isOpen={isGenerateSOAModalOpen}
+        onClose={() => setIsGenerateSOAModalOpen(false)}
+        onPreviewSuccess={(data, payload) => {
+          setSoaPreviewData(data);
+          setSoaRequestPayload(payload);
+          setIsGenerateSOAModalOpen(false);
+          setIsSOAPreviewModalOpen(true);
+        }}
+      />
+      <SOAPreviewModal
+        isOpen={isSOAPreviewModalOpen}
+        onClose={() => {
+          setIsSOAPreviewModalOpen(false);
+          setSoaPreviewData(null);
+          setSoaRequestPayload(null);
+        }}
+        soaData={soaPreviewData}
+        requestPayload={soaRequestPayload}
       />
     </div>
   );

@@ -34,9 +34,12 @@ interface ColumnConfig {
   label: string;
   render: (log: LogItemWithId) => React.ReactNode;
   filterKey?: string;
+  isSearchable?: boolean;
+  tableLabel?: string;
+  type?: string;
 }
 
-const DEFAULT_TABLE_COLUMNS = ["ipAddress", "browser", "device", "loggedAt"];
+const DEFAULT_TABLE_COLUMNS = ["ipAddress", "browser", "device", "loggedAt", "updatedAt"];
 
 const formatDate = (dateString?: string) => {
   return formatDateTime(dateString);
@@ -114,6 +117,15 @@ const UserLog: React.FC = () => {
       key: "loggedAt",
       label: "Logged At",
       render: (log) => (log.loggedAt ? formatDateTime(log.loggedAt) : "-"),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

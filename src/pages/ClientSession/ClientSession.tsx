@@ -48,8 +48,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "systemId",
   "remoteIp",
   "status",
-  "connectedAt",
-];
+  "connectedAt", "updatedAt"];
 
 const ClientSession: React.FC = () => {
   const [data, setData] = useState<ClientSessionData[]>([]);
@@ -260,6 +259,15 @@ const ClientSession: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "last_activityAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

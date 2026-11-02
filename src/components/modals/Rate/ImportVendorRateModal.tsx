@@ -350,23 +350,23 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
       let errorText = err.error || err;
       if (typeof errorText === 'object' && errorText !== null) {
         if (errorText.effectiveFrom) {
-           errorText = errorText.effectiveFrom[0] || JSON.stringify(errorText);
+          errorText = errorText.effectiveFrom[0] || JSON.stringify(errorText);
         } else {
-           errorText = JSON.stringify(errorText);
+          errorText = JSON.stringify(errorText);
         }
       } else if (typeof errorText !== 'string') {
         errorText = String(errorText);
       }
-      
+
       let baseErrorText = errorText;
       let detailMatch = "";
-      
+
       const mccMncMatch = errorText.match(/(Invalid MCC\/MNC: )'([^']+)' \/ '([^']+)' (.*)/);
       if (mccMncMatch) {
-         baseErrorText = mccMncMatch[1] + "the following combinations " + mccMncMatch[4];
-         detailMatch = `MCC: ${mccMncMatch[2]}, MNC: ${mccMncMatch[3]}`;
+        baseErrorText = mccMncMatch[1] + "the following combinations " + mccMncMatch[4];
+        detailMatch = `MCC: ${mccMncMatch[2]}, MNC: ${mccMncMatch[3]}`;
       }
-      
+
       if (!groups[baseErrorText]) {
         groups[baseErrorText] = { rows: [], details: new Set() };
       }
@@ -377,8 +377,8 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
         groups[baseErrorText].details.add(detailMatch);
       }
     });
-    return Object.entries(groups).map(([error, data]) => ({ 
-      error, 
+    return Object.entries(groups).map(([error, data]) => ({
+      error,
       rows: data.rows,
       details: Array.from(data.details)
     }));
@@ -448,162 +448,162 @@ export const ImportVendorRateModal: React.FC<ImportVendorRateModalProps> = ({
           </div>
         </div>
       ) : (
-      <form onSubmit={handleImport} className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
-          <Select
-            label="Select Mapping Setup"
-            value={selectedMappingId}
-            onChange={setSelectedMappingId}
-            options={mappingOptions}
-            placeholder="Choose a mapping"
-            disabled={isSubmitting}
-          />
+        <form onSubmit={handleImport} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-end">
+            <Select
+              label="Select Mapping Setup"
+              value={selectedMappingId}
+              onChange={setSelectedMappingId}
+              options={mappingOptions}
+              placeholder="Choose a mapping"
+              disabled={isSubmitting}
+            />
 
-          <div className="space-y-2">
-            <label className="block text-xs font-medium text-text-secondary">
-              CSV File
-            </label>
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => fileInputRef.current?.click()}
-                leftIcon={<Upload size={16} />}
-                disabled={isSubmitting}
-                className="w-full"
-              >
-                {csvFile ? "Change File" : "Select File"}
-              </Button>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelected}
-                className="hidden"
-                accept=".csv,.xlsx,.xls"
-              />
+            <div className="space-y-2">
+              <label className="block text-xs font-medium text-text-secondary">
+                CSV File
+              </label>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => fileInputRef.current?.click()}
+                  leftIcon={<Upload size={16} />}
+                  disabled={isSubmitting}
+                  className="w-full"
+                >
+                  {csvFile ? "Change File" : "Select File"}
+                </Button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelected}
+                  className="hidden"
+                  accept=".csv,.xlsx,.xls"
+                />
+              </div>
             </div>
           </div>
-        </div>
 
-        {csvFile && (
-          <div className="flex items-center p-3 bg-green-50 text-green-700 rounded-lg text-sm border border-green-200 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
-            <FileSpreadsheet size={18} className="mr-2" />
-            <span className="truncate font-medium">{csvFile.name}</span>
-            <button
-              type="button"
-              onClick={() => setCsvFile(null)}
-              className="ml-auto text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
-              disabled={isSubmitting}
-            >
-              <X size={16} />
-            </button>
-          </div>
-        )}
+          {csvFile && (
+            <div className="flex items-center p-3 bg-green-50 text-green-700 rounded-lg text-sm border border-green-200 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300">
+              <FileSpreadsheet size={18} className="mr-2" />
+              <span className="truncate font-medium">{csvFile.name}</span>
+              <button
+                type="button"
+                onClick={() => setCsvFile(null)}
+                className="ml-auto text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                disabled={isSubmitting}
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
 
-        <hr className="border-gray-100 dark:border-gray-700" />
+          <hr className="border-gray-100 dark:border-gray-700" />
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
-              Expected File Headers
-            </h4>
-            {selectedMappingId && (
-              <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100 flex items-center">
-                <AlertTriangle size={12} className="mr-1" />
-                File MUST match these headers
-              </span>
-            )}
-          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-white">
+                Expected File Headers
+              </h4>
+              {selectedMappingId && (
+                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-100 flex items-center">
+                  <AlertTriangle size={12} className="mr-1" />
+                  File MUST match these headers
+                </span>
+              )}
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 opacity-80">
-            <Input
-              label="Country Header"
-              value={formData.country}
-              readOnly
-              disabled
-              placeholder="-"
-            />
-            <Input
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 opacity-80">
+              <Input
+                label="Country Header"
+                value={formData.country}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+              {/* <Input
               label="Country Code Header"
               value={formData.countryCode}
               readOnly
               disabled
               placeholder="-"
-            />
-            <Input
-              label="Network Header"
-              value={formData.network}
-              readOnly
-              disabled
-              placeholder="-"
-            />
-            <Input
-              label="MCC Header"
-              value={formData.MCC}
-              readOnly
-              disabled
-              placeholder="-"
-            />
-            <Input
-              label="MNC Header"
-              value={formData.MNC}
-              readOnly
-              disabled
-              placeholder="-"
-            />
-            <Input
-              label="Rate Header"
-              value={formData.rate}
-              readOnly
-              disabled
-              placeholder="-"
-            />
-            <Input
-              label="Effective From Header"
-              value={formData.effectiveFrom}
-              readOnly
-              disabled
-              placeholder="-"
-            />
+            /> */}
+              <Input
+                label="Network Header"
+                value={formData.network}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+              <Input
+                label="MCC Header"
+                value={formData.MCC}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+              <Input
+                label="MNC Header"
+                value={formData.MNC}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+              <Input
+                label="Rate Header"
+                value={formData.rate}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+              <Input
+                label="Effective From Header"
+                value={formData.effectiveFrom}
+                readOnly
+                disabled
+                placeholder="-"
+              />
+            </div>
           </div>
-        </div>
 
-        {isSubmitting && (
-          <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-4">
-            <div
-              className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress || 5}%` }}
-            ></div>
-            <p className="text-xs text-center text-gray-500 mt-1">
-              Processing {progress ? `${progress}%` : ""}
-            </p>
+          {isSubmitting && (
+            <div className="w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-700 mt-4">
+              <div
+                className="bg-primary h-2.5 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${progress || 5}%` }}
+              ></div>
+              <p className="text-xs text-center text-gray-500 mt-1">
+                Processing {progress ? `${progress}%` : ""}
+              </p>
+            </div>
+          )}
+
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isSubmitting || !csvFile || !selectedMappingId}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin mr-2" /> Importing
+                </>
+              ) : (
+                "Start Import"
+              )}
+            </Button>
           </div>
-        )}
-
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={isSubmitting}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            disabled={isSubmitting || !csvFile || !selectedMappingId}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 size={16} className="animate-spin mr-2" /> Importing
-              </>
-            ) : (
-              "Start Import"
-            )}
-          </Button>
-        </div>
-      </form>
+        </form>
       )}
     </Modal>
   );

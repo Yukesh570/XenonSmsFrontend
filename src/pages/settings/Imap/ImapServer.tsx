@@ -22,6 +22,7 @@ import { usePagePermissions } from "../../../hooks/usePagePermissions";
 import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
 import { actionHelper } from "../../../helper/action";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface Option {
   label: string;
@@ -51,8 +52,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "imapPort",
   "imapUser",
   "security",
-  "active",
-];
+  "active", "updatedAt"];
 
 const ImapServer: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -186,6 +186,15 @@ const ImapServer: React.FC = () => {
           customText={server.active ? "Yes" : "No"}
         />
       ),
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

@@ -26,6 +26,29 @@ interface Option {
   email?: string;
 }
 
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "color",
+  "list",
+  "link",
+  "clean",
+];
+
 const SendMailPage: React.FC = () => {
   const [recipientList, setRecipientList] = useState("");
   const [subject, setSubject] = useState("");
@@ -250,7 +273,12 @@ const hasLoggedOpening = useRef(false);
               Content
             </label>
             <div className="quill-container dark:quill-dark">
-              <ReactQuill value={content} onChange={setContent} />
+              <ReactQuill
+                value={content}
+                onChange={setContent}
+                modules={quillModules}
+                formats={quillFormats}
+              />
             </div>
           </div>
 

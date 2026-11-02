@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { createPortal } from "react-dom";
 import Modal from "../../ui/Modal";
 import { DeleteModal } from "../DeleteModal";
 import {
@@ -10,7 +9,7 @@ import {
   updateRouteGroupCountryApi,
   deleteRouteGroupCountryApi,
   createCustomRouteApi,
-  updateCustomRouteApi,
+  bulkUpdateCustomRouteApi,
   type RouteGroupCountryData,
   type CustomRouteData,
 } from "../../../api/routeManagerApi/customRouteApi";
@@ -26,6 +25,7 @@ import Button from "../../ui/Button";
 import Select from "../../ui/Select";
 import Input from "../../ui/Input";
 import { StatusBadge } from "../../ui/StatusBadge";
+import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
 import { CountryFlag } from "../../ui/CountryFlag";
 import ContextMenu, { type ContextMenuItem } from "../../ui/ContextMenu";
 import ToggleSwitch from "../../ui/ToggleSwitch";
@@ -41,6 +41,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Edit,
+  Eye,
   X,
   Filter,
   Loader2,
@@ -121,145 +122,6 @@ const FilterInput = ({
   </div>
 );
 
-const RatesHoverDropdown: React.FC<{
-  title: string;
-  rates: Array<{ MNC: string; rate: string | number }>;
-  currencyCode?: string;
-}> = ({ title, rates, currencyCode }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [openUpwards, setOpenUpwards] = useState(false);
-  const [coords, setCoords] = useState<{ top?: number; bottom?: number; left: number }>({ left: 0 });
-  const triggerRef = useRef<HTMLDivElement>(null);
-  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const calculatePosition = () => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    const estimatedHeight = Math.min(240, 55 + rates.length * 26);
-    const shouldOpenUp = spaceBelow < estimatedHeight + 15 && spaceAbove > spaceBelow;
-
-    setOpenUpwards(shouldOpenUp);
-
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(120, Math.min(window.innerWidth - 120, centerX));
-
-    if (shouldOpenUp) {
-      setCoords({
-        bottom: window.innerHeight - rect.top + 6,
-        left,
-      });
-    } else {
-      setCoords({
-        top: rect.bottom + 6,
-        left,
-      });
-    }
-  };
-
-  const handleMouseEnter = () => {
-    if (closeTimeoutRef.current) {
-      clearTimeout(closeTimeoutRef.current);
-      closeTimeoutRef.current = null;
-    }
-    calculatePosition();
-    setIsOpen(true);
-  };
-
-  const handleMouseLeave = () => {
-    closeTimeoutRef.current = setTimeout(() => {
-      setIsOpen(false);
-    }, 150);
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleScrollOrResize = () => {
-      calculatePosition();
-    };
-    window.addEventListener("scroll", handleScrollOrResize, true);
-    window.addEventListener("resize", handleScrollOrResize);
-    return () => {
-      window.removeEventListener("scroll", handleScrollOrResize, true);
-      window.removeEventListener("resize", handleScrollOrResize);
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
-    };
-  }, []);
-
-  return (
-    <div
-      ref={triggerRef}
-      className="relative inline-block select-none"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <div className="cursor-pointer inline-flex items-center hover:opacity-80 transition-opacity">
-        <StatusBadge
-          status="MULTIPLE_RATES"
-          customText={
-            <span className="inline-flex items-center gap-1 font-medium">
-              <span>Multiple Rates</span>
-              <ChevronDown
-                size={11}
-                strokeWidth={2.5}
-                className={`transition-transform duration-150 ${openUpwards && isOpen ? "rotate-180" : ""}`}
-              />
-            </span>
-          }
-        />
-      </div>
-
-      {isOpen &&
-        createPortal(
-          <div
-            className="fixed z-[999999] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-2xl rounded-xl p-2.5 min-w-[210px] max-w-[290px] pointer-events-auto animate-fade-in"
-            style={{
-              position: "fixed",
-              left: `${coords.left}px`,
-              ...(coords.bottom !== undefined ? { bottom: `${coords.bottom}px` } : { top: `${coords.top}px` }),
-              transform: "translateX(-50%)",
-            }}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            <div className="text-xs font-semibold mb-1.5 text-gray-700 dark:text-gray-200 border-b border-gray-200 dark:border-gray-700 pb-1 flex items-center justify-between">
-              <span>{title}</span>
-              <span className="text-[10px] font-normal text-gray-400">({rates.length})</span>
-            </div>
-            <div className="max-h-52 overflow-y-auto pr-0.5 custom-scrollbar">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[10px] text-gray-500 uppercase bg-gray-50 dark:bg-gray-900/50 sticky top-0">
-                    <th className="px-2 py-1 font-medium">MNC</th>
-                    <th className="px-2 py-1 font-medium text-right">Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
-                  {rates.map((r, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
-                      <td className="px-2 py-1 font-mono text-xs text-gray-700 dark:text-gray-300">{r.MNC}</td>
-                      <td className="px-2 py-1 font-mono text-xs text-right text-gray-700 dark:text-gray-300">
-                        {r.rate} {currencyCode || ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>,
-          document.body
-        )}
-    </div>
-  );
-};
-
 const routingTypeOptions = [
   { label: "Priority", value: "PRIORITY" },
   { label: "Percentage", value: "PERCENTAGE" },
@@ -308,6 +170,79 @@ const formatGroupKeyLabel = (groupKey: string): string => {
   if (!mcc || mcc.trim() === "") return "Unassigned Network Group";
   if (!mnc || mnc.trim() === "") return `MCC ${mcc} / MNC (Select MNC)`;
   return `MCC ${mcc} / MNC ${mnc}`;
+};
+
+export const getMncMarginInfo = (
+  itemData: any,
+  selectedMnc?: string | null
+): { margin?: number; marginPercentage?: number } | null => {
+  if (!selectedMnc) return null;
+  const mncStr = selectedMnc.trim();
+
+  // 1. Check allMargins dictionary
+  if (itemData.allMargins && itemData.allMargins[mncStr]) {
+    const m = itemData.allMargins[mncStr];
+    return {
+      margin: m.margin !== undefined && m.margin !== null ? Number(m.margin) : undefined,
+      marginPercentage: m.marginPercentage !== undefined && m.marginPercentage !== null ? Number(m.marginPercentage) : undefined,
+    };
+  }
+
+  // 2. Check in allCustomerRates
+  if (Array.isArray(itemData.allCustomerRates)) {
+    const cust = itemData.allCustomerRates.find(
+      (r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr
+    );
+    if (cust && cust.margin !== undefined && cust.margin !== null) {
+      return {
+        margin: Number(cust.margin),
+        marginPercentage: cust.marginPercentage !== undefined && cust.marginPercentage !== null ? Number(cust.marginPercentage) : undefined,
+      };
+    }
+  }
+
+  // 3. Check in allVendorRates
+  if (Array.isArray(itemData.allVendorRates)) {
+    const vend = itemData.allVendorRates.find(
+      (r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr
+    );
+    if (vend && vend.margin !== undefined && vend.margin !== null) {
+      return {
+        margin: Number(vend.margin),
+        marginPercentage: vend.marginPercentage !== undefined && vend.marginPercentage !== null ? Number(vend.marginPercentage) : undefined,
+      };
+    }
+  }
+
+  // 4. Compute from rateBase if available
+  const custItem = Array.isArray(itemData.allCustomerRates)
+    ? itemData.allCustomerRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr) ||
+      itemData.allCustomerRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === "ALL")
+    : null;
+  const vendItem = Array.isArray(itemData.allVendorRates)
+    ? itemData.allVendorRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === mncStr) ||
+      itemData.allVendorRates.find((r: any) => String(r.MNC ?? r.mnc ?? "").trim() === "ALL")
+    : null;
+
+  const crBase = custItem?.rateBase !== undefined && custItem?.rateBase !== null
+    ? Number(custItem.rateBase)
+    : itemData.customerRateBase != null && !["N/A", "Error"].includes(String(itemData.customerRateBase))
+    ? Number(itemData.customerRateBase)
+    : null;
+
+  const vrBase = vendItem?.rateBase !== undefined && vendItem?.rateBase !== null
+    ? Number(vendItem.rateBase)
+    : itemData.vendorRateBase != null && !["N/A", "Error"].includes(String(itemData.vendorRateBase))
+    ? Number(itemData.vendorRateBase)
+    : null;
+
+  if (crBase != null && vrBase != null && !isNaN(crBase) && !isNaN(vrBase)) {
+    const margin = crBase - vrBase;
+    const marginPercentage = crBase !== 0 ? (margin / crBase) * 100 : 0;
+    return { margin, marginPercentage };
+  }
+
+  return null;
 };
 
 export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
@@ -379,6 +314,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   const [isEditPriorityModalOpen, setIsEditPriorityModalOpen] = useState(false);
   const [isEditPercentModalOpen, setIsEditPercentModalOpen] = useState(false);
   const [editingRouteData, setEditingRouteData] = useState<CustomRouteData | null>(null);
+  const [isRouteViewMode, setIsRouteViewMode] = useState(false);
+  const [selectedMncByRoute, setSelectedMncByRoute] = useState<Record<string | number, string>>({});
 
   const handleRouteContextMenu = (
     e: React.MouseEvent,
@@ -395,6 +332,19 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
   const routeMenuItems: ContextMenuItem[] = selectedRoute
     ? [
+      {
+        label: "View Route",
+        icon: <Eye size={16} />,
+        onClick: () => {
+          setEditingRouteData(selectedRoute);
+          setIsRouteViewMode(true);
+          if (selectedRoutingType === "PERCENTAGE") {
+            setIsEditPercentModalOpen(true);
+          } else {
+            setIsEditPriorityModalOpen(true);
+          }
+        },
+      },
       ...(canUpdate
         ? [
           {
@@ -402,6 +352,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             icon: <Edit size={16} />,
             onClick: () => {
               setEditingRouteData(selectedRoute);
+              setIsRouteViewMode(false);
               if (selectedRoutingType === "PERCENTAGE") {
                 setIsEditPercentModalOpen(true);
               } else {
@@ -642,6 +593,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       setCountrySearchTerm("");
       setIsLoadingConfigs(false);
       hasFetchedRef.current = false;
+      setSelectedMncByRoute({});
       return;
     }
     hasFetchedRef.current = false;
@@ -1010,6 +962,22 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     );
   };
 
+  const updateExistingRoute = (countryId: string, routeId: number, field: string, value: string) => {
+    setSections((prev) =>
+      prev.map((s) => {
+        if (String(s.config.country) !== countryId) return s;
+        return {
+          ...s,
+          routes: s.routes.map((r) =>
+            r.id === routeId
+              ? { ...r, [field]: value, isModified: true }
+              : r
+          ),
+        };
+      })
+    );
+  };
+
   const updateRow = (countryId: string, rowId: string, field: keyof NewRow, value: string) => {
     setSectionErrors((prev) => ({ ...prev, [countryId]: "" }));
 
@@ -1070,8 +1038,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
   };
 
   const handleLocalRouteSave = (updatedData: {
-    trafficPercentage: number;
-    terminatingVendor: number;
+    trafficPercentage?: number;
+    terminatingVendor?: number;
     status: string;
   }) => {
     if (!editingRouteData || !selectedRouteCountryId) return;
@@ -1086,8 +1054,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             r.id === editingRouteData.id
               ? {
                 ...r,
-                trafficPercentage: updatedData.trafficPercentage,
-                terminatingVendor: updatedData.terminatingVendor,
+                ...(updatedData.trafficPercentage !== undefined ? { trafficPercentage: updatedData.trafficPercentage } : {}),
+                ...(updatedData.terminatingVendor !== undefined ? { terminatingVendor: updatedData.terminatingVendor } : {}),
                 status: updatedData.status as any,
                 isModified: true,
               }
@@ -1138,8 +1106,8 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         toast.error(errorMsg);
         return;
       }
-      if (isPercentage && (!row.trafficPercentage || Number(row.trafficPercentage) <= 0)) {
-        const errorMsg = `Row #${rowNum}: Traffic Percentage is required.`;
+      if (isPercentage && (row.trafficPercentage == null || String(row.trafficPercentage).trim() === "" || isNaN(Number(row.trafficPercentage)) || Number(row.trafficPercentage) < 0 || Number(row.trafficPercentage) > 100)) {
+        const errorMsg = `Row #${rowNum}: Traffic Percentage is required (0 to 100).`;
         setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
         toast.error(errorMsg);
         return;
@@ -1152,23 +1120,60 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       }
     }
 
+    for (let idx = 0; idx < targetModifiedRoutes.length; idx++) {
+      const route = targetModifiedRoutes[idx];
+      const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
+      const routeLabel = route.name || vendorMatch?.label || `Route #${route.id}`;
+
+      if (isPercentage && (route.trafficPercentage == null || String(route.trafficPercentage).trim() === "" || isNaN(Number(route.trafficPercentage)) || Number(route.trafficPercentage) < 0 || Number(route.trafficPercentage) > 100)) {
+        const errorMsg = `${routeLabel}: Traffic Percentage is required (0 to 100).`;
+        setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+        toast.error(errorMsg);
+        return;
+      }
+      if (!isPercentage && !route.priority) {
+        const errorMsg = `${routeLabel}: Priority is required.`;
+        setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+        toast.error(errorMsg);
+        return;
+      }
+    }
+
     if (isPercentage) {
+      // In Percentage mode, all active groups in the entire country must sum to 100% and have valid percentages (0 to 100)
+      const allActiveRoutesInCountry = section.routes.filter(r => r.status === "ACTIVE");
+      const allNewRowsInCountry = section.newRows.filter(r => r.status !== "INACTIVE");
+
+      for (const route of allActiveRoutesInCountry) {
+        if (route.trafficPercentage == null || String(route.trafficPercentage).trim() === "" || isNaN(Number(route.trafficPercentage)) || Number(route.trafficPercentage) < 0 || Number(route.trafficPercentage) > 100) {
+          const groupLabel = formatGroupKeyLabel(normalizeKey(route.MCC, route.MNC));
+          const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
+          const routeLabel = route.name || vendorMatch?.label || `Route #${route.id}`;
+          const errorMsg = `${groupLabel} (${routeLabel}): Traffic percentage is required (0% to 100%).`;
+          setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+          toast.error(errorMsg);
+          return;
+        }
+      }
+
+      for (let idx = 0; idx < allNewRowsInCountry.length; idx++) {
+        const row = allNewRowsInCountry[idx];
+        if (row.trafficPercentage == null || String(row.trafficPercentage).trim() === "" || isNaN(Number(row.trafficPercentage)) || Number(row.trafficPercentage) < 0 || Number(row.trafficPercentage) > 100) {
+          const groupLabel = formatGroupKeyLabel(normalizeKey(row.MCC, row.MNC));
+          const errorMsg = `${groupLabel} (New Row #${idx + 1}): Traffic percentage is required (0% to 100%).`;
+          setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+          toast.error(errorMsg);
+          return;
+        }
+      }
+
       const groups = new Map<string, number>();
-
-      const routesToValidate = targetGroupKey
-        ? section.routes.filter(r => normalizeKey(r.MCC, r.MNC) === targetGroupKey)
-        : section.routes;
-
-      const newRowsToValidate = targetGroupKey
-        ? section.newRows.filter(r => normalizeKey(r.MCC, r.MNC) === targetGroupKey)
-        : section.newRows;
-
-      routesToValidate.filter(r => r.status === "ACTIVE").forEach(r => {
+      allActiveRoutesInCountry.forEach(r => {
         const key = normalizeKey(r.MCC, r.MNC);
         groups.set(key, (groups.get(key) || 0) + Number(r.trafficPercentage || 0));
       });
 
-      newRowsToValidate.forEach(r => {
+      allNewRowsInCountry.forEach(r => {
         const key = normalizeKey(r.MCC, r.MNC);
         groups.set(key, (groups.get(key) || 0) + Number(r.trafficPercentage || 0));
       });
@@ -1176,17 +1181,70 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
       for (const [key, total] of groups.entries()) {
         const groupLabel = formatGroupKeyLabel(key);
         if (total > 100) {
-          const errorMsg = `${groupLabel}: Total is ${total}% (${total - 100}% over limit)`;
+          const errorMsg = `${groupLabel}: Total is ${total}% (${total - 100}% over limit). All MNC groups in this country must total 100%.`;
           setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
           toast.error(errorMsg);
           return;
         }
         if (total < 100) {
-          const errorMsg = `${groupLabel}: Total is ${total}% (${100 - total}% remaining)`;
+          const errorMsg = `${groupLabel}: Total is ${total}% (${100 - total}% remaining). All MNC groups in this country must total 100% before saving.`;
           setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
           toast.error(errorMsg);
           return;
         }
+      }
+    } else {
+      // In Priority mode, all active routes and rows in the entire country must have priority, and priorities within each MNC group must be unique
+      const allActiveRoutesInCountry = section.routes.filter(r => r.status === "ACTIVE");
+      const allNewRowsInCountry = section.newRows.filter(r => r.status !== "INACTIVE");
+
+      for (const route of allActiveRoutesInCountry) {
+        if (!route.priority || Number(route.priority) <= 0) {
+          const groupLabel = formatGroupKeyLabel(normalizeKey(route.MCC, route.MNC));
+          const vendorMatch = vendorOptions.find((v) => String(v.value) === String(route.terminatingVendor));
+          const routeLabel = route.name || vendorMatch?.label || `Route #${route.id}`;
+          const errorMsg = `${groupLabel} (${routeLabel}): Priority is required. All MNC groups in this country must be valid before saving.`;
+          setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+          toast.error(errorMsg);
+          return;
+        }
+      }
+
+      for (let idx = 0; idx < allNewRowsInCountry.length; idx++) {
+        const row = allNewRowsInCountry[idx];
+        if (!row.priority || Number(row.priority) <= 0) {
+          const groupLabel = formatGroupKeyLabel(normalizeKey(row.MCC, row.MNC));
+          const errorMsg = `${groupLabel} (New Row #${idx + 1}): Priority is required. All MNC groups in this country must be valid before saving.`;
+          setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+          toast.error(errorMsg);
+          return;
+        }
+      }
+
+      const priorityGroups = new Map<string, Set<number>>();
+      const checkPriorityDuplicate = (r: any) => {
+        if (r.status !== "INACTIVE") {
+          const key = normalizeKey(r.MCC, r.MNC);
+          if (!priorityGroups.has(key)) priorityGroups.set(key, new Set());
+          const pVal = Number(r.priority);
+          
+          if (priorityGroups.get(key)!.has(pVal)) {
+            const groupLabel = formatGroupKeyLabel(key);
+            const errorMsg = `${groupLabel}: Priority ${pVal} is duplicated. Priorities must be unique.`;
+            setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
+            toast.error(errorMsg);
+            return false;
+          }
+          priorityGroups.get(key)!.add(pVal);
+        }
+        return true;
+      };
+
+      for (const r of allActiveRoutesInCountry) {
+        if (!checkPriorityDuplicate(r)) return;
+      }
+      for (const r of allNewRowsInCountry) {
+        if (!checkPriorityDuplicate(r)) return;
       }
     }
 
@@ -1197,25 +1255,30 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     try {
       const apiPromises: Promise<any>[] = [];
 
-      targetModifiedRoutes.forEach((route) => {
-        apiPromises.push(
-          updateCustomRouteApi(
-            route.id!,
-            {
-              priority: Number(route.priority),
-              trafficPercentage: Number(route.trafficPercentage),
-              terminatingVendor: Number(route.terminatingVendor),
-              status: route.status,
-            },
-            moduleName
-          )
-        );
-      });
+      if (targetModifiedRoutes.length > 0) {
+        const payload = targetModifiedRoutes.map((route) => ({
+          id: route.id,
+          name: route.name,
+          routeGroup: routeGroupId || undefined,
+          routeGroupName: routeGroup,
+          country: Number(countryId),
+          MCC: route.MCC,
+          MNC: route.MNC,
+          terminatingVendor: Number(route.terminatingVendor),
+          routingType: section.config.routingType,
+          status: route.status,
+          ...(isPercentage
+            ? { trafficPercentage: Number(route.trafficPercentage) }
+            : { priority: Number(route.priority) }),
+        }));
+        
+        apiPromises.push(bulkUpdateCustomRouteApi(payload, moduleName));
+      }
 
       if (targetNewRows.length > 0) {
         const payloads = targetNewRows.map((row) => ({
           name: routeGroup,
-          routeGroup: routeGroup,
+          routeGroup: routeGroupId || undefined,
           country: Number(countryId),
           MCC: row.MCC,
           MNC: row.MNC,
@@ -1229,6 +1292,16 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
         apiPromises.push(
           createCustomRouteApi(payloads.length === 1 ? payloads[0] : payloads, moduleName)
+        );
+      }
+
+      if (section.config.id) {
+        apiPromises.push(
+          updateRouteGroupCountryApi(
+            section.config.id,
+            { routingType: section.config.routingType },
+            moduleName
+          )
         );
       }
 
@@ -1273,7 +1346,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         );
         errorMsg = formattedErrs.join(" | ");
       } else if (typeof data === "string") {
-        errorMsg = data;
+        if (data.includes("<!DOCTYPE") || data.includes("<html")) {
+          const match = data.match(/<title>(.*?)<\/title>/i);
+          errorMsg = match
+            ? match[1].replace(/&quot;/g, '"').replace(/&#x27;/g, "'")
+            : "Server error occurred while saving routes.";
+        } else {
+          errorMsg = data;
+        }
       }
 
       setSectionErrors((prev) => ({ ...prev, [countryId]: errorMsg }));
@@ -1629,13 +1709,52 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                   if (!usedVendors.has(key)) usedVendors.set(key, new Set());
                   if (r.terminatingVendor != null) usedVendors.get(key)!.add(String(r.terminatingVendor));
                 });
-                section.newRows.forEach(r => {
-                  const key = normalizeKey(r.MCC, r.MNC);
-                  if (!usedVendors.has(key)) usedVendors.set(key, new Set());
-                  if (r.terminatingVendor != null && String(r.terminatingVendor).trim() !== "") {
-                    usedVendors.get(key)!.add(String(r.terminatingVendor));
+                // Validate entire country across ALL MNC groups
+                let countryValidationError: string | null = null;
+                for (const [gKey, gData] of mccMncGroupsMap.entries()) {
+                  const gLabel = formatGroupKeyLabel(gKey);
+                  const activeItems = gData.items.filter(item => {
+                    const r = "isNew" in item ? item.row : item;
+                    return r.status !== "INACTIVE";
+                  });
+
+                  if (activeItems.length === 0) continue;
+
+                  if (isPercentage) {
+                    const hasEmptyPct = activeItems.some(item => {
+                      const r = "isNew" in item ? item.row : item;
+                      return r.trafficPercentage == null || String(r.trafficPercentage).trim() === "" || isNaN(Number(r.trafficPercentage)) || Number(r.trafficPercentage) < 0 || Number(r.trafficPercentage) > 100;
+                    });
+                    if (hasEmptyPct) {
+                      countryValidationError = `${gLabel}: All active routes must have traffic percentage specified (0% to 100%).`;
+                      break;
+                    }
+                    if (gData.total !== 100) {
+                      countryValidationError = `${gLabel}: Total is ${gData.total}% (${gData.total < 100 ? 100 - gData.total + '% remaining' : gData.total - 100 + '% over limit'}). All MNC groups must total 100%.`;
+                      break;
+                    }
+                  } else {
+                    // Priority mode
+                    const seenP = new Set<number>();
+                    for (const item of activeItems) {
+                      const r = "isNew" in item ? item.row : item;
+                      const p = r.priority != null && String(r.priority).trim() !== "" ? Number(r.priority) : 0;
+                      if (!p || p <= 0) {
+                        countryValidationError = `${gLabel}: All active routes must have priority specified.`;
+                        break;
+                      }
+                      if (seenP.has(p)) {
+                        countryValidationError = `${gLabel}: Priority ${p} is duplicated. Priorities must be unique.`;
+                        break;
+                      }
+                      seenP.add(p);
+                    }
+                    if (countryValidationError) break;
                   }
-                });
+                }
+
+                const canSaveInCountry = !countryValidationError;
+                const sectionHasChanges = section.newRows.length > 0 || section.routes.some((r: any) => r.isModified);
 
                 return (
                   <div
@@ -1658,14 +1777,28 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           )}
                           {section.config.countryName}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${isPercentage
-                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
-                            : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                            }`}
-                        >
-                          {isPercentage ? "Percentage" : "Priority"}
-                        </span>
+                        <div onClick={(e) => e.stopPropagation()} className="w-[140px]">
+                          <Select
+                            label=""
+                            value={section.config.routingType}
+                            onChange={(val) => {
+                              if (!canUpdate) return;
+                              setSections(prev => prev.map(s => {
+                                if (String(s.config.country) === countryId) {
+                                  return {
+                                    ...s,
+                                    config: { ...s.config, routingType: val as any },
+                                    routes: s.routes.map(r => ({ ...r, isModified: true }))
+                                  };
+                                }
+                                return s;
+                              }));
+                            }}
+                            options={routingTypeOptions}
+                            disabled={!canUpdate}
+                            clearable={false}
+                          />
+                        </div>
                         <div onClick={(e) => e.stopPropagation()} className="ml-1 flex items-center gap-2">
                           <ToggleSwitch
                             label="LCP"
@@ -1783,6 +1916,25 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                           </div>
                         )}
 
+                        {canUpdate && section.isOpen && sectionHasChanges && (
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="xs"
+                            onClick={() => saveGroupRows(countryId)}
+                            disabled={section.saving || !canSaveInCountry}
+                            leftIcon={section.saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                            className="!h-7 text-xs !py-0 !px-2.5 bg-primary text-white hover:opacity-90 shadow-sm transition-all font-medium"
+                            title={
+                              !canSaveInCountry
+                                ? `Cannot save: ${countryValidationError}`
+                                : "Save all modified routes and country configuration"
+                            }
+                          >
+                            {section.saving ? "Saving…" : "Save Changes"}
+                          </Button>
+                        )}
+
                         {canUpdate && section.isOpen && (
                           <Button
                             type="button"
@@ -1876,10 +2028,41 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                                   const formattedGroupHeaderLabel = formatGroupKeyLabel(groupKey);
 
-                                  const groupNewRows = groupData.items.filter(item => "isNew" in item);
-                                  const groupModifiedRoutes = groupData.items.filter(item => !("isNew" in item) && (item as any).isModified);
-                                  const groupHasChanges = groupNewRows.length > 0 || groupModifiedRoutes.length > 0;
-                                  const groupIsValid = !isPercentage || groupData.total === 100;
+                                  
+                                  // Validate this specific group
+                                  let groupValidationError: string | null = null;
+                                  const activeGroupItems = groupData.items.filter(item => {
+                                    const r = "isNew" in item ? item.row : item;
+                                    return r.status !== "INACTIVE";
+                                  });
+
+                                  if (isPercentage) {
+                                    if (activeGroupItems.some(item => {
+                                      const r = "isNew" in item ? item.row : item;
+                                      return r.trafficPercentage == null || String(r.trafficPercentage).trim() === "" || isNaN(Number(r.trafficPercentage)) || Number(r.trafficPercentage) < 0 || Number(r.trafficPercentage) > 100;
+                                    })) {
+                                      groupValidationError = "All active routes in this group must have traffic percentage specified (0% to 100%).";
+                                    } else if (groupData.total !== 100) {
+                                      groupValidationError = `Group traffic percentage must equal 100% (currently ${groupData.total}%).`;
+                                    }
+                                  } else {
+                                    const seenP = new Set<number>();
+                                    for (const item of activeGroupItems) {
+                                      const r = "isNew" in item ? item.row : item;
+                                      const p = r.priority != null && String(r.priority).trim() !== "" ? Number(r.priority) : 0;
+                                      if (!p || p <= 0) {
+                                        groupValidationError = "All active routes in this group must have priority specified.";
+                                        break;
+                                      }
+                                      if (seenP.has(p)) {
+                                        groupValidationError = `Priority ${p} is duplicated in this group. Priorities must be unique.`;
+                                        break;
+                                      }
+                                      seenP.add(p);
+                                    }
+                                  }
+
+                                  const groupIsValid = !groupValidationError;
                                   const fullGroupKey = `${countryId}-${groupKey}`;
                                   const isCollapsed = collapsedGroups.has(fullGroupKey);
 
@@ -1909,7 +2092,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                             </div>
 
                                             <div className="flex items-center justify-end gap-3">
-                                              {isPercentage && (
+                                              {isPercentage ? (
                                                 <span
                                                   className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border font-bold ${groupData.total === 100
                                                     ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400"
@@ -1929,6 +2112,25 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                       ? `${groupData.total}% allocated (${100 - groupData.total}% remaining)`
                                                       : `${groupData.total}% allocated (Exceeds by ${groupData.total - 100}%)`}
                                                 </span>
+                                              ) : (
+                                                <span
+                                                  className={`inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full border font-bold ${groupIsValid
+                                                    ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-400"
+                                                    : "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/30 dark:border-amber-700 dark:text-amber-300"
+                                                    }`}
+                                                >
+                                                  {groupIsValid ? (
+                                                    <>
+                                                      <CheckCircle2 size={12} />
+                                                      <span>Priorities Valid</span>
+                                                    </>
+                                                  ) : (
+                                                    <>
+                                                      <AlertCircle size={12} />
+                                                      <span>Missing / Duplicate Priorities</span>
+                                                    </>
+                                                  )}
+                                                </span>
                                               )}
                                             </div>
                                           </div>
@@ -1937,24 +2139,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                           <td 
                                             className="px-2 py-1.5 border-l dark:border-gray-700 text-center align-middle sticky right-0 z-10 bg-gray-100 dark:bg-gray-800 shadow-[-3px_0_6px_-2px_rgba(0,0,0,0.12)] w-16"
                                             onClick={(e) => e.stopPropagation()}
-                                          >
-                                            {groupHasChanges && canUpdate && (
-                                              <div className="flex items-center justify-center">
-                                                <Button
-                                                  type="button"
-                                                  variant="primary"
-                                                  size="xs"
-                                                  onClick={() => saveGroupRows(countryId, groupKey)}
-                                                  disabled={section.saving || !groupIsValid}
-                                                  className="!h-[24px] !px-2 !py-0 !text-[11px] shadow-sm min-w-0 font-medium"
-                                                  leftIcon={section.saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
-                                                  title={!groupIsValid ? "Cannot save: Total traffic percentage must equal 100%" : "Save Changes for this Group"}
-                                                >
-                                                  {section.saving ? "Saving…" : "Save"}
-                                                </Button>
-                                              </div>
-                                            )}
-                                          </td>
+                                          />
                                         )}
                                       </tr>
 
@@ -2047,16 +2232,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   />
                                                 </div>
                                               </td>
-                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 w-20">
+                                              <td className="px-2 py-1 border-b border-r dark:border-gray-700 w-28">
                                                 <div className="inline-table-field">
                                                   <Input
                                                     label=""
                                                     type="number"
-                                                    value={isPercentage ? row.trafficPercentage : row.priority}
+                                                    value={isPercentage ? (row.trafficPercentage != null ? String(row.trafficPercentage) : "") : (row.priority != null ? String(row.priority) : "")}
                                                     onChange={(e) =>
                                                       updateRow(countryId, row._id, isPercentage ? "trafficPercentage" : "priority", e.target.value)
                                                     }
                                                     placeholder={isPercentage ? "0–100" : "Priority"}
+                                                    isClearable={false}
                                                   />
                                                 </div>
                                               </td>
@@ -2066,6 +2252,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     title="All Customer Rates"
                                                     rates={row.allCustomerRates}
                                                     currencyCode={row.customerCurrencyCode}
+                                                    baseCurrencyCode={row.baseCurrencyCode}
+                                                    allMargins={(row as any).allMargins}
+                                                    selectedMnc={selectedMncByRoute[row._id]}
+                                                    onSelectMnc={(mnc) =>
+                                                      setSelectedMncByRoute((prev) => {
+                                                        const next = { ...prev };
+                                                        if (mnc) next[row._id] = mnc;
+                                                        else delete next[row._id];
+                                                        return next;
+                                                      })
+                                                    }
                                                   />
                                                 ) : row.customerRate ? (
                                                   row.customerRate === "N/A" || row.customerRate === "Error" ? (
@@ -2083,6 +2280,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                     title="All Network Rates"
                                                     rates={row.allVendorRates}
                                                     currencyCode={row.vendorCurrencyCode}
+                                                    baseCurrencyCode={row.baseCurrencyCode}
+                                                    allMargins={(row as any).allMargins}
+                                                    selectedMnc={selectedMncByRoute[row._id]}
+                                                    onSelectMnc={(mnc) =>
+                                                      setSelectedMncByRoute((prev) => {
+                                                        const next = { ...prev };
+                                                        if (mnc) next[row._id] = mnc;
+                                                        else delete next[row._id];
+                                                        return next;
+                                                      })
+                                                    }
                                                   />
                                                 ) : row.vendorRate ? (
                                                   row.vendorRate === "N/A" || row.vendorRate === "Error" ? (
@@ -2094,12 +2302,56 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   "—"
                                                 )}
                                               </td>
-                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-20 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMargin !== null ? (rowMargin < 0 ? 'text-red-500 font-medium' : rowMargin > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                                {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMargin !== null ? `${rowMargin.toFixed(6)} ${row.baseCurrencyCode || ''}` : "—"}
-                                              </td>
-                                              <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-16 ${((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "text-gray-400" : rowMarginPct !== null ? (rowMarginPct < 0 ? 'text-red-500 font-medium' : rowMarginPct > 0 ? 'text-green-600 font-medium' : 'text-gray-500') : 'text-gray-500'}`}>
-                                                {((row.allVendorRates && row.allVendorRates.length > 1) || (row.allCustomerRates && row.allCustomerRates.length > 1)) ? "—" : rowMarginPct !== null ? rowMarginPct.toFixed(2) + "%" : "—"}
-                                              </td>
+                                              {(() => {
+                                                const hasMultipleRates = Boolean(
+                                                  (row.allVendorRates && row.allVendorRates.length > 1) ||
+                                                  (row.allCustomerRates && row.allCustomerRates.length > 1)
+                                                );
+                                                const rowSelectedMnc = selectedMncByRoute[row._id];
+                                                const mncMarginInfo = hasMultipleRates && rowSelectedMnc ? getMncMarginInfo(row, rowSelectedMnc) : null;
+                                                const effectiveMargin = mncMarginInfo ? mncMarginInfo.margin : hasMultipleRates ? null : rowMargin;
+                                                const effectiveMarginPct = mncMarginInfo ? mncMarginInfo.marginPercentage : hasMultipleRates ? null : rowMarginPct;
+
+                                                return (
+                                                  <>
+                                                    <td
+                                                      className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap text-center w-20 ${
+                                                        effectiveMargin !== null && effectiveMargin !== undefined
+                                                          ? effectiveMargin < 0
+                                                            ? 'text-red-500 font-medium'
+                                                            : effectiveMargin > 0
+                                                            ? 'text-green-600 font-medium'
+                                                            : 'text-gray-900 dark:text-white font-medium'
+                                                          : 'text-gray-400'
+                                                      }`}
+                                                    >
+                                                      {effectiveMargin !== null && effectiveMargin !== undefined ? (
+                                                        <span>
+                                                          {effectiveMargin > 0 ? "+" : ""}
+                                                          {Number(effectiveMargin).toFixed(6)} {row.baseCurrencyCode || ''}
+                                                        </span>
+                                                      ) : (
+                                                        "—"
+                                                      )}
+                                                    </td>
+                                                    <td className={`px-2 py-1 border-b border-r dark:border-gray-700 font-mono text-xs text-center w-16 ${
+                                                      effectiveMarginPct !== null && effectiveMarginPct !== undefined
+                                                        ? effectiveMarginPct < 0
+                                                          ? 'text-red-500 font-medium'
+                                                          : effectiveMarginPct > 0
+                                                          ? 'text-green-600 font-medium'
+                                                          : 'text-gray-900 dark:text-white font-medium'
+                                                        : 'text-gray-400'
+                                                    }`}>
+                                                      {effectiveMarginPct !== null && effectiveMarginPct !== undefined ? (
+                                                        <span>{Number(effectiveMarginPct).toFixed(2)}%</span>
+                                                      ) : (
+                                                        "—"
+                                                      )}
+                                                    </td>
+                                                  </>
+                                                );
+                                              })()}
                                               <td className="px-2 py-1 border-b dark:border-gray-700 overflow-visible w-20">
                                                 <div className="inline-table-field min-w-[80px]">
                                                   <Select
@@ -2134,7 +2386,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
 
                                         const rawMnc = route.MNC ? String(route.MNC) : "";
                                         const cleanMnc = rawMnc.includes("(") ? rawMnc.split("(")[0].trim() : rawMnc.trim();
-                                        const networkName = (route as any).network || brandMap[cleanMnc] || brandMap[rawMnc] || "";
+                                        const networkName = brandMap[cleanMnc] || brandMap[rawMnc] || (route as any).network || "";
                                         const mncDisplay = cleanMnc
                                           ? networkName
                                             ? `${cleanMnc} (${networkName})`
@@ -2160,12 +2412,22 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                             <td className="px-2.5 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-44 truncate" title={vendorName}>
                                               {vendorName}
                                             </td>
-                                            <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-20">
-                                              {isPercentage ? `${route.trafficPercentage ?? "-"}%` : (route.priority ?? "-")}
-                                              {isLocallyModified && (
-                                                <span className="ml-2 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/40 px-1.5 py-0.5 rounded">
-                                                  Edited
-                                                </span>
+                                            <td className="px-2 py-1.5 border-r border-b dark:border-gray-700 text-gray-800 dark:text-gray-200 font-medium whitespace-nowrap w-28">
+                                              {canUpdate ? (
+                                                <div className="inline-table-field">
+                                                  <Input
+                                                    label=""
+                                                    type="number"
+                                                    value={isPercentage ? (route.trafficPercentage != null ? String(route.trafficPercentage) : "") : (route.priority != null ? String(route.priority) : "")}
+                                                    onChange={(e) => updateExistingRoute(countryId, route.id!, isPercentage ? "trafficPercentage" : "priority", e.target.value)}
+                                                    placeholder={isPercentage ? "0–100" : "Priority"}
+                                                    isClearable={false}
+                                                  />
+                                                </div>
+                                              ) : (
+                                                <div className="flex items-center justify-between w-full">
+                                                  <span>{isPercentage ? `${route.trafficPercentage ?? "-"}%` : (route.priority ?? "-")}</span>
+                                                </div>
                                               )}
                                             </td>
                                             <td className="px-2.5 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap w-28">
@@ -2174,6 +2436,17 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   title="All Customer Rates"
                                                   rates={(route as any).allCustomerRates}
                                                   currencyCode={(route as any).clientCurrencyCode}
+                                                  baseCurrencyCode={(route as any).baseCurrencyCode}
+                                                  allMargins={(route as any).allMargins}
+                                                  selectedMnc={selectedMncByRoute[route.id!]}
+                                                  onSelectMnc={(mnc) =>
+                                                    setSelectedMncByRoute((prev) => {
+                                                      const next = { ...prev };
+                                                      if (mnc) next[route.id!] = mnc;
+                                                      else delete next[route.id!];
+                                                      return next;
+                                                    })
+                                                  }
                                                 />
                                               ) : (
                                                 (route as any).customerRate ? `${(route as any).customerRate} ${(route as any).clientCurrencyCode || ''}` : "—"
@@ -2185,17 +2458,74 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                                   title="All Network Rates"
                                                   rates={(route as any).allVendorRates}
                                                   currencyCode={(route as any).vendorCurrencyCode}
+                                                  baseCurrencyCode={(route as any).baseCurrencyCode}
+                                                  allMargins={(route as any).allMargins}
+                                                  selectedMnc={selectedMncByRoute[route.id!]}
+                                                  onSelectMnc={(mnc) =>
+                                                    setSelectedMncByRoute((prev) => {
+                                                      const next = { ...prev };
+                                                      if (mnc) next[route.id!] = mnc;
+                                                      else delete next[route.id!];
+                                                      return next;
+                                                    })
+                                                  }
                                                 />
                                               ) : (
                                                 (route as any).vendorRate ? `${(route as any).vendorRate} ${(route as any).vendorCurrencyCode || ''}` : "—"
                                               )}
                                             </td>
-                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).margin < 0 ? "text-red-500 font-medium" : (route as any).margin > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).margin !== undefined ? `${(route as any).margin} ${(route as any).baseCurrencyCode || ""}` : "—")}
-                                            </td>
-                                            <td className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 ${(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "text-gray-400" : (route as any).marginPercentage < 0 ? "text-red-500 font-medium" : (route as any).marginPercentage > 0 ? "text-green-600 font-medium" : "text-gray-500"}`}>
-                                              {(((route as any).allVendorRates && (route as any).allVendorRates.length > 1) || ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)) ? "—" : ((route as any).marginPercentage !== undefined ? `${(route as any).marginPercentage}%` : "—")}
-                                            </td>
+                                            {(() => {
+                                              const hasMultipleRates = Boolean(
+                                                ((route as any).allVendorRates && (route as any).allVendorRates.length > 1) ||
+                                                ((route as any).allCustomerRates && (route as any).allCustomerRates.length > 1)
+                                              );
+                                              const routeSelectedMnc = selectedMncByRoute[route.id!] || null;
+                                              const mncMarginInfo = hasMultipleRates && routeSelectedMnc ? getMncMarginInfo(route, routeSelectedMnc) : null;
+                                              const displayMargin = mncMarginInfo ? mncMarginInfo.margin : hasMultipleRates ? null : (route as any).margin;
+                                              const displayMarginPct = mncMarginInfo ? mncMarginInfo.marginPercentage : hasMultipleRates ? null : (route as any).marginPercentage;
+
+                                              return (
+                                                <>
+                                                  <td
+                                                    className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-20 text-center ${
+                                                      displayMargin !== null && displayMargin !== undefined
+                                                        ? displayMargin < 0
+                                                          ? "text-red-500 font-medium"
+                                                          : displayMargin > 0
+                                                          ? "text-green-600 font-medium"
+                                                          : "text-gray-900 dark:text-white font-medium"
+                                                        : "text-gray-400"
+                                                    }`}
+                                                  >
+                                                    {displayMargin !== null && displayMargin !== undefined ? (
+                                                      <span>
+                                                        {displayMargin > 0 ? "+" : ""}
+                                                        {Number(displayMargin).toFixed(6)} {(route as any).baseCurrencyCode || ""}
+                                                      </span>
+                                                    ) : (
+                                                      "—"
+                                                    )}
+                                                  </td>
+                                                  <td
+                                                    className={`px-2 py-1.5 border-b border-r dark:border-gray-700 font-mono text-xs whitespace-nowrap w-16 text-center ${
+                                                      displayMarginPct !== null && displayMarginPct !== undefined
+                                                        ? displayMarginPct < 0
+                                                          ? "text-red-500 font-medium"
+                                                          : displayMarginPct > 0
+                                                          ? "text-green-600 font-medium"
+                                                          : "text-gray-900 dark:text-white font-medium"
+                                                        : "text-gray-400"
+                                                    }`}
+                                                  >
+                                                    {displayMarginPct !== null && displayMarginPct !== undefined ? (
+                                                      <span>{Number(displayMarginPct).toFixed(2)}%</span>
+                                                    ) : (
+                                                      "—"
+                                                    )}
+                                                  </td>
+                                                </>
+                                              );
+                                            })()}
                                             <td className="px-2 py-1.5 border-b dark:border-gray-700 whitespace-nowrap w-20">
                                               <StatusBadge status={route.status} />
                                             </td>
@@ -2266,6 +2596,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         onClose={() => {
           setIsEditPriorityModalOpen(false);
           setEditingRouteData(null);
+          setIsRouteViewMode(false);
         }}
         onSuccess={() => {
           if (selectedRouteCountryId) fetchSectionRoutes(selectedRouteCountryId);
@@ -2273,6 +2604,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         moduleName={moduleName}
         editingRoute={editingRouteData}
         lockedName={routeGroup || undefined}
+        isViewMode={isRouteViewMode}
       />
 
       {/* EDIT PERCENTAGE ROUTE MODAL */}
@@ -2281,6 +2613,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         onClose={() => {
           setIsEditPercentModalOpen(false);
           setEditingRouteData(null);
+          setIsRouteViewMode(false);
         }}
         onSuccess={() => {
           if (selectedRouteCountryId) fetchSectionRoutes(selectedRouteCountryId);
@@ -2290,6 +2623,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
         lockedName={routeGroup || undefined}
         otherRoutesTotal={getOtherRoutesTotal(selectedRouteCountryId, editingRouteData?.id, editingRouteData?.MCC, editingRouteData?.MNC)}
         onSaveLocal={handleLocalRouteSave}
+        isViewMode={isRouteViewMode}
       />
 
       {/* DYNAMIC DELETE ROUTE MODAL */}

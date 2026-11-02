@@ -57,7 +57,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["name"];
-const DEFAULT_TABLE_COLUMNS = ["name", "utcOffset", "abbreviation", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["name", "utcOffset", "abbreviation", "createdAt", "updatedAt",];
 
 const TimeZone: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -170,6 +170,15 @@ const TimeZone: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

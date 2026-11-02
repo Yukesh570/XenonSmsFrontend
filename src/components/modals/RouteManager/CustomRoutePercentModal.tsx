@@ -6,6 +6,8 @@ import Button from "../../ui/Button";
 import Input from "../../ui/Input";
 import Select from "../../ui/Select";
 import { CountryFlag } from "../../ui/CountryFlag";
+import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
+import { getMncMarginInfo } from "./SubRouteTableModal";
 import {
   MultiSelectDropdown,
   type MultiSelectOption,
@@ -30,12 +32,13 @@ interface CustomRoutePercentModalProps {
   moduleName: string;
   lockedName?: string;
   editingRoute?: CustomRouteData | null;
+  isViewMode?: boolean;
   isFirstRoute?: boolean;
   allowedCountryIds?: string[];
   otherRoutesTotal?: number;
   onSaveLocal?: (updatedData: {
-    trafficPercentage: number;
-    terminatingVendor: number;
+    trafficPercentage?: number;
+    terminatingVendor?: number;
     status: string;
   }) => void;
 }
@@ -47,6 +50,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   moduleName,
   lockedName,
   editingRoute = null,
+  isViewMode = false,
   allowedCountryIds,
   otherRoutesTotal = 0,
   onSaveLocal,
@@ -75,16 +79,18 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isFetchingOptions, setIsFetchingOptions] = useState(false);
 
-  // Dynamic Rate States
   const [dynamicCustomerRate, setDynamicCustomerRate] = useState<string | null>(null);
   const [dynamicCustomerRateBase, setDynamicCustomerRateBase] = useState<number | null>(null);
   const [dynamicCustomerCurrency, setDynamicCustomerCurrency] = useState<string | null>(null);
+  const [dynamicAllCustomerRates, setDynamicAllCustomerRates] = useState<any[] | null>(null);
 
   const [dynamicVendorRate, setDynamicVendorRate] = useState<string | null>(null);
   const [dynamicVendorRateBase, setDynamicVendorRateBase] = useState<number | null>(null);
   const [dynamicVendorCurrency, setDynamicVendorCurrency] = useState<string | null>(null);
+  const [dynamicAllVendorRates, setDynamicAllVendorRates] = useState<any[] | null>(null);
 
   const [dynamicBaseCurrency, setDynamicBaseCurrency] = useState<string | null>(null);
+  const [selectedRateMnc, setSelectedRateMnc] = useState<string | null>(null);
 
   const statusOptions = [
     { label: "Active", value: "ACTIVE" },
@@ -215,7 +221,30 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
   // Dynamic rate fetching
   useEffect(() => {
-    if (editingRoute && formData.MCC?.length > 0 && formData.MNC?.length > 0) {
+    if (editingRoute) {
+      const allCust = (editingRoute as any).allCustomerRates && (editingRoute as any).allCustomerRates.length > 1
+        ? (editingRoute as any).allCustomerRates
+        : null;
+      const allVend = (editingRoute as any).allVendorRates && (editingRoute as any).allVendorRates.length > 1
+        ? (editingRoute as any).allVendorRates
+        : null;
+
+      setDynamicAllCustomerRates(allCust);
+      setDynamicCustomerRate(allCust ? "Multiple Rates" : ((editingRoute as any).customerRate ? String((editingRoute as any).customerRate) : null));
+
+      setDynamicAllVendorRates(allVend);
+      setDynamicVendorRate(allVend ? "Multiple Rates" : ((editingRoute as any).vendorRate ? String((editingRoute as any).vendorRate) : null));
+
+      setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+      setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+      setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode || null);
+      setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
+      setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
+
+      return;
+    }
+
+    if (formData.MCC?.length > 0 && formData.MNC?.length > 0) {
       const fetchDynamicRates = async () => {
         try {
           const mcc = formData.MCC[0] === "ALL_MCC" ? "ALL" : formData.MCC[0];
@@ -227,6 +256,8 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             if (match && match[1]) {
               cleanMnc = match[1].trim();
             }
+          } else if (cleanMnc.includes("(")) {
+            cleanMnc = cleanMnc.split("(")[0].trim();
           }
           if (cleanMnc === "ALL_MNC") cleanMnc = "ALL";
 
@@ -234,50 +265,117 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
           // Customer Rate
           try {
-            const custRes = await findCustomerRateApi({
+            const custParams: any = {
               routeGroupName: routeName,
               MCC: mcc,
-              MNC: cleanMnc,
-            });
+            };
+            if (cleanMnc && cleanMnc !== "ALL") {
+              custParams.MNC = cleanMnc;
+            }
+
+            const custRes = await findCustomerRateApi(custParams);
             const custResults = custRes.results || (Array.isArray(custRes) ? custRes : []);
-            if (custResults.length > 0) {
-              setDynamicCustomerRate(String(custResults[0].rate));
-              setDynamicCustomerRateBase(custResults[0].rateBase ?? null);
+            if (custResults.length > 1) {
+              setDynamicAllCustomerRates(custResults.map((r: any) => ({ MNC: r.MNC || r.mnc || cleanMnc, rate: r.rate })));
+              setDynamicCustomerRate("Multiple Rates");
+              setDynamicCustomerRateBase(null);
               setDynamicCustomerCurrency(custResults[0].currencyCode ?? null);
               setDynamicBaseCurrency(custResults[0].baseCurrencyCode ?? null);
+            } else if (custResults.length === 1) {
+              if (cleanMnc === "ALL" && String(custResults[0].MNC) === "ALL" && (editingRoute as any)?.allCustomerRates?.length > 1) {
+                setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+                setDynamicCustomerRate("Multiple Rates");
+              } else {
+                setDynamicAllCustomerRates(null);
+                setDynamicCustomerRate(String(custResults[0].rate));
+                setDynamicCustomerRateBase(custResults[0].rateBase ?? null);
+                setDynamicCustomerCurrency(custResults[0].currencyCode ?? null);
+                setDynamicBaseCurrency(custResults[0].baseCurrencyCode ?? null);
+              }
             } else {
-              setDynamicCustomerRate("N/A");
-              setDynamicCustomerRateBase(null);
+              if ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1) {
+                setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+                setDynamicCustomerRate("Multiple Rates");
+                setDynamicCustomerRateBase(null);
+                setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+              } else {
+                setDynamicAllCustomerRates(null);
+                setDynamicCustomerRate("N/A");
+                setDynamicCustomerRateBase(null);
+              }
             }
           } catch {
-            setDynamicCustomerRate("Error");
-            setDynamicCustomerRateBase(null);
+            if ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1) {
+              setDynamicAllCustomerRates((editingRoute as any).allCustomerRates);
+              setDynamicCustomerRate("Multiple Rates");
+              setDynamicCustomerRateBase(null);
+              setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+            } else {
+              setDynamicAllCustomerRates(null);
+              setDynamicCustomerRate("Error");
+              setDynamicCustomerRateBase(null);
+            }
           }
 
           // Vendor Rate
-          const currentTerminatingVendor = vendorRows.length > 0 ? vendorRows[0].terminatingVendor : null;
+          const currentTerminatingVendor = (vendorRows.length > 0 && vendorRows[0].terminatingVendor)
+            ? vendorRows[0].terminatingVendor
+            : ((editingRoute as any) ? String((editingRoute as any).terminatingVendor || "") : null);
           if (currentTerminatingVendor) {
             try {
-              const vendRes = await findVendorRateApi({
+              const vendParams: any = {
                 terminatingVendor: currentTerminatingVendor,
                 MCC: mcc,
-                MNC: cleanMnc,
-              });
+              };
+              if (cleanMnc && cleanMnc !== "ALL") {
+                vendParams.MNC = cleanMnc;
+              }
+
+              const vendRes = await findVendorRateApi(vendParams);
               const vendResults = vendRes.results || (Array.isArray(vendRes) ? vendRes : []);
-              if (vendResults.length > 0) {
-                setDynamicVendorRate(String(vendResults[0].rate));
-                setDynamicVendorRateBase(vendResults[0].rateBase ?? null);
+              if (vendResults.length > 1) {
+                setDynamicAllVendorRates(vendResults.map((r: any) => ({ MNC: r.MNC || r.mnc || cleanMnc, rate: r.rate })));
+                setDynamicVendorRate("Multiple Rates");
+                setDynamicVendorRateBase(null);
                 setDynamicVendorCurrency(vendResults[0].currencyCode ?? null);
                 setDynamicBaseCurrency((prev) => prev || (vendResults[0].baseCurrencyCode ?? null));
+              } else if (vendResults.length === 1) {
+                if (cleanMnc === "ALL" && vendResults[0].MNC === "ALL" && (editingRoute as any)?.allVendorRates?.length > 1) {
+                  setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                  setDynamicVendorRate("Multiple Rates");
+                } else {
+                  setDynamicAllVendorRates(null);
+                  setDynamicVendorRate(String(vendResults[0].rate));
+                  setDynamicVendorRateBase(vendResults[0].rateBase ?? null);
+                  setDynamicVendorCurrency(vendResults[0].currencyCode ?? null);
+                  setDynamicBaseCurrency((prev) => prev || (vendResults[0].baseCurrencyCode ?? null));
+                }
               } else {
-                setDynamicVendorRate("N/A");
-                setDynamicVendorRateBase(null);
+                if ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1) {
+                  setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                  setDynamicVendorRate("Multiple Rates");
+                  setDynamicVendorRateBase(null);
+                  setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+                } else {
+                  setDynamicAllVendorRates(null);
+                  setDynamicVendorRate("N/A");
+                  setDynamicVendorRateBase(null);
+                }
               }
             } catch {
-              setDynamicVendorRate("Error");
-              setDynamicVendorRateBase(null);
+              if ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1) {
+                setDynamicAllVendorRates((editingRoute as any).allVendorRates);
+                setDynamicVendorRate("Multiple Rates");
+                setDynamicVendorRateBase(null);
+                setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+              } else {
+                setDynamicAllVendorRates(null);
+                setDynamicVendorRate("Error");
+                setDynamicVendorRateBase(null);
+              }
             }
           } else {
+            setDynamicAllVendorRates(null);
             setDynamicVendorRate(null);
             setDynamicVendorRateBase(null);
           }
@@ -287,16 +385,6 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
       };
 
       fetchDynamicRates();
-    } else if (editingRoute) {
-      setDynamicCustomerRate((editingRoute as any).customerRate ?? null);
-      setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
-      setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode ?? null);
-
-      setDynamicVendorRate((editingRoute as any).vendorRate ?? null);
-      setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
-      setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode ?? null);
-
-      setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode ?? null);
     }
   }, [vendorRows, formData.MCC, formData.MNC, formData.name, lockedName, editingRoute]);
 
@@ -402,6 +490,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
   }, [formData.country, formData.MCC, formData.MNC, fullCountriesList]);
 
   useEffect(() => {
+    setSelectedRateMnc(null);
     if (isOpen) {
       if (editingRoute) {
         const parseArrayField = (val: any): string[] => {
@@ -438,6 +527,17 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
             percentage: String(editingRoute.trafficPercentage || ""),
           },
         ]);
+        const initAllCust = (editingRoute as any).allCustomerRates && (editingRoute as any).allCustomerRates.length > 1 ? (editingRoute as any).allCustomerRates : null;
+        const initAllVend = (editingRoute as any).allVendorRates && (editingRoute as any).allVendorRates.length > 1 ? (editingRoute as any).allVendorRates : null;
+        setDynamicAllCustomerRates(initAllCust);
+        setDynamicAllVendorRates(initAllVend);
+        setDynamicCustomerRate(initAllCust ? "Multiple Rates" : ((editingRoute as any).customerRate ? String((editingRoute as any).customerRate) : null));
+        setDynamicVendorRate(initAllVend ? "Multiple Rates" : ((editingRoute as any).vendorRate ? String((editingRoute as any).vendorRate) : null));
+        setDynamicCustomerCurrency((editingRoute as any).clientCurrencyCode || (editingRoute as any).customerCurrencyCode || null);
+        setDynamicVendorCurrency((editingRoute as any).vendorCurrencyCode || null);
+        setDynamicBaseCurrency((editingRoute as any).baseCurrencyCode || null);
+        setDynamicCustomerRateBase((editingRoute as any).customerRateBase ?? null);
+        setDynamicVendorRateBase((editingRoute as any).vendorRateBase ?? null);
       } else {
         setFormData({
           name: lockedName || "",
@@ -449,6 +549,15 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           network: "",
         });
         setVendorRows([{ terminatingVendor: "", percentage: "" }]);
+        setDynamicAllCustomerRates(null);
+        setDynamicAllVendorRates(null);
+        setDynamicCustomerRate(null);
+        setDynamicCustomerRateBase(null);
+        setDynamicCustomerCurrency(null);
+        setDynamicVendorRate(null);
+        setDynamicVendorRateBase(null);
+        setDynamicVendorCurrency(null);
+        setDynamicBaseCurrency(null);
       }
     }
   }, [isOpen, lockedName, editingRoute]);
@@ -600,25 +709,24 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isExceeded) return toast.error("Total percentage cannot exceed 100%");
-
-    for (const row of vendorRows) {
-      if (!row.terminatingVendor) return toast.error("All vendors must be selected.");
-      if (!row.percentage) return toast.error("Traffic percentage is required.");
-    }
+    if (isViewMode) return;
 
     if (isEditMode) {
+      const selectedVendor = vendorRows[0]?.terminatingVendor || editingRoute?.terminatingVendor;
+      if (!selectedVendor) {
+        toast.error("Terminating Vendor is required.");
+        return;
+      }
+
       setIsSubmitting(true);
       try {
-        const row = vendorRows[0];
         const cleanMnc = extractCleanMncString(formData.MNC);
 
         const payload: any = {
           name: formData.name,
           status: formData.status || "ACTIVE",
           country: Number(formData.country),
-          terminatingVendor: Number(row.terminatingVendor),
-          trafficPercentage: Number(row.percentage)
+          terminatingVendor: Number(selectedVendor),
         };
 
         const mncArray = Array.isArray(formData.MNC) ? formData.MNC : [];
@@ -654,13 +762,12 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           await import("../../../api/routeManagerApi/customRouteApi").then(api =>
             api.updateCustomRouteApi(editingRoute.id!, payload, moduleName)
           );
-          toast.success("Percentage route updated successfully!");
+          toast.success("Route updated successfully!");
         }
 
         if (onSaveLocal) {
           onSaveLocal({
-            trafficPercentage: Number(row.percentage),
-            terminatingVendor: Number(row.terminatingVendor),
+            terminatingVendor: Number(selectedVendor),
             status: formData.status || "ACTIVE"
           });
         }
@@ -682,6 +789,13 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
         setIsSubmitting(false);
       }
       return;
+    }
+
+    if (isExceeded) return toast.error("Total percentage cannot exceed 100%");
+
+    for (const row of vendorRows) {
+      if (!row.terminatingVendor) return toast.error("All vendors must be selected.");
+      if (!row.percentage) return toast.error("Traffic percentage is required.");
     }
 
     // CREATE MODE ONLY: Submit new routes via API
@@ -758,7 +872,13 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditMode ? `Edit Route: ${formData.name || ''}` : (lockedName ? `Add New Route to ${lockedName}` : "Create Custom Route")}
+      title={
+        isViewMode
+          ? `View Route: ${formData.name || ''}`
+          : isEditMode
+            ? `Edit Route: ${formData.name || ''}`
+            : (lockedName ? `Add New Route to ${lockedName}` : "Create Custom Route")
+      }
       className="max-w-4xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6 px-1">
@@ -779,13 +899,14 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
               value={formData.status}
               onChange={(v) => handleSelectChange("status", v)}
               options={statusOptions}
+              disabled={isViewMode}
             />
           </div>
         </fieldset>
 
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 overflow-visible">
           <legend className="text-sm font-semibold text-primary px-2">
-            Destination
+            {isEditMode || isViewMode ? "Destination (Read Only)" : "Destination"}
           </legend>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
             <div className="lg:col-span-3">
@@ -795,7 +916,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                 onChange={(v) => handleSelectChange("country", v)}
                 options={countryOptions}
                 placeholder="Select Country"
-                disabled={isEditMode || isFetchingOptions}
+                disabled={isEditMode || isViewMode || isFetchingOptions}
               />
             </div>
 
@@ -805,7 +926,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                 options={mccOptions}
                 selected={formData.MCC}
                 onChange={handleMccChange}
-                disabled={!formData.country || isEditMode || isFetchingOptions}
+                disabled={!formData.country || isEditMode || isViewMode || isFetchingOptions}
                 placeholder={formData.country ? "Select MCC" : "Country First"}
               />
             </div>
@@ -817,7 +938,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                   options={mncOptions}
                   selected={computeDisplayMnc()}
                   onChange={handleMncChange}
-                  disabled={formData.MCC.length === 0 || isEditMode || isFetchingOptions}
+                  disabled={formData.MCC.length === 0 || isEditMode || isViewMode || isFetchingOptions}
                   placeholder={formData.MCC.length > 0 ? "Select MNC" : "MCC First"}
                 />
               </div>
@@ -859,146 +980,275 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
           </div>
         </fieldset>
 
-        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-4">
-            <legend className="text-sm font-semibold text-primary px-2">Vendor Distribution</legend>
-            {!isEditMode && grandTotal < 100 && (
-              <Button type="button" variant="secondary" onClick={addVendorRow} className="py-1 px-3 text-xs" leftIcon={<Plus size={14} />}>
-                Add Vendor
-              </Button>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            {vendorRows.map((row, index) => {
-              const selectedVendors = vendorRows
-                .filter((_, i) => i !== index)
-                .map((r) => r.terminatingVendor)
-                .filter(Boolean);
-
-              const availableVendorOptions = vendorOptions.map((option) => ({
-                ...option,
-                disabled: selectedVendors.includes(option.value),
-              }));
-
-              return (
-                <div key={index} className="flex items-end gap-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
-                  <div className="flex-1">
-                    <Select
-                      label="Terminating Vendor"
-                      value={row.terminatingVendor}
-                      options={availableVendorOptions}
-                      onChange={(v) => updateVendorRow(index, "terminatingVendor", v)}
-                      placeholder="Select Vendor"
-                      placement="top"
-                    />
-                  </div>
-                  <div className="w-32">
-                    <Input label="Percent (%)" name={`percentage-${index}`} type="number" value={row.percentage} onChange={(e) => updateVendorRow(index, "percentage", e.target.value)} placeholder="0-100" />
-                  </div>
-                  {!isEditMode && vendorRows.length > 1 && (
-                    <button type="button" onClick={() => removeVendorRow(index)} className="p-2.5 mb-[2px] text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* DYNAMIC CALCULATION BANNER */}
-          <div
-            className={`mt-4 p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between border gap-2 ${grandTotal === 100
-              ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
-              : isExceeded
-                ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
-                : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
-              }`}
-          >
-            <div className="flex items-center gap-2">
-              {grandTotal === 100 ? (
-                <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 shrink-0" />
-              ) : (
-                <AlertCircle size={18} className="shrink-0" />
+        {isEditMode ? (
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <legend className="text-sm font-semibold text-primary px-2">
+              Vendor Info
+            </legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Terminating Vendor"
+                value={
+                  vendorRows[0]?.terminatingVendor
+                    ? String(vendorRows[0].terminatingVendor)
+                    : ""
+                }
+                onChange={(v) => updateVendorRow(0, "terminatingVendor", v)}
+                options={vendorOptions}
+                placeholder="Select Vendor"
+                disabled={isViewMode || isFetchingOptions}
+              />
+            </div>
+          </fieldset>
+        ) : (
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <legend className="text-sm font-semibold text-primary px-2">Vendor Distribution</legend>
+              {grandTotal < 100 && (
+                <Button type="button" variant="secondary" onClick={addVendorRow} className="py-1 px-3 text-xs" leftIcon={<Plus size={14} />}>
+                  Add Vendor
+                </Button>
               )}
-              <span className="text-sm font-semibold">
-                {isExceeded ? (
-                  <>Error: Total is {grandTotal}% (Exceeds limit by {grandTotal - 100}%)</>
-                ) : grandTotal < 100 ? (
-                  <>Warning: Total is {grandTotal}% ({100 - grandTotal}% remaining)</>
+            </div>
+
+            <div className="space-y-3">
+              {vendorRows.map((row, index) => {
+                const selectedVendors = vendorRows
+                  .filter((_, i) => i !== index)
+                  .map((r) => r.terminatingVendor)
+                  .filter(Boolean);
+
+                const availableVendorOptions = vendorOptions.map((option) => ({
+                  ...option,
+                  disabled: selectedVendors.includes(option.value),
+                }));
+
+                return (
+                  <div key={index} className="flex items-end gap-3 bg-gray-50 dark:bg-gray-900/40 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                    <div className="flex-1">
+                      <Select
+                        label="Terminating Vendor"
+                        value={row.terminatingVendor}
+                        options={availableVendorOptions}
+                        onChange={(v) => updateVendorRow(index, "terminatingVendor", v)}
+                        placeholder="Select Vendor"
+                        placement="top"
+                      />
+                    </div>
+                    <div className="w-32">
+                      <Input label="Percent (%)" name={`percentage-${index}`} type="number" value={row.percentage} onChange={(e) => updateVendorRow(index, "percentage", e.target.value)} placeholder="0-100" />
+                    </div>
+                    {vendorRows.length > 1 && (
+                      <button type="button" onClick={() => removeVendorRow(index)} className="p-2.5 mb-[2px] text-gray-400 hover:text-red-500 transition-colors bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-sm">
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* DYNAMIC CALCULATION BANNER */}
+            <div
+              className={`mt-4 p-3 rounded-lg flex flex-col sm:flex-row items-center justify-between border gap-2 ${grandTotal === 100
+                ? "bg-green-50 border-green-200 text-green-700 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400"
+                : isExceeded
+                  ? "bg-red-50 border-red-200 text-red-700 dark:bg-red-900/20 dark:border-red-800 dark:text-red-400"
+                  : "bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-900/20 dark:border-amber-800 dark:text-amber-400"
+                }`}
+            >
+              <div className="flex items-center gap-2">
+                {grandTotal === 100 ? (
+                  <CheckCircle2 size={18} className="text-green-600 dark:text-green-400 shrink-0" />
                 ) : (
-                  <>Valid: Total is 100%</>
+                  <AlertCircle size={18} className="shrink-0" />
                 )}
+                <span className="text-sm font-semibold">
+                  {isExceeded ? (
+                    <>Error: Total is {grandTotal}% (Exceeds limit by {grandTotal - 100}%)</>
+                  ) : grandTotal < 100 ? (
+                    <>Warning: Total is {grandTotal}% ({100 - grandTotal}% remaining)</>
+                  ) : (
+                    <>Valid: Total is 100%</>
+                  )}
+                </span>
+              </div>
+              <span className="text-xs font-mono opacity-90">
+                (This Route: {currentModalTotal}% + Other Vendors: {otherRoutesTotal}%)
               </span>
             </div>
-            <span className="text-xs font-mono opacity-90">
-              (This Route: {currentModalTotal}% + Other Vendors: {otherRoutesTotal}%)
-            </span>
-          </div>
-        </fieldset>
+          </fieldset>
+        )}
 
         {/* Read-Only Rates & Margins inside Modal */}
         {isEditMode && (
           <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 bg-gray-50/50 dark:bg-gray-800/30">
             <legend className="text-sm font-semibold text-primary px-2">
-              Rates & Margins (Read-Only)
+              Rates & Margins (Read Only)
             </legend>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Input
-                label="Customer Rate"
-                value={dynamicCustomerRate ? `${dynamicCustomerRate} ${dynamicCustomerCurrency || ''}` : "—"}
-                disabled
-              />
-              <Input
-                label="Vendor Rate"
-                value={dynamicVendorRate ? `${dynamicVendorRate} ${dynamicVendorCurrency || ''}` : "—"}
-                disabled
-              />
-              <Input
-                label="Margin"
-                value={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return `${margin.toFixed(6)} ${dynamicBaseCurrency || ''}`;
-                  }
-                  return "—";
-                })()}
-                className={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
-                  }
-                  return "";
-                })()}
-                disabled
-              />
-              <Input
-                label="Margin %"
-                value={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
-                    const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
-                    return `${marginPct.toFixed(2)}%`;
-                  }
-                  return "—";
-                })()}
-                className={(() => {
-                  if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
-                    const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
-                    return margin < 0 ? "!text-red-500 font-medium" : margin > 0 ? "!text-green-600 font-medium" : "";
-                  }
-                  return "";
-                })()}
-                disabled
-              />
-            </div>
+            {(() => {
+              const custRates = (dynamicAllCustomerRates && dynamicAllCustomerRates.length > 1)
+                ? dynamicAllCustomerRates
+                : ((editingRoute as any)?.allCustomerRates && (editingRoute as any).allCustomerRates.length > 1 ? (editingRoute as any).allCustomerRates : null);
+              const vendRates = (dynamicAllVendorRates && dynamicAllVendorRates.length > 1)
+                ? dynamicAllVendorRates
+                : ((editingRoute as any)?.allVendorRates && (editingRoute as any).allVendorRates.length > 1 ? (editingRoute as any).allVendorRates : null);
+              const custCurrency = dynamicCustomerCurrency || (editingRoute as any)?.clientCurrencyCode || (editingRoute as any)?.customerCurrencyCode || "";
+              const vendCurrency = dynamicVendorCurrency || (editingRoute as any)?.vendorCurrencyCode || "";
+              const hasMultipleRates = Boolean((custRates && custRates.length > 1) || (vendRates && vendRates.length > 1));
+              const activeMncMargin = (hasMultipleRates && selectedRateMnc)
+                ? getMncMarginInfo(editingRoute || {
+                    allMargins: (editingRoute as any)?.allMargins,
+                    allCustomerRates: custRates,
+                    allVendorRates: vendRates,
+                    customerRateBase: dynamicCustomerRateBase,
+                    vendorRateBase: dynamicVendorRateBase,
+                  }, selectedRateMnc)
+                : null;
+
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {custRates && custRates.length > 1 ? (
+                    <div className="flex flex-col w-full">
+                      <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
+                        Customer Rate
+                      </label>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Customer Rates"
+                        rates={custRates}
+                        currencyCode={custCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
+                    </div>
+                  ) : (
+                    <Input
+                      label="Customer Rate"
+                      value={dynamicCustomerRate ? `${dynamicCustomerRate} ${custCurrency}` : ((editingRoute as any)?.customerRate ? `${(editingRoute as any).customerRate} ${custCurrency}` : "—")}
+                      disabled
+                    />
+                  )}
+
+                  {vendRates && vendRates.length > 1 ? (
+                    <div className="flex flex-col w-full">
+                      <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400 truncate">
+                        Vendor Rate
+                      </label>
+                      <RatesHoverDropdown
+                        variant="input"
+                        title="All Network Rates"
+                        rates={vendRates}
+                        currencyCode={vendCurrency}
+                        baseCurrencyCode={dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode}
+                        allMargins={(editingRoute as any)?.allMargins}
+                        selectedMnc={selectedRateMnc}
+                        onSelectMnc={setSelectedRateMnc}
+                        disabled={isViewMode}
+                      />
+                    </div>
+                  ) : (
+                    <Input
+                      label="Vendor Rate"
+                      value={dynamicVendorRate ? `${dynamicVendorRate} ${vendCurrency}` : ((editingRoute as any)?.vendorRate ? `${(editingRoute as any).vendorRate} ${vendCurrency}` : "—")}
+                      disabled
+                    />
+                  )}
+
+                  <Input
+                    label={selectedRateMnc ? `Margin (MNC: ${selectedRateMnc})` : "Margin"}
+                    value={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
+                          return `${activeMncMargin.margin > 0 ? "+" : ""}${Number(activeMncMargin.margin).toFixed(6)} ${dynamicBaseCurrency || (editingRoute as any)?.baseCurrencyCode || ''}`;
+                        }
+                        return "—";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
+                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
+                        return `${margin.toFixed(6)} ${dynamicBaseCurrency || ''}`;
+                      }
+                      return "—";
+                    })()}
+                    className={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.margin !== undefined && activeMncMargin.margin !== null) {
+                          return activeMncMargin.margin < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.margin > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
+                        }
+                        return "";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error") {
+                        const margin = dynamicCustomerRateBase - dynamicVendorRateBase;
+                        return margin < 0
+                          ? "!text-red-500 font-medium"
+                          : margin > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
+                      }
+                      return "";
+                    })()}
+                    disabled
+                  />
+                  <Input
+                    label={selectedRateMnc ? `Margin % (MNC: ${selectedRateMnc})` : "Margin %"}
+                    value={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
+                          return `${Number(activeMncMargin.marginPercentage).toFixed(2)}%`;
+                        }
+                        return "—";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
+                        const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
+                        return `${marginPct.toFixed(2)}%`;
+                      }
+                      return "—";
+                    })()}
+                    className={(() => {
+                      if (hasMultipleRates) {
+                        if (activeMncMargin?.marginPercentage !== undefined && activeMncMargin.marginPercentage !== null) {
+                          return activeMncMargin.marginPercentage < 0
+                            ? "!text-red-500 font-medium"
+                            : activeMncMargin.marginPercentage > 0
+                            ? "!text-green-600 font-medium"
+                            : "!text-gray-900 !dark:text-white font-medium";
+                        }
+                        return "";
+                      }
+                      if (dynamicCustomerRateBase != null && dynamicVendorRateBase != null && dynamicCustomerRate !== "N/A" && dynamicCustomerRate !== "Error" && dynamicVendorRate !== "N/A" && dynamicVendorRate !== "Error" && dynamicCustomerRateBase !== 0) {
+                        const marginPct = ((dynamicCustomerRateBase - dynamicVendorRateBase) / dynamicCustomerRateBase) * 100;
+                        return marginPct < 0
+                          ? "!text-red-500 font-medium"
+                          : marginPct > 0
+                          ? "!text-green-600 font-medium"
+                          : "!text-gray-900 !dark:text-white font-medium";
+                      }
+                      return "";
+                    })()}
+                    disabled
+                  />
+                </div>
+              );
+            })()}
           </fieldset>
         )}
 
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || isExceeded}>
-            Save
+          <Button type="button" variant="secondary" onClick={onClose}>
+            {isViewMode ? "Close" : "Cancel"}
           </Button>
+          {!isViewMode && (
+            <Button type="button" variant="primary" onClick={handleSubmit} disabled={isSubmitting || (!isEditMode && isExceeded)}>
+              Save
+            </Button>
+          )}
         </div>
       </form>
     </Modal>

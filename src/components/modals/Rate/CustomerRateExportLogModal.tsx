@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../../helper/dateFormatter";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Modal from "../../ui/Modal";
 import ModalDataTable from "../../ui/ModalDataTable";
@@ -147,7 +148,7 @@ export const CustomerRateExportLogModal: React.FC<CustomerRateExportLogModalProp
       case "createdBy":
         return <span className="text-text-secondary dark:text-gray-300">{log.createdByName || log.createdBy || "-"}</span>;
       case "createdAt":
-        return <span className="text-text-secondary dark:text-gray-300">{new Date(log.createdAt).toLocaleString()}</span>;
+        return <span className="text-text-secondary dark:text-gray-300">{log.createdAt ? formatDateTime(log.createdAt) : "-"}</span>;
       case "actions":
         return (
           <div className="flex justify-start items-center gap-2">

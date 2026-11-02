@@ -54,7 +54,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["title"];
-const DEFAULT_TABLE_COLUMNS = ["title", "description", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["title", "description", "createdAt", "updatedAt",];
 
 const AllNotifications: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -148,6 +148,15 @@ const AllNotifications: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

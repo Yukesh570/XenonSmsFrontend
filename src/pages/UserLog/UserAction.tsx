@@ -48,7 +48,7 @@ const formatLocalDate = (date: Date) => {
 
 
 const DEFAULT_SEARCH_COLUMNS = ["username", "title", "action"];
-const DEFAULT_TABLE_COLUMNS = ["username", "title", "action", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["username", "title", "action", "createdAt", "updatedAt",];
 
 const UserAction: React.FC = () => {
   const [logs, setLogs] = useState<UserActionData[]>([]);
@@ -142,6 +142,15 @@ const UserAction: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

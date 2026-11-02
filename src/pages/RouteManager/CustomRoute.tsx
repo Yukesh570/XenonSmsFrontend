@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Home, Plus, Layers, Edit, Trash2 } from "lucide-react";
+import { Home, Plus, Layers, Edit, Trash } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -73,7 +73,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "name",
   "country",
   "status",
-  "createdAt",
+  "createdAt", "updatedAt",
 ];
 
 const CustomRoute: React.FC = () => {
@@ -240,6 +240,15 @@ const CustomRoute: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "createdAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 
@@ -548,7 +557,8 @@ const CustomRoute: React.FC = () => {
         ? [
           {
             label: "Delete Route Group",
-            icon: <Trash2 size={16} color="red" />,
+            icon: <Trash size={16} />,
+            variant: "danger" as const,
             onClick: handleDeleteGroup,
           },
         ]

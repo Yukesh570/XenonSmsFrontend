@@ -53,18 +53,54 @@
   border-color: #4b5563 !important;
 }
 
+/* Text Color picker styling */
+.ql-toolbar .ql-color-picker {
+  width: 28px;
+  height: 24px;
+}
+
+.ql-toolbar .ql-color-picker .ql-picker-label {
+  border-radius: 0.25rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ql-toolbar .ql-color-picker .ql-picker-label:hover {
+  background-color: #f3f4f6;
+}
+
+.dark .ql-toolbar .ql-color-picker .ql-picker-label {
+  background-color: transparent !important;
+  border-color: transparent !important;
+  border-radius: 0.25rem;
+}
+
+.dark .ql-toolbar .ql-color-picker .ql-picker-label:hover {
+  background-color: #374151 !important;
+}
+
+.dark .ql-toolbar .ql-color-picker.ql-expanded .ql-picker-label {
+  border-color: #4b5563 !important;
+  background-color: #374151 !important;
+}
+
 /* When you open the dropdown menu */
 .dark .ql-toolbar .ql-picker-options {
   background-color: #1f2937 !important;
   border-color: #4b5563 !important;
 }
 
-.dark .ql-toolbar .ql-picker-options .ql-picker-item {
+.dark .ql-toolbar .ql-picker:not(.ql-color-picker) .ql-picker-options .ql-picker-item {
   color: #f9fafb !important;
 }
 
-.dark .ql-toolbar .ql-picker-options .ql-picker-item:hover {
+.dark .ql-toolbar .ql-picker:not(.ql-color-picker) .ql-picker-options .ql-picker-item:hover {
   background-color: #374151 !important;
+}
+
+/* For color picker swatches, keep their original background color on hover */
+.dark .ql-toolbar .ql-color-picker .ql-picker-item:hover,
+.dark .ql-toolbar .ql-color-picker .ql-picker-item.ql-selected {
+  border-color: #f9fafb !important;
 }
 
 .dark .ql-toolbar .ql-picker-label svg .ql-stroke {
@@ -74,3 +110,18 @@
 .dark .ql-toolbar .ql-picker-options svg .ql-stroke {
   stroke: #f9fafb !important;
 }
+
+/* Color picker popover styling */
+.ql-toolbar .ql-color-picker .ql-picker-options {
+  border-radius: 0.5rem;
+  padding: 6px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  z-index: 50;
+}
+
+.dark .ql-toolbar .ql-color-picker .ql-picker-options {
+  background-color: #1f2937 !important;
+  border-color: #4b5563 !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important;
+}
+

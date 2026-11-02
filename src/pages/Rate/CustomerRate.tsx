@@ -56,7 +56,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "status"];
-const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "createdAt"];
+const DEFAULT_TABLE_COLUMNS = ["name", "status", "total_rates", "createdAt", "updatedAt"];
 
 const GroupModal = ({ isOpen, onClose, onSuccess, moduleName, editingGroup }: any) => {
   const [formData, setFormData] = useState({ name: "", status: "ACTIVE" });
@@ -227,6 +227,16 @@ const CustomerRate: React.FC = () => {
       filterKey: "createdAt",
       isSearchOnly: true
     },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => (c.updatedAt ? formatDateTime(c.updatedAt) : "-")
+    },
   ];
 
   const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
@@ -374,7 +384,7 @@ const CustomerRate: React.FC = () => {
   const menuItems: ContextMenuItem[] = selectedRowGroup ? [
     { label: "Manage Rates", icon: <Layers size={16} />, onClick: () => openSubTableModal(selectedRowGroup) },
     { label: "Download CSV", icon: <Download size={16} />, onClick: () => { handleDownloadCSV(selectedRowGroup.id!); setContextMenuPos(null); } },
-    { label: "Export Logs", icon: <FileText size={16} />, onClick: () => { setIsExportLogModalOpen(true); setContextMenuPos(null); } },
+    { label: "RN Logs", icon: <FileText size={16} />, onClick: () => { setIsExportLogModalOpen(true); setContextMenuPos(null); } },
     ...(canUpdate ? [{ label: "Edit Group", icon: <Edit size={16} />, onClick: () => { setEditingGroup(selectedRowGroup); setIsCreateModalOpen(true); } }] : []),
     ...(canDelete ? [{ label: "Delete Group", icon: <Trash size={16} />, variant: "danger" as const, onClick: () => setDeleteId(selectedRowGroup.id!) }] : []),
   ] : [];
@@ -507,15 +517,15 @@ const CustomerRate: React.FC = () => {
         countryMap={countryMap}
       />
 
-      <DeleteModal 
-        isOpen={!!deleteId} 
+      <DeleteModal
+        isOpen={!!deleteId}
         onClose={() => {
           setDeleteId(null);
           setSelectedRowGroup(null);
-        }} 
-        onConfirm={handleDelete} 
-        title="Delete Rate Group" 
-        message={`Are you sure you want to delete rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`} 
+        }}
+        onConfirm={handleDelete}
+        title="Delete Rate Group"
+        message={`Are you sure you want to delete rate group "${selectedRowGroup?.name || ""}"? All rates inside it will be affected.`}
       />
 
       <CustomerRateExportLogModal

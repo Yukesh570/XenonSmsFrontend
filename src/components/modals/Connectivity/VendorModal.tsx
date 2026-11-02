@@ -86,6 +86,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
 
   // UI & Loading States
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -128,6 +129,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
   // Fetch Dropdown Data on Mount
   useEffect(() => {
     if (isOpen) {
+      setIsLoadingCompanies(true);
       getCompaniesApi("company", 1, 1000)
         .then((res: any) => {
           let list = [];
@@ -138,9 +140,12 @@ export const VendorModal: React.FC<VendorModalProps> = ({
             list.map((c: any) => ({ label: c.name, value: String(c.id) })),
           );
         })
-        .catch((err: any) => console.error("Failed to load companies", err));
+        .catch((err: any) => console.error("Failed to load companies", err))
+        .finally(() => setIsLoadingCompanies(false));
     }
   }, [isOpen]);
+
+  const isModalLoading = isLoadingDetails || (Boolean(editingVendor) && isLoadingCompanies);
 
   // Load Vendor, SMPP, and Policy details when editing
   useEffect(() => {
@@ -415,6 +420,8 @@ export const VendorModal: React.FC<VendorModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      isLoading={isModalLoading}
+      loadingText={editingVendor ? "Loading vendor details..." : "Loading..."}
       title={
         isViewMode
           ? "View Vendor"
@@ -429,12 +436,6 @@ export const VendorModal: React.FC<VendorModalProps> = ({
         className="space-y-5 max-h-[80vh] overflow-y-auto px-1"
         noValidate
       >
-        {isLoadingDetails && (
-          <div className="p-3 mb-2 text-sm text-blue-800 bg-blue-50 rounded border border-blue-200 flex items-center">
-            <span className="mr-2 animate-spin">⏳</span> Loading configuration
-            details...
-          </div>
-        )}
 
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <legend className="text-sm font-semibold text-primary px-2">
@@ -519,11 +520,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
         </fieldset>
 
         {formData.connectionType === "SMPP" && (
-          <div
-            className={`border border-gray-200 dark:border-gray-700 p-4 rounded-lg space-y-4 ${
-              isLoadingDetails ? "opacity-50 pointer-events-none" : ""
-            }`}
-          >
+          <div className="border border-gray-200 dark:border-gray-700 p-4 rounded-lg space-y-4">
             <h3 className="text-sm font-semibold text-primary">
               SMPP Configuration
             </h3>
@@ -851,7 +848,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
             <Button
               type="submit"
               variant="primary"
-              disabled={isSubmitting || isLoadingDetails}
+              disabled={isSubmitting || isModalLoading}
             >
               {isSubmitting ? "Saving..." : "Save Vendor"}
             </Button>

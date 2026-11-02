@@ -73,6 +73,37 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
     localStorage.getItem("app_timezone") || "UTC"
   );
 
+  const formattedClock = useMemo(() => {
+    try {
+      const tz = appTimezone && appTimezone.trim() ? appTimezone.trim() : "UTC";
+      const datePart = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: tz,
+      }).format(currentTime);
+      const timePart = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: tz,
+      }).format(currentTime);
+      return `${datePart} | ${timePart}`;
+    } catch {
+      const datePart = new Intl.DateTimeFormat("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC",
+      }).format(currentTime);
+      const timePart = new Intl.DateTimeFormat("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "UTC",
+      }).format(currentTime);
+      return `${datePart} | ${timePart}`;
+    }
+  }, [currentTime, appTimezone]);
+
   // Extract all searchable readable module pages dynamically from navItems context
   const searchableModules = useMemo(() => {
     if (!navItems?.results) return [];
@@ -291,7 +322,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
   return (
     <>
-      <header className="h-16 flex justify-between items-center px-6 relative z-40 bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
+      <header className="h-16 flex justify-between items-center px-6 relative z-[60] bg-white dark:bg-gray-900 shadow-sm transition-colors duration-300">
         <div className="flex items-center">
           <Button variant="ghost" onClick={onToggleSidebar} className="mr-2">
             <Menu className="text-gray-900 dark:text-white transition-colors duration-300" size={24} />
@@ -301,7 +332,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
         <div className="flex items-center space-x-2">
           {/* Live Clock using state appTimezone */}
           <div className="text-sm text-gray-900 dark:text-white font-medium whitespace-nowrap shrink-0 hidden md:block">
-            {new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: appTimezone }).format(currentTime)} | {new Intl.DateTimeFormat("en-US", { hour: "2-digit", minute: "2-digit", timeZone: appTimezone }).format(currentTime)}
+            {formattedClock}
           </div>
           <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-2 hidden md:block shrink-0" />
 
@@ -509,7 +540,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
               leaveFrom="transform opacity-100 scale-100"
               leaveTo="transform opacity-0 scale-95"
             >
-              <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 dark:border-gray-700">
+              <HeadlessMenu.Items className="absolute right-0 z-[100] mt-2 w-56 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 dark:border-gray-700">
                 <div className="px-1 py-1">
                   <HeadlessMenu.Item>
                     {({ active }) => (
@@ -543,7 +574,7 @@ const Navbar = ({ onToggleSidebar }: NavbarProps) => {
 
       {/* Theme Modal */}
       <Transition appear show={isThemeModalOpen} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={() => setIsThemeModalOpen(false)}>
+        <Dialog as="div" className="relative z-[100]" onClose={() => setIsThemeModalOpen(false)}>
           <Transition.Child as={Fragment} enter="ease-out duration-300" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-200" leaveFrom="opacity-100" leaveTo="opacity-0">
             <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
           </Transition.Child>

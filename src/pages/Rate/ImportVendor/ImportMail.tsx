@@ -52,7 +52,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["vendor", "senderEmail", "subject", "status"];
-const DEFAULT_TABLE_COLUMNS = ["vendor", "senderEmail", "subject", "status", "receivedAt"];
+const DEFAULT_TABLE_COLUMNS = ["vendor", "senderEmail", "subject", "status", "receivedAt", "updatedAt"];
 
 const ImportMail: React.FC = () => {
   const [data, setData] = useState<ImportMailData[]>([]);
@@ -176,6 +176,15 @@ const ImportMail: React.FC = () => {
       type: "date_gt_lt",
       filterKey: "receivedAt",
       isSearchOnly: true,
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

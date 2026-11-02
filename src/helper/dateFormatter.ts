@@ -63,10 +63,12 @@ export const parseDateInput = (
       return isNaN(d.getTime()) ? null : { date: d, isDateOnly: false };
     }
 
-    // Datetime string without timezone indicator e.g. "2026-09-20 22:04:31" or "2026-09-20T22:04:31"
+    // Datetime string without timezone indicator e.g. "2026-09-20 22:04:31" or "2026-09-20T22:04:31" or "2026-09-20 22:04"
     // Standardize to UTC ISO string by appending 'Z'
-    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?$/.test(trimmed)) {
-      const iso = trimmed.replace(" ", "T") + "Z";
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?$/.test(trimmed)) {
+      const clean = trimmed.replace(" ", "T");
+      const hasSeconds = clean.split(":").length >= 3;
+      const iso = (hasSeconds ? clean : clean + ":00") + "Z";
       const d = new Date(iso);
       if (!isNaN(d.getTime())) return { date: d, isDateOnly: false };
     }

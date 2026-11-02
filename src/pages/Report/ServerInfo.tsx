@@ -22,7 +22,7 @@ import {
 } from "../../api/reportApi/serverInfoApi";
 import Button from "../../components/ui/Button";
 import { actionHelper } from "../../helper/action";
-import { formatDateTime } from "../../helper/dateFormatter";
+import { formatDateTime, getAppTimezone } from "../../helper/dateFormatter";
 
 interface HistorySample {
   time: string;
@@ -147,7 +147,7 @@ const ServerInfo: React.FC = () => {
 
           setHistory((prev) => {
             const next = [...prev, {
-              time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+              time: new Date(now).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: getAppTimezone() }),
               cpu: hw.cpu_usage_percent || 0,
               ram: hw.ram_usage_percent || 0,
               sentBps,

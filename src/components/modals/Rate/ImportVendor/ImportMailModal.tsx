@@ -5,6 +5,7 @@ import Input from "../../../ui/Input";
 import Button from "../../../ui/Button";
 import Select from "../../../ui/Select";
 import Modal from "../../../ui/Modal";
+import TextArea from "../../../ui/TextArea";
 import { formatDateTime } from "../../../../helper/dateFormatter";
 
 interface ImportMailModalProps {
@@ -50,12 +51,12 @@ export const ImportMailModal: React.FC<ImportMailModalProps> = ({
     }
   }, [isOpen, editingData]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSelect = (name: string, value: string) => {
-    setFormData({ ...formData, [name]: value });
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -95,20 +96,29 @@ export const ImportMailModal: React.FC<ImportMailModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       title={isViewMode ? "View Import Mail" : "Edit Import Mail"}
-      className="max-w-2xl"
+      className="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6 px-1 max-h-[80vh] overflow-y-auto custom-scrollbar">
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <legend className="text-sm font-semibold text-primary px-2">Mail Details</legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Message ID" name="messageId" value={formData.messageId} onChange={handleChange} disabled={isViewMode} />
-            <Input label="Sender Email" name="senderEmail" type="email" value={formData.senderEmail} onChange={handleChange} disabled={isViewMode} />
             <div className="md:col-span-2">
-              <Input label="Subject" name="subject" value={formData.subject} onChange={handleChange} disabled={isViewMode} />
+              <Input
+                label="Message ID"
+                name="messageId"
+                value={formData.messageId}
+                onChange={handleChange}
+                disabled={true}
+              />
             </div>
-            <Input label="Raw Mail Path" name="rawMailPath" value={formData.rawMailPath} onChange={handleChange} disabled={isViewMode} />
-            <Input label="Dedupe Hash" name="dedupeHash" value={formData.dedupeHash} onChange={handleChange} disabled={isViewMode} />
-            <Input label="Failure Reason" name="failureReason" value={formData.failureReason} onChange={handleChange} disabled={isViewMode} />
+            <Input
+              label="Sender Email"
+              name="senderEmail"
+              type="email"
+              value={formData.senderEmail}
+              onChange={handleChange}
+              disabled={true}
+            />
             <Select
               label="Processing Status"
               value={formData.status}
@@ -122,15 +132,55 @@ export const ImportMailModal: React.FC<ImportMailModalProps> = ({
               ]}
               disabled={isViewMode}
             />
-
-            {isViewMode && editingData?.receivedAt && (
+            <div className="md:col-span-2">
               <Input
-                label="Received At"
-                name="receivedAt"
-                value={formatDateTime(editingData.receivedAt)}
+                label="Subject"
+                name="subject"
+                value={formData.subject}
+                onChange={handleChange}
                 disabled={true}
-                onChange={() => { }}
               />
+            </div>
+            <div className="md:col-span-2">
+              <Input
+                label="Raw Mail Path"
+                name="rawMailPath"
+                value={formData.rawMailPath}
+                onChange={handleChange}
+                disabled={true}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <Input
+                label="Dedupe Hash"
+                name="dedupeHash"
+                value={formData.dedupeHash}
+                onChange={handleChange}
+                disabled={true}
+              />
+            </div>
+            <div className="md:col-span-2">
+              <TextArea
+                label="Failure Reason"
+                name="failureReason"
+                value={formData.failureReason}
+                onChange={handleChange}
+                disabled={true}
+                rows={2}
+                placeholder="-"
+              />
+            </div>
+
+            {editingData?.receivedAt && (
+              <div className="md:col-span-2">
+                <Input
+                  label="Received At"
+                  name="receivedAt"
+                  value={formatDateTime(editingData.receivedAt)}
+                  disabled={true}
+                  onChange={() => { }}
+                />
+              </div>
             )}
           </div>
         </fieldset>

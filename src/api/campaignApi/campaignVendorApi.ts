@@ -21,6 +21,8 @@ export interface CampaignVendorFormData {
   updatedByName?: string;
   module?: string;
   senderId?: string;
+  contacts?: string[];
+  contactCount?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -82,4 +84,27 @@ export const deleteCampaignVendorApi = async (
   _module?: string,
 ): Promise<void> => {
   await api.delete(`/campaignVendor/${id}/`);
+};
+
+export interface CampaignContactData {
+  id: number;
+  contactNumber: string;
+  campaign_name?: string;
+}
+
+export const getCampaignContactsApi = async (
+  campaignId: number,
+  page: number = 1,
+  pageSize: number = 50,
+  search?: string
+): Promise<PaginatedResponse<CampaignContactData>> => {
+  const params: any = { page, page_size: pageSize };
+  if (search) params["contactNumber__icontains"] = search;
+  const response = await api.get(`/campaignContact/${campaignId}/`, { params });
+  return response.data;
+};
+
+export const retryCampaignVendorApi = async (id: number): Promise<{ message: string }> => {
+  const response = await api.post(`/campaignVendor/${id}/retry/`);
+  return response.data;
 };

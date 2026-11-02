@@ -18,6 +18,13 @@ export interface CampaignFormData {
   senderId?: string;
   is_active: boolean;
   module: string;
+  contacts?: string[];
+  contactCount?: number;
+  createdAt?: string;
+  createdBy?: string;
+  createdByName?: string;
+  updatedBy?: string;
+  updatedByName?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -111,5 +118,22 @@ export const uploadCampaignCsvApi = async (file: File) => {
   const response = await api.post("/campaigns/upload-csv/", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
+  return response.data;
+};
+
+export const getCampaignContactsApi = async (
+  campaignId: number,
+  page: number = 1,
+  pageSize: number = 50,
+  search?: string
+): Promise<PaginatedResponse<{ id: number; contactNumber: string; campaign_name?: string }>> => {
+  const params: any = { page, page_size: pageSize };
+  if (search) params["contactNumber__icontains"] = search;
+  const response = await api.get(`/campaignContact/${campaignId}/`, { params });
+  return response.data;
+};
+
+export const retryCampaignApi = async (id: number): Promise<{ message: string }> => {
+  const response = await api.post(`/campaign/${id}/retry/`);
   return response.data;
 };

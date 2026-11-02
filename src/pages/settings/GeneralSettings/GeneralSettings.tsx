@@ -32,6 +32,7 @@ import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import { usePagePermissions } from "../../../hooks/usePagePermissions";
+import SmsEncodingSettingsTab from "./tabs/SmsEncodingSettingsTab";
 
 interface Option {
   label: string;
@@ -50,7 +51,7 @@ const GeneralSettings: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<"setup" | "image">("setup");
+  const [activeTab, setActiveTab] = useState<"setup" | "image" | "encoding">("setup");
   const [currencyOptions, setCurrencyOptions] = useState<Option[]>([]);
   const [timezoneOptions, setTimezoneOptions] = useState<Option[]>([]);
 
@@ -275,19 +276,42 @@ const GeneralSettings: React.FC = () => {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-card dark:bg-gray-800">
+      <div className={`mx-auto p-6 bg-white rounded-xl shadow-card dark:bg-gray-800 transition-all duration-300 ${activeTab === 'encoding' ? 'max-w-6xl' : 'max-w-3xl'}`}>
         
         <div className="flex justify-center mb-8">
           <div className="bg-gray-100 dark:bg-gray-900 p-1 rounded-full inline-flex relative border border-gray-200 dark:border-gray-700 w-full sm:w-auto">
             <div 
-              className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-gray-700 shadow-sm rounded-full transition-transform duration-300 ease-in-out"
-              style={{ transform: activeTab === 'setup' ? 'translateX(0)' : 'translateX(100%)', left: '4px' }}
+              className="absolute top-1 bottom-1 w-[calc(33.333%-4px)] bg-white dark:bg-gray-700 shadow-sm rounded-full transition-transform duration-300 ease-in-out"
+              style={{
+                transform:
+                  activeTab === 'setup'
+                    ? 'translateX(0)'
+                    : activeTab === 'image'
+                    ? 'translateX(100%)'
+                    : 'translateX(200%)',
+                left: '4px'
+              }}
             />
-            <button onClick={() => setActiveTab('setup')} className={`relative z-10 flex-1 sm:flex-none px-6 sm:px-10 py-2.5 text-sm font-medium rounded-full transition-colors ${activeTab === 'setup' ? 'text-primary dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('setup')}
+              className={`relative z-10 flex-1 sm:flex-none px-4 sm:px-8 py-2.5 text-sm font-medium rounded-full transition-colors ${activeTab === 'setup' ? 'text-primary dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            >
               Company Setup
             </button>
-            <button onClick={() => setActiveTab('image')} className={`relative z-10 flex-1 sm:flex-none px-6 sm:px-10 py-2.5 text-sm font-medium rounded-full transition-colors ${activeTab === 'image' ? 'text-primary dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('image')}
+              className={`relative z-10 flex-1 sm:flex-none px-4 sm:px-8 py-2.5 text-sm font-medium rounded-full transition-colors ${activeTab === 'image' ? 'text-primary dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            >
               Image Section
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('encoding')}
+              className={`relative z-10 flex-1 sm:flex-none px-4 sm:px-8 py-2.5 text-sm font-medium rounded-full transition-colors ${activeTab === 'encoding' ? 'text-primary dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            >
+              SMS Encoding & NLI
             </button>
           </div>
         </div>
@@ -308,11 +332,11 @@ const GeneralSettings: React.FC = () => {
                 <hr className="dark:border-gray-700" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <Input label="Date Format" name="dateFormat" value={formData.dateFormat} onChange={handleChange} placeholder="YYYY-MM-DD" required />
-                  <Input label="Date Time Format" name="datetimeFormat" value={formData.datetimeFormat} onChange={handleChange} placeholder="YYYY-MM-DD HH:mm:ss" required />
+                  <Input label="Datetime Format" name="datetimeFormat" value={formData.datetimeFormat} onChange={handleChange} placeholder="YYYY-MM-DD HH:mm:ss" required />
                 </div>
                 <hr className="dark:border-gray-700" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <Input label="Currency API" name="currencyApi" value={formData.currencyApi || ""} onChange={handleChange} placeholder="Enter Currency API" autoComplete="new-password" />
+                  <Input label="Currency API" name="currencyApi" value={formData.currencyApi || ""} onChange={handleChange} placeholder="Currency API URL" />
                   
                   {/* API Key field with aligned Show/Hide toggle button & hidden clear X button */}
                   <div className="relative [&_button:has(svg.lucide-x)]:hidden [&_.lucide-x]:hidden">
@@ -385,6 +409,10 @@ const GeneralSettings: React.FC = () => {
                   </Button>
                 </div>
               </div>
+            )}
+
+            {activeTab === "encoding" && (
+              <SmsEncodingSettingsTab canUpdate={canUpdate} />
             )}
           </div>
         )}

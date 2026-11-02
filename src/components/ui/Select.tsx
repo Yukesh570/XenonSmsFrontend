@@ -414,7 +414,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
               dark:border-gray-700`}
             >
               {selectedOption?.icon && !isTyping && !isOptionsLoading && (
-                <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none">
+                <span className={`absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none ${isEffectivelyDisabled ? "opacity-60" : ""}`}>
                   {selectedOption.icon}
                 </span>
               )}
@@ -430,8 +430,11 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 spellCheck={false}
                 autoCorrect="off"
                 autoCapitalize="off"
-                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} pr-12 outline-none focus:outline-none focus:ring-0 focus:border-transparent text-text-primary dark:text-white text-xs sm:text-sm py-0 leading-normal ${isEffectivelyDisabled ? "text-gray-400 cursor-not-allowed dark:text-gray-500" : ""
-                  }`}
+                className={`w-full h-full border-none bg-transparent ${selectedOption?.icon && !isTyping && !isOptionsLoading ? "pl-9" : "px-3"} ${clearable ? "pr-12" : "pr-7"} outline-none focus:outline-none focus:ring-0 focus:border-transparent text-xs sm:text-sm py-0 leading-normal ${
+                  isEffectivelyDisabled
+                    ? "text-gray-500 cursor-not-allowed dark:text-gray-500"
+                    : "text-text-primary dark:text-white"
+                }`}
                 displayValue={(val: string) => {
                   if (isOptionsLoading) return "Loading...";
                   const opt = options.find((option) => option.value === val);
@@ -488,7 +491,7 @@ const SelectContent: React.FC<SelectProps & { open: boolean }> = ({
                 <Combobox.Button ref={comboboxButtonRef} className="absolute inset-y-0 right-0 flex items-center pr-2" disabled={isEffectivelyDisabled}>
                   <ChevronDown
                     size={16}
-                    className={`${isEffectivelyDisabled ? "text-gray-300" : "text-gray-500 dark:text-gray-400"
+                    className={`${isEffectivelyDisabled ? "text-gray-400 dark:text-gray-600" : "text-gray-500 dark:text-gray-400"
                       }`}
                     aria-hidden="true"
                   />

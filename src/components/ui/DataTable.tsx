@@ -1012,7 +1012,7 @@ export function DataTable<T extends { id?: number | string }>({
         .app-data-table table.table-resizable-active td > span:not([class*="badge"]),
         .app-data-table table.table-resizable-active td > a,
         .app-data-table table.table-resizable-active td > p,
-        .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container) {
+        .app-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container):not([class*="flex"]) {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap !important;

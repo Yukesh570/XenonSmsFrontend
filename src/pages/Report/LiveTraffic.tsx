@@ -68,8 +68,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "senderId",
   "effectiveSenderId",
   "status",
-  "cost",
-];
+  "cost", "updatedAt"];
 
 const LiveTraffic: React.FC = () => {
   // --- 1. State Management ---
@@ -295,6 +294,15 @@ const LiveTraffic: React.FC = () => {
       },
       { key: "latency", label: "Latency", type: "text" },
       { key: "cost", label: "Cost", type: "number" },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
     ],
     [],
   );

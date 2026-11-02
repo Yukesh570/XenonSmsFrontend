@@ -114,7 +114,7 @@ export const ImportRowModal: React.FC<ImportRowModalProps> = ({
         
         {/* ⚡️ FIX: Added disabled={true} explicitly to all read-only Input fields */}
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <legend className="text-sm font-semibold text-primary px-2">Raw Data</legend>
+          <legend className="text-sm font-semibold text-primary px-2">Raw Data (Read Only)</legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pointer-events-none opacity-80">
             <Input label="Row No" name="rowNo" value={String(editingData?.rowNo ?? "-")} disabled={true} onChange={() => {}} />
             <Input label="Destination" name="rawDestination" value={editingData?.rawDestination || "-"} disabled={true} onChange={() => {}} />
@@ -126,7 +126,7 @@ export const ImportRowModal: React.FC<ImportRowModalProps> = ({
         </fieldset>
 
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-          <legend className="text-sm font-semibold text-primary px-2">Normalized & Parsed Data</legend>
+          <legend className="text-sm font-semibold text-primary px-2">Normalized & Parsed Data (Read Only)</legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pointer-events-none opacity-80">
              <Input label="Destination Key" name="destinationKey" value={editingData?.destinationKey || "-"} disabled={true} onChange={() => {}} />
              <Input label="Imported Rate" name="importedRate" value={String(editingData?.importedRate ?? "-")} disabled={true} onChange={() => {}} />

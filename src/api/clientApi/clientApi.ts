@@ -25,7 +25,7 @@ export interface ClientData {
   name: string;
   status: "ACTIVE" | "TRIAL" | "SUSPENDED";
   bindStatus: "ONLINE" | "OFFLINE";
-  route: "DIRECT" | "HIGH QUALITY" | "SIM" | "WHOLESALE" | "FULL" | "SPAM";
+  route: "DIRECT" | "HIGH QUALITY" | "SIM" | "WHOLESALE" | "FULL" | "SPAM" | "MKT" | "LOCAL_BY_PASS" | "WHATSAPP" | "BULK" | "CASINO" | "SS7";
   // paymentTerms: "PREPAID" | "POSTPAID" | "NET7" | "NET15" | "NET30";
   paymentTerms: "PREPAID" | "POSTPAID";
   invoicePolicy: "ON_ATTEMPT" | "ON_SUBMIT" | "ON_DELIVERED" | string;
@@ -105,7 +105,7 @@ export const generateCredentialsApi = async (companyName?: string, routeType?: s
   const params = new URLSearchParams();
   if (companyName) params.append("company_name", companyName);
   if (routeType) params.append("route_type", routeType);
-  
+
   const queryString = params.toString();
   const url = queryString ? `/generate-credentials/?${queryString}` : `/generate-credentials/`;
   const response = await api.get(url);

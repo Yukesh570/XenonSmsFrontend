@@ -164,8 +164,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "request_time",
   "message_delivered_at",
   "message_failed_at",
-  "effectiveSenderId",
-];
+  "effectiveSenderId", "updatedAt"];
 
 const BATCH_SIZE = 100;
 const LOAD_MORE_THRESHOLD_PX = 200;
@@ -617,6 +616,15 @@ const DetailedReport: React.FC = () => {
       filterKey: "message__failed_at",
       isSearchOnly: true,
     },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
   ];
 
   const searchableColumns = allColumns.filter(
@@ -640,7 +648,12 @@ const DetailedReport: React.FC = () => {
     }));
 
   const handleFilterChange = (key: string, value: string) => {
-    if (key === "request_time" || key === "request_time__gt_lt") {
+    const colDef = allColumns.find((c) => c.key === key);
+    if (
+      (colDef?.type === "date" || colDef?.type === "date_gt_lt") &&
+      value &&
+      value.replace(/,/g, "").trim() !== ""
+    ) {
       setActivePreset("custom");
     }
     setFilterValues((prev) => ({ ...prev, [key]: value }));
@@ -650,8 +663,11 @@ const DetailedReport: React.FC = () => {
     if (activePreset === presetKey) return;
     setActivePreset(presetKey);
     const nextFilters = { ...filterValues };
-    delete nextFilters.request_time;
-    delete nextFilters.request_time__gt_lt;
+    allColumns.forEach((c) => {
+      if (c.type === "date" || c.type === "date_gt_lt") {
+        delete nextFilters[c.key];
+      }
+    });
     setFilterValues(nextFilters);
     fetchReports(nextFilters, 1, false, presetKey);
   };
@@ -815,7 +831,19 @@ const DetailedReport: React.FC = () => {
   }, [isLoading, isFetchingMore, hasMore, loadedPage, filterValues, reports.length]);
 
   const handleSearch = () => {
-    fetchReports(undefined, 1, false);
+    const hasExplicitDate = Object.entries(filterValues).some(([k, v]) => {
+      if (!v || String(v).replace(/,/g, "").trim() === "") return false;
+      const colDef = allColumns.find((c) => c.key === k);
+      return colDef?.type === "date" || colDef?.type === "date_gt_lt";
+    });
+    if (hasExplicitDate) {
+      setActivePreset("custom");
+      fetchReports(undefined, 1, false, "custom");
+    } else {
+      const presetToUse = (activePreset && activePreset !== "custom") ? activePreset : "today";
+      setActivePreset(presetToUse);
+      fetchReports(undefined, 1, false, presetToUse);
+    }
   };
   const handleClearFilters = () => {
     setActivePreset("today");

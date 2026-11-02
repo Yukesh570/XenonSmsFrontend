@@ -23,6 +23,7 @@ import ContextMenu, { type ContextMenuItem } from "../../../components/ui/Contex
 import { actionHelper } from "../../../helper/action";
 import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
 import { CountryFlag } from "../../../components/ui/CountryFlag";
+import { formatDateTime } from "../../../helper/dateFormatter";
 
 interface Option {
   label: string;
@@ -47,7 +48,7 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "countryName"];
-const DEFAULT_TABLE_COLUMNS = ["name", "countryName"];
+const DEFAULT_TABLE_COLUMNS = ["name", "countryName", "updatedAt"];
 
 const State: React.FC = () => {
   const { canCreate, canUpdate, canDelete } = usePagePermissions();
@@ -135,6 +136,15 @@ const State: React.FC = () => {
           </div>
         );
       },
+    },
+    {
+      key: "updatedAt",
+      label: "Updated At",
+      isSearchable: false,
+      tableLabel: "Updated At",
+      type: "date",
+      filterKey: "updatedAt",
+      render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
     },
   ];
 

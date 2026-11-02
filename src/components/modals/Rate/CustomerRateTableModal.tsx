@@ -1,3 +1,4 @@
+import { formatDateTime } from "../../../helper/dateFormatter";
 import React, { useState, useEffect } from "react";
 import Modal from "../../ui/Modal";
 import ModalDataTable from "../../ui/ModalDataTable";
@@ -421,9 +422,9 @@ export const CustomerRateTableModal: React.FC<CustomerRateTableModalProps> = ({
       case "remark":
         return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.remark || "-"}</td>;
       case "effectiveFrom":
-        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveFrom ? new Date(v.effectiveFrom).toLocaleString() : "-"}</td>;
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveFrom ? formatDateTime(v.effectiveFrom) : "-"}</td>;
       case "effectiveTo":
-        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveTo ? new Date(v.effectiveTo).toLocaleString() : "-"}</td>;
+        return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v.effectiveTo ? formatDateTime(v.effectiveTo) : "-"}</td>;
       default:
         return <td key={colKey} className="py-2.5 px-3 text-text-secondary dark:text-gray-300 whitespace-nowrap">{v[colKey] || "-"}</td>;
     }

@@ -62,6 +62,8 @@ const defaultRowsOptions = [
   { value: "25", label: "25" },
   { value: "50", label: "50" },
   { value: "100", label: "100" },
+  { value: "500", label: "500" },
+  { value: "1000", label: "1000" },
 ];
 
 /**
@@ -1107,7 +1109,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
         .app-modal-data-table table.table-resizable-active td > span:not([class*="badge"]),
         .app-modal-data-table table.table-resizable-active td > a,
         .app-modal-data-table table.table-resizable-active td > p,
-        .app-modal-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container) {
+        .app-modal-data-table table.table-resizable-active td > div:not([class*="menu"]):not([class*="dropdown"]):not(.empty-state-container):not([class*="flex"]) {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap !important;

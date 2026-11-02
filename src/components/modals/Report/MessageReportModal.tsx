@@ -37,6 +37,14 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
+              Sender ID
+            </label>
+            <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
+              {viewLog.source_addr || viewLog.effectiveSenderId || "-"}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
               Destination
             </label>
             <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
@@ -57,6 +65,24 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
             </label>
             <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
               {formatDateTime(viewLog.createdAt)}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
+              Country
+            </label>
+            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
+              {viewLog.countryName || "-"}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
+              MCCMNC
+            </label>
+            <div className="text-sm font-mono text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
+              {viewLog.mcc && viewLog.mnc
+                ? `${String(viewLog.mcc).padStart(3, "0")}${String(viewLog.mnc).padStart(3, "0")}`
+                : viewLog.mcc || viewLog.mnc || "-"}
             </div>
           </div>
 

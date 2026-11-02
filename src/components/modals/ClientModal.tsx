@@ -115,6 +115,7 @@ export const ClientModal: React.FC<ClientModalProps> = ({
     { label: "WhatsApp", value: "WHATSAPP" },
     { label: "Bulk", value: "BULK" },
     { label: "Casino", value: "CASINO" },
+    { label: "SS7", value: "SS7" },
   ];
 
   const paymentTermOptions = [
@@ -351,19 +352,19 @@ export const ClientModal: React.FC<ClientModalProps> = ({
       toast.error("SMPP Username is required.");
       return;
     }
-    if (formData.smppUsername.length > 8) {
-      toast.error("SMPP Username must not exceed 8 characters.");
-      return;
-    }
+    // if (formData.smppUsername.length > 8) {
+    //   toast.error("SMPP Username must not exceed 8 characters.");
+    //   return;
+    // }
 
     if (!formData.smppPassword.trim()) {
       toast.error("SMPP Password is required.");
       return;
     }
-    if (formData.smppPassword.length > 8) {
-      toast.error("SMPP Password must not exceed 8 characters.");
-      return;
-    }
+    // if (formData.smppPassword.length > 8) {
+    //   toast.error("SMPP Password must not exceed 8 characters.");
+    //   return;
+    // }
 
     const ipList = editingClient
       ? formData.ipWhitelist

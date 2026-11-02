@@ -13,9 +13,10 @@ export interface SenderPoolItem {
   id?: number;
   senderPool: number;
   senderId: string;
-  sequenceNo: number;
+  sequenceNo?: number;
   status: "ACTIVE" | "INACTIVE";
   comment?: string;
+  weight?: number;
 }
 
 export const getSenderPoolsApi = async (clientId?: number) => {

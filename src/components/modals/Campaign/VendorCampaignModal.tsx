@@ -27,6 +27,29 @@ interface VendorCampaignModalProps {
   isViewMode?: boolean;
 }
 
+const quillModules = {
+  toolbar: [
+    [{ header: [1, 2, 3, 4, 5, 6, false] }],
+    ["bold", "italic", "underline", "strike"],
+    [{ color: [] }],
+    [{ list: "ordered" }, { list: "bullet" }],
+    ["link"],
+    ["clean"],
+  ],
+};
+
+const quillFormats = [
+  "header",
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "color",
+  "list",
+  "link",
+  "clean",
+];
+
 export const VendorCampaignModal: React.FC<VendorCampaignModalProps> = ({
   isOpen,
   onClose,
@@ -409,6 +432,45 @@ export const VendorCampaignModal: React.FC<VendorCampaignModalProps> = ({
           </div>
         )}
 
+        {isViewMode && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-sm font-medium text-text-primary dark:text-gray-200">
+                Target Phone Numbers
+              </label>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                {activeCampaign?.contactCount ?? activeCampaign?.contacts?.length ?? 0} Recipients
+              </span>
+            </div>
+            <div className="p-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg max-h-40 overflow-y-auto">
+              {activeCampaign?.contacts && activeCampaign.contacts.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {activeCampaign.contacts.map((num: string, idx: number) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 font-mono text-xs px-2.5 py-1 rounded-md bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-text-primary dark:text-white"
+                      >
+                        <Phone size={11} className="text-primary opacity-70" />
+                        {num}
+                      </span>
+                    ))}
+                  </div>
+                  {activeCampaign.contactCount && activeCampaign.contactCount > activeCampaign.contacts.length && (
+                    <div className="mt-2 text-xs text-text-secondary dark:text-gray-400 italic">
+                      Showing preview of first {activeCampaign.contacts.length} numbers ({activeCampaign.contactCount} total).
+                    </div>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs text-text-secondary dark:text-gray-400">
+                  No contact numbers recorded for this campaign.
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="space-y-1">
           {!isViewMode && (
             <Select
@@ -431,6 +493,8 @@ export const VendorCampaignModal: React.FC<VendorCampaignModalProps> = ({
                 theme="snow"
                 value={quillContent}
                 onChange={setQuillContent}
+                modules={quillModules}
+                formats={quillFormats}
                 readOnly={isViewMode}
               />
             ) : (
