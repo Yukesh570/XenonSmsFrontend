@@ -4,7 +4,7 @@ import {
   Activity, AlertTriangle, CheckCircle, Zap, Layers,
   Clock, Wifi, ListMinus, ActivitySquare, ShieldCheck,
   Lock, Send, Inbox, AlertOctagon, CreditCard,
-  DollarSign, FileText
+  DollarSign, FileText, Radio, Trash2, GitBranch, HelpCircle
 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -20,7 +20,12 @@ import {
   type ServerHealthData,
   type ReconciliationResponse
 } from "../../api/reportApi/serverInfoApi";
+import {
+  getReliabilityOverviewApi,
+  type ReliabilityOverviewResponse,
+} from "../../api/reportApi/r4MonitoringApi";
 import Button from "../../components/ui/Button";
+import { StatusBadge } from "../../components/ui/StatusBadge";
 import { actionHelper } from "../../helper/action";
 import { formatDateTime, getAppTimezone } from "../../helper/dateFormatter";
 
@@ -99,7 +104,8 @@ const ServerInfo: React.FC = () => {
   const [serverData, setServerData] = useState<ServerInfoData | null>(null);
   const [healthData, setHealthData] = useState<ServerHealthData | null>(null);
   const [reconData, setReconData] = useState<ReconciliationResponse | null>(null);
-  const [activeTab, setActiveTab] = useState<"telemetry" | "database" | "reconciliation">("telemetry");
+  const [reliabilityData, setReliabilityData] = useState<ReliabilityOverviewResponse | null>(null);
+  const [activeTab, setActiveTab] = useState<"telemetry" | "database" | "reconciliation" | "reliability">("telemetry");
   const [isLoading, setIsLoading] = useState(true);
 
   // Rolling history state and refs
@@ -116,10 +122,11 @@ const ServerInfo: React.FC = () => {
     if (!isBackground) setIsLoading(true);
 
     try {
-      const [infoRes, healthRes, reconRes] = await Promise.all([
+      const [infoRes, healthRes, reconRes, reliabilityRes] = await Promise.all([
         getServerInfoApi(),
         getServerHealthApi(),
         getServerReconciliationApi(),
+        getReliabilityOverviewApi().catch(() => null),
       ]);
 
       if (newController.signal.aborted) return;
@@ -164,6 +171,10 @@ const ServerInfo: React.FC = () => {
 
       if (reconRes) {
         setReconData(reconRes);
+      }
+
+      if (reliabilityRes) {
+        setReliabilityData(reliabilityRes);
       }
     } catch (err: unknown) {
       const error = err as { name?: string };
@@ -375,6 +386,16 @@ const ServerInfo: React.FC = () => {
                 Live
               </span>
             )}
+          </button>
+          <button
+            onClick={() => setActiveTab("reliability")}
+            className={`pb-2 font-medium text-xs sm:text-sm border-b-2 flex items-center gap-1.5 transition-colors ${activeTab === "reliability"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white"
+              }`}
+          >
+            <Radio size={15} />
+            Reliability Overview
           </button>
         </nav>
       </div>
@@ -755,6 +776,137 @@ const ServerInfo: React.FC = () => {
               <ShieldCheck size={36} className="mx-auto mb-2 opacity-40 text-primary" />
               <p className="text-xs sm:text-sm">Click refresh or wait for the initial reconciliation snapshot to load...</p>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: RELIABILITY OVERVIEW (Workstream B R4.1) */}
+      {activeTab === "reliability" && (
+        <div className="space-y-3 sm:space-y-3.5 animate-fadeIn">
+          {!reliabilityData ? (
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl border border-gray-100 dark:border-gray-700 text-center text-text-secondary dark:text-gray-400">
+              <Radio size={36} className="mx-auto mb-2 opacity-40 text-primary" />
+              <p className="text-xs sm:text-sm">Click refresh or wait for the initial reliability snapshot to load...</p>
+            </div>
+          ) : (
+            <>
+              {/* Section A: Collector self-health */}
+              <div>
+                <h2 className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <ListMinus size={15} className="text-primary" />
+                  Background Collector Self-Health
+                </h2>
+                <p className="text-[11px] text-text-secondary dark:text-gray-500 mb-2">
+                  Every scheduled collector below records its own outcome on each run -- a collector that silently stops working (e.g. a query error) now shows here instead of going unnoticed.
+                </p>
+                {reliabilityData.collector_status && Object.keys(reliabilityData.collector_status).length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5 sm:gap-3">
+                    {Object.entries(reliabilityData.collector_status).map(([name, entry]) => (
+                      <div key={name} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-text-primary dark:text-white truncate" title={name}>{name}</span>
+                          <StatusBadge status={entry.status === "ok" ? "OK" : "FAILED"} />
+                        </div>
+                        <p className="text-[11px] text-text-secondary dark:text-gray-500 mt-1.5">
+                          Last success: {entry.last_success ? formatDateTime(entry.last_success) : "never"}
+                        </p>
+                        {entry.status !== "ok" && entry.error && (
+                          <p className="text-[11px] text-red-600 dark:text-red-400 mt-1 truncate" title={entry.error}>{entry.error}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-secondary dark:text-gray-500">No collector status recorded yet.</p>
+                )}
+              </div>
+
+              {/* Section B: Consumer-group progress */}
+              <div>
+                <h2 className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <GitBranch size={15} className="text-primary" />
+                  Redis Streams Consumer-Group Progress
+                </h2>
+                <p className="text-[11px] text-text-secondary dark:text-gray-500 mb-2">
+                  A stream that's "running" isn't the same as one that's "making progress" -- STALLED means new traffic arrived but the consumer didn't advance; DEGRADED means it's advancing but falling behind.
+                </p>
+                {reliabilityData.consumer_group_health?.streams ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 sm:gap-3">
+                    {Object.entries(reliabilityData.consumer_group_health.streams).map(([label, stream]) => (
+                      <div key={label} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-text-primary dark:text-white">{label.replace(/_/g, " ")}</span>
+                          <StatusBadge status={stream.status} />
+                        </div>
+                        <p className="text-[11px] text-text-secondary dark:text-gray-500 mt-1.5">{stream.detail}</p>
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                          <div className="text-text-secondary dark:text-gray-400">Pending: <span className="font-semibold text-text-primary dark:text-white">{stream.pending ?? "-"}</span></div>
+                          <div className="text-text-secondary dark:text-gray-400">Lag: <span className="font-semibold text-text-primary dark:text-white">{stream.lag ?? "-"}</span></div>
+                          <div className="text-text-secondary dark:text-gray-400">Oldest pending: <span className="font-semibold text-text-primary dark:text-white">{stream.oldest_pending_age_s != null ? `${stream.oldest_pending_age_s}s` : "-"}</span></div>
+                          <div className="text-text-secondary dark:text-gray-400">Entries read: <span className="font-semibold text-text-primary dark:text-white">{stream.entries_read ?? "-"}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-secondary dark:text-gray-500">No consumer-group snapshot recorded yet.</p>
+                )}
+              </div>
+
+              {/* Section C: Dead-letter stream */}
+              <div>
+                <h2 className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Trash2 size={15} className="text-primary" />
+                  Inbound Dead-Letter Stream
+                </h2>
+                {reliabilityData.dead_letter_health ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 sm:gap-3">
+                    <MetricCard
+                      title="Retained Entries"
+                      value={(reliabilityData.dead_letter_health.retained_count ?? 0).toLocaleString()}
+                      icon={Trash2}
+                      subtitle="Currently retained in the stream"
+                    />
+                    <MetricCard
+                      title="New Since Last Check"
+                      value={reliabilityData.dead_letter_health.newly_visible_entries ?? "-"}
+                      icon={AlertOctagon}
+                      textColor={(reliabilityData.dead_letter_health.newly_visible_entries || 0) > 0 ? "text-red-500 font-bold" : "text-text-primary dark:text-white"}
+                      subtitle={reliabilityData.dead_letter_health.continuity_ok === false ? "Best-effort count -- some entries may have been trimmed before being counted" : "Exact since last check"}
+                    />
+                    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3 sm:p-3.5 shadow-sm flex items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-text-secondary dark:text-gray-400 text-xs sm:text-[13px] font-medium">Continuity</h3>
+                        <div className="mt-1">
+                          {reliabilityData.dead_letter_health.continuity_ok === true ? (
+                            <StatusBadge status="OK" customText="Verified exact" />
+                          ) : reliabilityData.dead_letter_health.continuity_ok === false ? (
+                            <StatusBadge status="WARNING" customText="Possible gap" />
+                          ) : (
+                            <StatusBadge status="UNKNOWN" customText="No prior sample" />
+                          )}
+                        </div>
+                      </div>
+                      <HelpCircle size={21} className="text-primary shrink-0" />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-text-secondary dark:text-gray-500">No dead-letter snapshot recorded yet.</p>
+                )}
+              </div>
+
+              {/* Section D: Links to the investigation screens */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-3.5 shadow-sm">
+                <h2 className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Investigate Further
+                </h2>
+                <div className="flex flex-wrap gap-2.5">
+                  <NavLink to="/messageLifecycleExplorer" className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-primary hover:bg-primary/5">Message Lifecycle Explorer</NavLink>
+                  <NavLink to="/reliabilityEvidenceCenter" className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-primary hover:bg-primary/5">Reliability Evidence Center</NavLink>
+                  <NavLink to="/financialReviewCenter" className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-primary hover:bg-primary/5">Financial Review Center</NavLink>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
