@@ -64,6 +64,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
   // Sorting
   const [sortBy, setSortBy] = useState<"metric_desc" | "metric_asc" | "attempts_desc" | "name_asc">("metric_asc");
   const [limit, setLimit] = useState<number>(15);
+  const [includeDeleted, setIncludeDeleted] = useState<boolean>(false);
 
   useEffect(() => {
     if (editingWidget) {
@@ -76,6 +77,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setVendorFilter(editingWidget.filters.vendor || "");
       setCountryFilter(editingWidget.filters.country || "");
       setDatePreset(editingWidget.filters.datePreset || "all");
+      setIncludeDeleted(Boolean(editingWidget.filters.include_deleted));
 
       if (editingWidget.condition && editingWidget.condition.operator !== "none") {
         setHasCondition(true);
@@ -196,20 +198,21 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
         vendor: vendorFilter || undefined,
         country: countryFilter || undefined,
         datePreset,
+        include_deleted: includeDeleted === true ? true : false,
       },
       condition: hasCondition
         ? {
-            metric: condMetric,
-            operator: condOperator,
-            value: Number(condValue),
-            mode: condMode,
-          }
+          metric: condMetric,
+          operator: condOperator,
+          value: Number(condValue),
+          mode: condMode,
+        }
         : {
-            metric: primaryMetric,
-            operator: "none",
-            value: 0,
-            mode: "filter",
-          },
+          metric: primaryMetric,
+          operator: "none",
+          value: 0,
+          mode: "filter",
+        },
       sortBy,
       limit: Number(limit) || 15,
     };
@@ -230,8 +233,8 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       }
       className="max-w-4xl"
     >
-      <div className="space-y-6">
-        <p className="text-xs text-text-secondary dark:text-gray-400 -mt-2">
+      <div className="space-y-6 pb-2">
+        <p className="text-xs text-text-secondary dark:text-gray-400 pt-0.5 pb-1">
           Customize entity grouping, primary metrics, filters, thresholds, and visualization.
         </p>
 
@@ -343,12 +346,16 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => setVisualization(item.id as any)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${
-                      isSel
+                    onClick={() => {
+                      setVisualization(item.id as any);
+                      if (item.id === "kpi" && !editingWidget && entity !== "overview") {
+                        setEntity("overview");
+                      }
+                    }}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${isSel
                         ? "bg-primary/10 border-primary text-primary shadow-sm"
                         : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200"
-                    }`}
+                      }`}
                   >
                     <Icon size={22} className={isSel ? "text-primary" : "text-gray-400"} />
                     <span className="text-xs font-semibold mt-1.5">{item.label}</span>
@@ -377,8 +384,13 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="client">By Client (Account)</option>
                 <option value="country">By Country (Destination)</option>
                 <option value="failure_reason">By Failure Reason</option>
-                <option value="overview">Overall Summary (Aggregate)</option>
+                <option value="overview">Overall Summary (Switch Aggregate)</option>
               </select>
+              {visualization === "kpi" && (
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                  💡 Select <strong>Overall Summary</strong> for switch-wide aggregate stats, or select Client/Vendor to feature the #1 top-ranked entity.
+                </p>
+              )}
             </div>
 
             <div className="space-y-1.5">
@@ -478,6 +490,19 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="all">All Available History</option>
               </select>
             </div>
+
+            <div className="md:col-span-4 flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="cw-include-deleted"
+                checked={includeDeleted}
+                onChange={(e) => setIncludeDeleted(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
+              />
+              <label htmlFor="cw-include-deleted" className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                Include soft-deleted accounts (default is active accounts only)
+              </label>
+            </div>
           </div>
         </div>
 
@@ -572,48 +597,58 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
         </div>
 
         {/* Section 5: Sorting & Limits */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
-            5. Sorting & Maximum Records
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Sort By</label>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="metric_asc">Metric Ascending (Lowest / Worst First)</option>
-                <option value="metric_desc">Metric Descending (Highest / Best First)</option>
-                <option value="attempts_desc">Volume / Attempts Descending</option>
-                <option value="name_asc">Alphabetical (Name A-Z)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Limit Display Rows</label>
-              <select
-                value={limit}
-                onChange={(e) => setLimit(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value={5}>Top 5</option>
-                <option value={10}>Top 10</option>
-                <option value={15}>Top 15</option>
-                <option value={20}>Top 20</option>
-                <option value={50}>Top 50</option>
-              </select>
+        {visualization === "kpi" && entity === "overview" ? (
+          <div className="bg-gray-50 dark:bg-gray-900/40 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2.5">
+            <span className="text-base">📊</span>
+            <div>
+              <span className="font-semibold text-text-primary dark:text-gray-200">Switch Aggregate Mode:</span>{" "}
+              This KPI card calculates and displays the system-wide totals directly. List sorting and display limits do not apply.
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+              5. Sorting & Maximum Records {visualization === "kpi" && "(Used for Ranking #1 Top Entity)"}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Sort By</label>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as any)}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                >
+                  <option value="metric_asc">Metric Ascending (Lowest / Worst First)</option>
+                  <option value="metric_desc">Metric Descending (Highest / Best First)</option>
+                  <option value="attempts_desc">Volume / Attempts Descending</option>
+                  <option value="name_asc">Alphabetical (Name A-Z)</option>
+                </select>
+              </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-xs text-text-secondary dark:text-gray-400">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Limit Display Rows</label>
+                <select
+                  value={limit}
+                  onChange={(e) => setLimit(Number(e.target.value))}
+                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                >
+                  <option value={5}>Top 5</option>
+                  <option value={10}>Top 10</option>
+                  <option value={15}>Top 15</option>
+                  <option value={20}>Top 20</option>
+                  <option value={50}>Top 50</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Sticky Clean Footer */}
+        <div className="sticky bottom-0 -mx-1 px-2 pt-4 pb-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between z-10 shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.06)]">
+          <div className="text-xs text-text-secondary dark:text-gray-400 truncate max-w-[50%]">
             {entity ? `Configuring: ${ENTITY_LABELS[entity]} • ${METRIC_LABELS[primaryMetric]}` : ""}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <Button
               type="button"
               variant="secondary"

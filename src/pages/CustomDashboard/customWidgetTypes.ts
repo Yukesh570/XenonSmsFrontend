@@ -35,6 +35,7 @@ export interface CustomWidgetFilters {
   datePreset?: "today" | "yesterday" | "7d" | "30d" | "all";
   startDate?: string;
   endDate?: string;
+  include_deleted?: boolean;
 }
 
 export interface CustomWidgetDefinition {

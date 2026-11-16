@@ -1122,7 +1122,6 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                         allMargins={(editingRoute as any)?.allMargins}
                         selectedMnc={selectedRateMnc}
                         onSelectMnc={setSelectedRateMnc}
-                        disabled={isViewMode}
                       />
                     </div>
                   ) : (
@@ -1147,7 +1146,6 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
                         allMargins={(editingRoute as any)?.allMargins}
                         selectedMnc={selectedRateMnc}
                         onSelectMnc={setSelectedRateMnc}
-                        disabled={isViewMode}
                       />
                     </div>
                   ) : (

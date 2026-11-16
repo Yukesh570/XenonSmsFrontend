@@ -18,8 +18,10 @@ import {
   Cell,
   PieChart,
   Pie,
+  ReferenceLine,
+  LabelList,
 } from "recharts";
-import type { CustomWidgetDefinition, MetricType } from "./customWidgetTypes";
+import type { CustomWidgetDefinition, MetricType, CustomWidgetCondition } from "./customWidgetTypes";
 import { METRIC_LABELS } from "./customWidgetTypes";
 import { getSummariseSummaryApi, getFailureReasonsApi } from "../../api/reportApi/summariseReportApi";
 
@@ -43,6 +45,25 @@ const PALETTE = [
   "#14b8a6", // Teal
   "#f97316", // Orange
 ];
+
+export const formatConditionBadge = (cond?: CustomWidgetCondition): string | null => {
+  if (!cond || cond.operator === "none") return null;
+  const metricName = METRIC_LABELS[cond.metric]?.split("(")[0]?.trim() || cond.metric;
+  const opSymbol =
+    cond.operator === "gt"
+      ? ">"
+      : cond.operator === "gte"
+      ? "≥"
+      : cond.operator === "lt"
+      ? "<"
+      : cond.operator === "lte"
+      ? "≤"
+      : "=";
+  const isPercent =
+    cond.metric.includes("percent") || cond.metric.includes("utilization");
+  const valueDisplay = `${cond.value}${isPercent ? "%" : ""}`;
+  return `Rule: ${metricName} ${opSymbol} ${valueDisplay}`;
+};
 
 export const cleanDisplayName = (name: string): string => {
   if (!name) return "Unknown";
@@ -127,7 +148,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     setError(null);
     try {
       const dateRange = getDateRange();
-      const filters: Record<string, any> = { ...dateRange };
+      const filters: Record<string, any> = {
+        ...dateRange,
+        include_deleted: widget.filters?.include_deleted === true,
+      };
       if (widget.filters.client) filters.client = widget.filters.client;
       if (widget.filters.vendor) filters.vendor = widget.filters.vendor;
       if (widget.filters.country) filters.country = widget.filters.country;
@@ -183,10 +207,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           const configuredTps = row.configured_tps !== undefined && row.configured_tps !== null ? Number(row.configured_tps) : null;
           const peakTpsUtilization = Number(row.peak_tps_utilization ?? row.tps_utilization ?? 0);
           const avgTpsUtilization = Number(row.avg_tps_utilization ?? 0);
+          const is_deleted = Boolean((row as any).is_deleted || (row as any).client_is_deleted || (row as any).vendor_is_deleted);
 
           return {
             name,
             cleanName: cleanDisplayName(name),
+            is_deleted,
             attempts,
             delivered,
             failed,
@@ -322,14 +348,15 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
               </h3>
               {widget.condition && widget.condition.operator !== "none" && (
                 <span
-                  className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                  className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-medium ${
                     widget.condition.mode === "filter"
                       ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/40"
                       : "bg-primary/10 text-primary border border-primary/20"
                   }`}
+                  title={widget.condition.mode === "filter" ? "Filter Mode: Only matching records shown" : "Highlight Mode: Matching records flagged"}
                 >
                   <AlertTriangle size={10} />
-                  Rule: {widget.condition.metric} {widget.condition.operator} {widget.condition.value}
+                  {formatConditionBadge(widget.condition)}
                 </span>
               )}
             </div>
@@ -428,39 +455,62 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       </div>
                     )}
                   </div>
-                  {processedData.length > 0 && widget.entity !== "overview" && (
-                    <span className="text-xs text-text-secondary dark:text-gray-400">
-                      {processedData.length} records found
+                  {widget.entity === "overview" ? (
+                    <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700/60 text-text-secondary dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                      System Total
                     </span>
-                  )}
+                  ) : processedData.length > 0 ? (
+                    <span
+                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-[170px]"
+                      title={`Top ${widget.entity}: ${processedData[0]?.name} (from ${processedData.length} records)`}
+                    >
+                      Top: {cleanDisplayName(processedData[0]?.name)}
+                    </span>
+                  ) : null}
                 </div>
 
                 {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
                     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Peak Rate</div>
-                      <div className="text-xs font-semibold text-primary mt-0.5">
-                        {Number(
-                          (widget.entity === "overview" && totals?.peak_tps) ||
-                            (processedData[0]?.peak_tps) || 0
-                        ).toFixed(2)} TPS
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">
+                        {widget.primaryMetric === "peak_tps" ? "Total Volume" : "Peak Rate"}
+                      </div>
+                      <div className="text-xs font-semibold text-primary mt-0.5 font-mono">
+                        {widget.primaryMetric === "peak_tps"
+                          ? `${Number(
+                              (widget.entity === "overview" && totals?.attempts) ||
+                                (processedData[0]?.attempts) ||
+                                processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
+                            ).toLocaleString()} SMS`
+                          : `${Number(
+                              (widget.entity === "overview" && totals?.peak_tps) ||
+                                (processedData[0]?.peak_tps) || 0
+                            ).toFixed(2)} TPS`}
                       </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Avg Rate</div>
-                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
-                        {Number(
-                          (widget.entity === "overview" && (totals?.avg_tps ?? totals?.tps)) ||
-                            (processedData[0]?.avg_tps ?? processedData[0]?.tps) || 0
-                        ).toFixed(2)} TPS
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">
+                        {widget.primaryMetric === "tps" ? "Total Volume" : "Avg Rate"}
+                      </div>
+                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
+                        {widget.primaryMetric === "tps"
+                          ? `${Number(
+                              (widget.entity === "overview" && totals?.attempts) ||
+                                (processedData[0]?.attempts) ||
+                                processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
+                            ).toLocaleString()} SMS`
+                          : `${Number(
+                              (widget.entity === "overview" && (totals?.avg_tps ?? totals?.tps)) ||
+                                (processedData[0]?.avg_tps ?? processedData[0]?.tps) || 0
+                            ).toFixed(2)} TPS`}
                       </div>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
                       <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Peak Load</div>
-                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5">
+                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5 font-mono">
                         {Number(
-                          (widget.entity === "overview" && totals?.tps_utilization) ||
-                            (processedData[0]?.tps_utilization) || 0
+                          (widget.entity === "overview" && (totals?.peak_tps_utilization ?? totals?.tps_utilization)) ||
+                            (processedData[0]?.peak_tps_utilization ?? processedData[0]?.tps_utilization) || 0
                         ).toFixed(1)}%
                       </div>
                     </div>
@@ -501,9 +551,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
             {/* BAR CHART VISUALIZATION */}
             {widget.visualization === "bar" && processedData.length > 0 && (
-              <div className="h-[220px] w-full">
+              <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={processedData} margin={{ top: 10, right: 10, left: -10, bottom: 25 }}>
+                  <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} vertical={false} />
                     <XAxis
                       dataKey="cleanName"
@@ -513,17 +563,18 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       interval={0}
                       angle={-20}
                       textAnchor="end"
-                      height={42}
+                      height={46}
                       tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
-                      tickFormatter={(val) => (String(val).length > 12 ? `${String(val).slice(0, 11)}…` : String(val))}
+                      tickFormatter={(val) => (String(val).length > 18 ? `${String(val).slice(0, 17)}…` : String(val))}
                     />
                     <YAxis
                       stroke={isDark ? "#9ca3af" : "#64748b"}
                       fontSize={11}
                       tickLine={false}
                       tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
+                      domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.2))]}
                       tickFormatter={(val) =>
-                        widget.primaryMetric.includes("percent")
+                        widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization")
                           ? `${val}%`
                           : val >= 1000
                           ? `${(val / 1000).toFixed(1)}k`
@@ -532,32 +583,146 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     />
                     <Tooltip
                       cursor={false}
-                      contentStyle={{
-                        backgroundColor: isDark ? "#1f2937" : "#fff",
-                        borderColor: isDark ? "#374151" : "#e5e7eb",
-                        borderRadius: "0.5rem",
-                        fontSize: "12px",
-                        color: isDark ? "#f3f4f6" : "#111827",
-                        boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+                      content={({ active, payload, label }: any) => {
+                        if (!active || !payload || !payload.length) return null;
+                        const item = payload[0].payload;
+                        const metricVal = item[widget.primaryMetric];
+                        const isAlert = item._isMatch;
+                        const metricLabel = METRIC_LABELS[widget.primaryMetric] || widget.primaryMetric;
+                        const isTpsMetric = [
+                          "tps",
+                          "peak_tps",
+                          "peak_tps_utilization",
+                          "avg_tps_utilization",
+                          "tps_utilization",
+                        ].includes(widget.primaryMetric);
+
+                        return (
+                          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-3 shadow-xl text-xs min-w-[210px] z-50">
+                            <div className="flex items-center justify-between gap-2 pb-1.5 mb-2 border-b border-gray-100 dark:border-gray-700">
+                              <span className="font-bold text-text-primary dark:text-white truncate" title={String(label)}>
+                                {cleanDisplayName(String(label))}
+                              </span>
+                              {isAlert && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800 shrink-0">
+                                  Rule Triggered
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="space-y-1.5 font-sans">
+                              <div className="flex items-center justify-between">
+                                <span className="text-text-secondary dark:text-gray-400">{metricLabel}:</span>
+                                <span className={`font-mono font-bold ${isAlert ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}>
+                                  {formatMetricValue(widget.primaryMetric, Number(metricVal))}
+                                </span>
+                              </div>
+
+                              {isTpsMetric && (
+                                <>
+                                  <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                    <span>Observed Peak:</span>
+                                    <span className="font-mono text-text-primary dark:text-gray-200 font-medium">
+                                      {Number(item.peak_tps || 0).toFixed(2)} TPS
+                                    </span>
+                                  </div>
+                                  {item.configured_tps !== null && item.configured_tps !== undefined && (
+                                    <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                      <span>Configured Limit:</span>
+                                      <span className="font-mono text-text-primary dark:text-gray-200 font-medium">
+                                        {item.configured_tps} TPS
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
+                              )}
+
+                              {item.attempts > 0 && (
+                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400 pt-1.5 border-t border-gray-100 dark:border-gray-700/60">
+                                  <span>Total Volume:</span>
+                                  <span className="font-mono text-text-primary dark:text-gray-200">
+                                    {Number(item.attempts).toLocaleString()} SMS
+                                  </span>
+                                </div>
+                              )}
+                              {item.delivered > 0 && (
+                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                  <span>Delivered:</span>
+                                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                    {Number(item.delivered).toLocaleString()} ({Number(item.dlr_percent || 0).toFixed(1)}%)
+                                  </span>
+                                </div>
+                              )}
+                              {item.failed > 0 && (
+                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                  <span>Failed:</span>
+                                  <span className="font-mono text-rose-500 dark:text-rose-400">
+                                    {Number(item.failed).toLocaleString()}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
                       }}
-                      labelStyle={{
-                        color: isDark ? "#f9fafb" : "#111827",
-                        fontWeight: 600,
-                        marginBottom: 2,
-                      }}
-                      itemStyle={{
-                        color: "var(--color-primary)",
-                        fontWeight: 600,
-                      }}
-                      formatter={(value: any) => [formatMetricValue(widget.primaryMetric, Number(value)), METRIC_LABELS[widget.primaryMetric]]}
-                      labelFormatter={(lbl: any) => cleanDisplayName(String(lbl))}
                     />
+
+                    {/* Warning/Alert Threshold Reference Line */}
+                    {widget.condition &&
+                      widget.condition.operator !== "none" &&
+                      typeof widget.condition.value === "number" && (
+                        <ReferenceLine
+                          y={widget.condition.value}
+                          stroke="#f59e0b"
+                          strokeDasharray="4 4"
+                          strokeWidth={1.5}
+                          label={{
+                            value: `Threshold (${widget.condition.value}${
+                              widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization") ? "%" : ""
+                            })`,
+                            position: "insideTopRight",
+                            fill: isDark ? "#fbbf24" : "#d97706",
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
+
+                    {/* 100% Policy Limit Line for Utilization Metrics */}
+                    {["peak_tps_utilization", "tps_utilization", "avg_tps_utilization"].includes(widget.primaryMetric) &&
+                      widget.condition?.value !== 100 && (
+                        <ReferenceLine
+                          y={100}
+                          stroke="#ef4444"
+                          strokeDasharray="3 3"
+                          strokeWidth={1.5}
+                          label={{
+                            value: "100% Limit",
+                            position: "insideBottomRight",
+                            fill: isDark ? "#f87171" : "#dc2626",
+                            fontSize: 10,
+                            fontWeight: 600,
+                          }}
+                        />
+                      )}
+
                     <Bar dataKey={widget.primaryMetric} radius={[4, 4, 0, 0]}>
                       {processedData.map((entry, index) => {
                         const isAlert = entry._isMatch;
                         const fill = isAlert ? "#ef4444" : PALETTE[index % PALETTE.length];
                         return <Cell key={`cell-${index}`} fill={fill} />;
                       })}
+                      <LabelList
+                        dataKey={widget.primaryMetric}
+                        position="top"
+                        formatter={(val: any) => formatMetricValue(widget.primaryMetric, Number(val))}
+                        style={{
+                          fill: isDark ? "#9ca3af" : "#475569",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          fontFamily: "monospace",
+                        }}
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -732,7 +897,14 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                             className="px-3 py-2 font-sans font-medium text-text-primary dark:text-white max-w-[220px] truncate"
                             title={row.name}
                           >
-                            {cleanDisplayName(row.name)}
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="truncate">{cleanDisplayName(row.name)}</span>
+                              {(row as any).is_deleted && (
+                                <span className="shrink-0 px-1 py-0.2 text-[9px] font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                                  Deleted
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
                             {Number(row.attempts || 0).toLocaleString()}

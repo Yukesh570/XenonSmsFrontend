@@ -32,6 +32,22 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
   
   DRAFT: { bg: "#F3F4F6", text: "#374151", border: "#6B7280", label: "Draft" },
   MULTIPLE_RATES: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Multiple Rates" },
+
+  // --- R4.1 Monitoring: consumer-group / collector status vocabulary ---
+  STALLED: { bg: "#FEE2E2", text: "#991B1B", border: "#DC2626", label: "Stalled" },
+  DEGRADED: { bg: "#FFEDD5", text: "#9A3412", border: "#EA580C", label: "Degraded" },
+  IDLE: { bg: "#F3F4F6", text: "#374151", border: "#6B7280", label: "Idle" },
+  MONITORING_UNAVAILABLE: { bg: "#E2E8F0", text: "#334155", border: "#475569", label: "Monitoring Unavailable" },
+  STREAM_NOT_FOUND: { bg: "#FFEDD5", text: "#9A3412", border: "#EA580C", label: "Stream Not Found" },
+  GROUP_NOT_FOUND: { bg: "#FFEDD5", text: "#9A3412", border: "#EA580C", label: "Group Not Found" },
+  OK: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "OK" },
+  WARNING: { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B", label: "Warning" },
+
+  // --- R4.2 Critical-Alert Detection: AlertEvent lifecycle statuses ---
+  OPEN: { bg: "#FEE2E2", text: "#991B1B", border: "#DC2626", label: "Open" },
+  ACKNOWLEDGED: { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B", label: "Acknowledged" },
+  INVESTIGATING: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Investigating" },
+  RESOLVED: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Resolved" },
 };
 
 interface StatusBadgeProps {

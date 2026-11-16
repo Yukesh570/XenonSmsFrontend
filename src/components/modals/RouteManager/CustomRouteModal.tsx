@@ -1149,7 +1149,6 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                         allMargins={(editingRoute as any)?.allMargins}
                         selectedMnc={selectedRateMnc}
                         onSelectMnc={setSelectedRateMnc}
-                        disabled={isViewMode}
                       />
                     </div>
                   ) : (
@@ -1176,7 +1175,6 @@ export const CustomRouteModal: React.FC<CustomRouteModalProps> = ({
                         allMargins={(editingRoute as any)?.allMargins}
                         selectedMnc={selectedRateMnc}
                         onSelectMnc={setSelectedRateMnc}
-                        disabled={isViewMode}
                       />
                     </div>
                   ) : (

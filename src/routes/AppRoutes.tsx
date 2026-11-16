@@ -55,6 +55,10 @@ import ClientSession from "../pages/ClientSession/ClientSession";
 import GeneralSettings from "../pages/settings/GeneralSettings/GeneralSettings";
 import CurrencyExchangeRate from "../pages/settings/CurrencyExchangeRate/CurrencyExchangeRate";
 import ServerInfo from "../pages/Report/ServerInfo";
+import MessageLifecycleExplorer from "../pages/Report/MessageLifecycleExplorer";
+import ReliabilityEvidenceCenter from "../pages/Report/ReliabilityEvidenceCenter";
+import FinancialReviewCenter from "../pages/Report/FinancialReviewCenter";
+import OperationalAlerts from "../pages/Report/OperationalAlerts";
 import EmailSource from "../pages/Rate/ImportVendor/EmailSource";
 import ImportAttachment from "../pages/Rate/ImportVendor/ImportAttachment";
 import ImportAudit from "../pages/Rate/ImportVendor/ImportAudit";
@@ -133,6 +137,10 @@ export const componentRegistry: Record<string, React.ComponentType<any>> = {
   generalSettings: GeneralSettings,
   currencyExchangeRate: CurrencyExchangeRate,
   serverInfo: ServerInfo,
+  messageLifecycleExplorer: MessageLifecycleExplorer,
+  reliabilityEvidenceCenter: ReliabilityEvidenceCenter,
+  financialReviewCenter: FinancialReviewCenter,
+  operationalAlerts: OperationalAlerts,
   emailSource: EmailSource,
   importAttachment: ImportAttachment,
   importAudit: ImportAudit,
