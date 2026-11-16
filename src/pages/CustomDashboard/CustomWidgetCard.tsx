@@ -572,14 +572,36 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       fontSize={11}
                       tickLine={false}
                       tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
-                      domain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax * 1.2))]}
-                      tickFormatter={(val) =>
-                        widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization")
-                          ? `${val}%`
-                          : val >= 1000
-                          ? `${(val / 1000).toFixed(1)}k`
-                          : val
-                      }
+                      domain={[
+                        0,
+                        (dataMax: number) => {
+                          const isPercent =
+                            widget.primaryMetric.includes("percent") ||
+                            widget.primaryMetric.includes("utilization");
+                          if (isPercent) {
+                            return Math.max(100, Math.ceil(dataMax * 1.2));
+                          }
+                          if (dataMax <= 0.1) {
+                            return Number((Math.max(0.01, dataMax) * 1.35).toFixed(3));
+                          }
+                          if (dataMax <= 1) {
+                            return Number((dataMax * 1.25).toFixed(2));
+                          }
+                          return Math.ceil(dataMax * 1.2);
+                        },
+                      ]}
+                      tickFormatter={(val) => {
+                        if (widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization")) {
+                          return `${val}%`;
+                        }
+                        if (val >= 1000) {
+                          return `${(val / 1000).toFixed(1)}k`;
+                        }
+                        if (["tps", "peak_tps"].includes(widget.primaryMetric)) {
+                          return `${val} TPS`;
+                        }
+                        return val;
+                      }}
                     />
                     <Tooltip
                       cursor={false}

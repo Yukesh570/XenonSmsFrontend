@@ -7,6 +7,10 @@ import {
   Activity,
   AlertTriangle,
   Zap,
+  TrendingDown,
+  DollarSign,
+  Globe,
+  PieChart,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
@@ -226,18 +230,44 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       isOpen={isOpen}
       onClose={onClose}
       title={
-        <div className="flex items-center gap-2">
-          <Sliders size={20} className="text-primary shrink-0" />
-          <span className="truncate">{editingWidget ? "Edit Custom Widget" : "Build Custom Data Widget"}</span>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <Sliders size={20} className="text-primary shrink-0" />
+            <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+              {editingWidget ? "Edit Custom Widget" : "Build Custom Data Widget"}
+            </span>
+          </div>
+          <p className="text-xs text-text-secondary dark:text-gray-400 font-normal">
+            Customize entity grouping, primary metrics, filters, thresholds, and visualization.
+          </p>
+        </div>
+      }
+      footer={
+        <div className="flex items-center justify-between w-full">
+          <div className="text-xs text-text-secondary dark:text-gray-400 truncate max-w-[50%]">
+            {entity ? `Configuring: ${ENTITY_LABELS[entity]} • ${METRIC_LABELS[primaryMetric]}` : ""}
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={handleSave}
+            >
+              {editingWidget ? "Update Widget" : "Save Widget to Workspace"}
+            </Button>
+          </div>
         </div>
       }
       className="max-w-4xl"
     >
       <div className="space-y-6 pb-2">
-        <p className="text-xs text-text-secondary dark:text-gray-400 pt-0.5 pb-1">
-          Customize entity grouping, primary metrics, filters, thresholds, and visualization.
-        </p>
-
         {/* Quick Preset Bar */}
         {!editingWidget && (
           <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
@@ -249,51 +279,58 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               <button
                 type="button"
                 onClick={() => applyPreset("vendor_dlr_below_90")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                📉 Vendor DLR &lt; 90%
+                <TrendingDown size={13} className="text-rose-500 shrink-0" />
+                <span>Vendor DLR &lt; 90%</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("client_margins")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                💰 Client Margins
+                <DollarSign size={13} className="text-emerald-500 shrink-0" />
+                <span>Client Margins</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("failure_reasons")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                🍩 Failure Reasons
+                <PieChart size={13} className="text-indigo-500 shrink-0" />
+                <span>Failure Reasons</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("country_deliverability")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                🌍 Country Deliverability
+                <Globe size={13} className="text-blue-500 shrink-0" />
+                <span>Country Deliverability</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("negative_margins")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                ⚠️ Negative Margin Routes
+                <AlertTriangle size={13} className="text-amber-500 shrink-0" />
+                <span>Negative Margin Routes</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("tps_saturation")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                ⚡ High Load (&gt;80%)
+                <Activity size={13} className="text-orange-500 shrink-0" />
+                <span>High Load (&gt;80%)</span>
               </button>
               <button
                 type="button"
                 onClick={() => applyPreset("top_peak_tps")}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
               >
-                🚀 Top Peak TPS
+                <Zap size={13} className="text-sky-500 shrink-0" />
+                <span>Top Peak TPS</span>
               </button>
             </div>
           </div>
@@ -353,8 +390,8 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                       }
                     }}
                     className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${isSel
-                        ? "bg-primary/10 border-primary text-primary shadow-sm"
-                        : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200"
+                      ? "bg-primary/10 border-primary text-primary shadow-sm"
+                      : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200"
                       }`}
                   >
                     <Icon size={22} className={isSel ? "text-primary" : "text-gray-400"} />
@@ -404,7 +441,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="peak_tps">Peak Throughput (Peak TPS)</option>
                 <option value="tps">Average Throughput (TPS)</option>
                 <option value="peak_tps_utilization">Peak Load (%)</option>
-                <option value="avg_tps_utilization">Average Load (%)</option>
                 <option value="attempts">Total Attempts / Volume</option>
                 <option value="delivered">Delivered Messages</option>
                 <option value="failed">Failed Messages</option>
@@ -491,7 +527,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               </select>
             </div>
 
-            <div className="md:col-span-4 flex items-center gap-2 pt-1">
+            {/* <div className="md:col-span-4 flex items-center gap-2 pt-1">
               <input
                 type="checkbox"
                 id="cw-include-deleted"
@@ -502,7 +538,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               <label htmlFor="cw-include-deleted" className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none">
                 Include soft-deleted accounts (default is active accounts only)
               </label>
-            </div>
+            </div> */}
           </div>
         </div>
 
@@ -536,7 +572,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                   >
                     <option value="dlr_percent">DLR %</option>
                     <option value="peak_tps_utilization">Peak Load (%)</option>
-                    <option value="avg_tps_utilization">Average Load (%)</option>
                     <option value="peak_tps">Peak TPS</option>
                     <option value="tps">Average TPS</option>
                     <option value="margin_percent">Margin %</option>
@@ -642,29 +677,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
             </div>
           </div>
         )}
-
-        {/* Sticky Clean Footer */}
-        <div className="sticky bottom-0 -mx-1 px-2 pt-4 pb-3 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between z-10 shadow-[0_-4px_8px_-2px_rgba(0,0,0,0.06)]">
-          <div className="text-xs text-text-secondary dark:text-gray-400 truncate max-w-[50%]">
-            {entity ? `Configuring: ${ENTITY_LABELS[entity]} • ${METRIC_LABELS[primaryMetric]}` : ""}
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              onClick={handleSave}
-            >
-              {editingWidget ? "Update Widget" : "Save Widget to Workspace"}
-            </Button>
-          </div>
-        </div>
       </div>
     </Modal>
   );

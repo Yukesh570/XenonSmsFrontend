@@ -10,6 +10,7 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title?: React.ReactNode;
+  footer?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
   contentClassName?: string;
@@ -47,6 +48,7 @@ const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
   title,
+  footer,
   children,
   className = "max-w-md",
   contentClassName = "",
@@ -389,11 +391,17 @@ const Modal: React.FC<ModalProps> = ({
           }
         `}</style>
         {/* Header - pinned to top of modal card, never scrolls off */}
-        <div className="flex items-center justify-between mb-4 sm:mb-5 shrink-0 min-w-0">
+        <div className="flex items-start justify-between mb-4 sm:mb-5 shrink-0 min-w-0">
           {title && (
-            <h3 className="text-lg font-semibold leading-6 truncate pr-3">
-              {title}
-            </h3>
+            typeof title === "string" ? (
+              <h3 className="text-lg font-semibold leading-6 truncate pr-3">
+                {title}
+              </h3>
+            ) : (
+              <div className="min-w-0 flex-1 pr-3">
+                {title}
+              </div>
+            )
           )}
           <button
             type="button"
@@ -409,9 +417,16 @@ const Modal: React.FC<ModalProps> = ({
         </div>
 
         {/* Content Body - scrolls cleanly with overscroll containment */}
-        <div className={`modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-0.5 custom-scrollbar ${contentClassName}`}>
+        <div className={`modal-content-body text-text-secondary dark:text-gray-300 flex-1 min-h-0 min-w-0 w-full overflow-x-hidden overflow-y-auto overscroll-contain px-1 py-1 custom-scrollbar ${contentClassName}`}>
           {children}
         </div>
+
+        {/* Footer - pinned to bottom of modal card if provided */}
+        {footer && (
+          <div className="modal-footer shrink-0 pt-4 mt-3 border-t border-gray-200 dark:border-gray-700 min-w-0">
+            {footer}
+          </div>
+        )}
       </div>
 
       {modalTooltip &&
