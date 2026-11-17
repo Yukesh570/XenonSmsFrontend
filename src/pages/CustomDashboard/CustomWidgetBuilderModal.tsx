@@ -32,7 +32,7 @@ const ENTITY_HINTS: Record<EntityGroupBy, string> = {
   vendor: "Groups traffic per terminating carrier trunk / route provider.",
   client: "Groups traffic per customer account / SMPP user.",
   country: "Groups traffic per destination country / territory.",
-  failure_reason: "Groups failed messages by carrier error code & failure reason.",
+  failure_reason: "Groups failed messages by carrier error code & failure reason. Exclusively tracks failure counts (deliveries, DLR, and margins are not applicable).",
   overview: "Calculates single system-wide aggregate totals across the switch.",
 };
 
@@ -495,7 +495,13 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Entity (Group By)</label>
               <select
                 value={entity}
-                onChange={(e) => setEntity(e.target.value as any)}
+                onChange={(e) => {
+                  const val = e.target.value as any;
+                  setEntity(val);
+                  if (val === "failure_reason" && primaryMetric !== "failed") {
+                    setPrimaryMetric("failed");
+                  }
+                }}
                 className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
               >
                 <option value="vendor">By Vendor (Trunk / Route)</option>
@@ -519,24 +525,39 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               <select
                 value={primaryMetric}
                 onChange={(e) => setPrimaryMetric(e.target.value as any)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
+                disabled={entity === "failure_reason"}
+                className={`w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary ${
+                  entity === "failure_reason" ? "opacity-75 cursor-not-allowed bg-gray-50 dark:bg-gray-800" : ""
+                }`}
               >
-                <option value="dlr_percent">Delivery Rate (DLR %)</option>
-                <option value="peak_tps">Peak Throughput (Peak TPS)</option>
-                <option value="tps">Average Throughput (TPS)</option>
-                <option value="peak_tps_utilization">Peak Load (%)</option>
-                <option value="attempts">Total Attempts / Volume</option>
-                <option value="delivered">Delivered Messages</option>
-                <option value="failed">Failed Messages</option>
-                <option value="rejected">Rejected Messages</option>
-                <option value="profit_margin">Profit Margin ($)</option>
-                <option value="margin_percent">Margin %</option>
-                <option value="revenue">Revenue ($)</option>
-                <option value="vendor_cost">Vendor Cost ($)</option>
+                {entity === "failure_reason" ? (
+                  <option value="failed">Failed Messages (Error Occurrences)</option>
+                ) : (
+                  <>
+                    <option value="dlr_percent">Delivery Rate (DLR %)</option>
+                    <option value="peak_tps">Peak Throughput (Peak TPS)</option>
+                    <option value="tps">Average Throughput (TPS)</option>
+                    <option value="peak_tps_utilization">Peak Load (%)</option>
+                    <option value="attempts">Total Attempts / Volume</option>
+                    <option value="delivered">Delivered Messages</option>
+                    <option value="failed">Failed Messages</option>
+                    <option value="rejected">Rejected Messages</option>
+                    <option value="profit_margin">Profit Margin ($)</option>
+                    <option value="margin_percent">Margin %</option>
+                    <option value="revenue">Revenue ($)</option>
+                    <option value="vendor_cost">Vendor Cost ($)</option>
+                  </>
+                )}
               </select>
-              <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
-                {METRIC_HINTS[primaryMetric]?.summary}
-              </p>
+              {entity === "failure_reason" ? (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                  💡 Failure reasons exclusively track error occurrences (deliveries, DLR %, and margins do not apply).
+                </p>
+              ) : (
+                <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                  {METRIC_HINTS[primaryMetric]?.summary}
+                </p>
+              )}
             </div>
           </div>
 
@@ -713,24 +734,31 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Action Mode</label>
+                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Rule Action</label>
                   <select
                     value={condMode}
                     onChange={(e) => setCondMode(e.target.value as any)}
                     className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
                   >
-                    <option value="filter">Filter: Only Matching Records</option>
-                    <option value="highlight">Highlight: Show All & Flag</option>
+                    <option value="filter">Show Matches Only</option>
+                    <option value="highlight">Highlight Matches</option>
                   </select>
                 </div>
               </div>
 
-              <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-500/20">
-                ⚡ <strong>Rule Active:</strong> Will target records where{" "}
-                <code className="font-semibold text-amber-900 dark:text-amber-200">
-                  {condMetric} {condOperator} {condValue}
-                </code>{" "}
-                ({condMode === "filter" ? "excluding others" : "highlighting matching in red"}).
+              <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-500/20 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span>⚡</span>
+                  <strong>Rule Behavior:</strong>
+                  <code className="font-semibold text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30 px-1 py-0.5 rounded text-[10px]">
+                    {condMetric} {condOperator} {condValue}
+                  </code>
+                </div>
+                <p className="text-[10.5px] leading-relaxed text-amber-900/90 dark:text-amber-300/90">
+                  {condMode === "filter"
+                    ? "• Show Matches Only: Only displays entities that meet this rule condition (hides non-matching items)."
+                    : "• Highlight Matches: Displays all entities and highlights the ones that meet this rule condition."}
+                </p>
               </div>
             </div>
           )}

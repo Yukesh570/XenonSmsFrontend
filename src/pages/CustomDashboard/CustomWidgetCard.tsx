@@ -377,6 +377,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
   }, [data, widget]);
 
   const totalSum = useMemo(() => {
+    if (widget.entity === "failure_reason" && totals?.failed) {
+      return Number(totals.failed);
+    }
     if (widget.entity === "overview" && totals) {
       return Number(totals[widget.primaryMetric] || totals.attempts || 0);
     }
@@ -495,7 +498,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     {widget.condition && widget.condition.operator !== "none" && (
                       <div className="pt-1.5 border-t border-gray-100 dark:border-gray-700 text-amber-700 dark:text-amber-400 font-medium">
                         Active Rule: {METRIC_LABELS[widget.condition.metric] || widget.condition.metric}{" "}
-                        {widget.condition.operator} {widget.condition.value} ({widget.condition.mode === "filter" ? "filter only" : "highlight"})
+                        {widget.condition.operator} {widget.condition.value} ({widget.condition.mode === "filter" ? "matches only" : "highlight matches"})
                       </div>
                     )}
                   </div>
@@ -509,7 +512,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/40"
                       : "bg-primary/10 text-primary border border-primary/20"
                   }`}
-                  title={widget.condition.mode === "filter" ? "Filter Mode: Only matching records shown" : "Highlight Mode: Matching records flagged"}
+                  title={widget.condition.mode === "filter" ? "Rule: Showing matches only" : "Rule: Highlighting matches"}
                 >
                   <AlertTriangle size={10} />
                   {formatConditionBadge(widget.condition)}
@@ -670,6 +673,21 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           (widget.entity === "overview" && (totals?.peak_tps_utilization ?? totals?.tps_utilization)) ||
                             (processedData[0]?.peak_tps_utilization ?? processedData[0]?.tps_utilization) || 0
                         ).toFixed(1)}%
+                      </div>
+                    </div>
+                  </div>
+                ) : widget.entity === "failure_reason" ? (
+                  <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Total Failures</div>
+                      <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5 font-mono">
+                        {totalSum.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">#1 Reason Share</div>
+                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5 font-mono">
+                        {totalSum > 0 ? `${(((processedData[0]?.failed || 0) / totalSum) * 100).toFixed(1)}%` : "0.0%"}
                       </div>
                     </div>
                   </div>
@@ -1054,21 +1072,34 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           ? "Scope / Aggregate"
                           : "Failure Reason"}
                       </th>
-                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Volume</th>
-                      {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
+                      {widget.entity === "failure_reason" ? (
                         <>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Avg TPS</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Peak TPS</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Config Limit</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">
+                            Failed Messages
+                          </th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">
+                            Share (%)
+                          </th>
                         </>
                       ) : (
                         <>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Delivered</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Failed</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Margin ($)</th>
+                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Volume</th>
+                          {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
+                            <>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Avg TPS</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Peak TPS</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Config Limit</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
+                            </>
+                          ) : (
+                            <>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Delivered</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Failed</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
+                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Margin ($)</th>
+                            </>
+                          )}
                         </>
                       )}
                       {widget.condition && widget.condition.operator !== "none" && widget.condition.mode === "highlight" && (
@@ -1081,6 +1112,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       const isAlert = Boolean(row._isMatch && widget.condition?.mode === "highlight");
                       const dlr = Number(row.dlr_percent || 0);
                       const isTps = ["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric);
+                      const isFailureReason = widget.entity === "failure_reason";
+                      const failedCount = Number(row.failed || row.attempts || 0);
+                      const failureShare = totalSum > 0 ? (failedCount / totalSum) * 100 : 0;
 
                       return (
                         <tr
@@ -1093,7 +1127,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         >
                           <td className="px-3 py-2 text-text-secondary dark:text-gray-400 text-xs font-sans">{idx + 1}</td>
                           <td
-                            className="px-3 py-2 font-sans font-medium text-text-primary dark:text-white max-w-[220px] truncate"
+                            className={`px-3 py-2 font-sans font-medium text-text-primary dark:text-white ${
+                              isFailureReason ? "max-w-[380px] lg:max-w-[480px]" : "max-w-[220px]"
+                            } truncate`}
                             title={row.name}
                           >
                             <div className="flex items-center gap-1.5 truncate">
@@ -1105,98 +1141,114 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                               )}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
-                            {Number(row.attempts || 0).toLocaleString()}
-                          </td>
 
-                          {isTps ? (
+                          {isFailureReason ? (
                             <>
-                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
-                                {Number(row.avg_tps || 0).toFixed(2)}
-                              </td>
-                              <td className="px-3 py-2 text-right font-semibold text-primary">
-                                {Number(row.peak_tps || 0).toFixed(2)}
-                              </td>
-                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-400">
-                                {row.configured_tps ? `${row.configured_tps} TPS` : "Uncapped"}
+                              <td className="px-3 py-2 text-right font-semibold text-rose-600 dark:text-rose-400">
+                                {failedCount.toLocaleString()}
                               </td>
                               <td className="px-3 py-2 text-right">
-                                {row.configured_tps ? (
-                                  <div className="flex flex-col items-end gap-1">
-                                    <span
-                                      className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                        row.tps_utilization >= 90
-                                          ? "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
-                                          : row.tps_utilization >= 70
-                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                                          : "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                                      }`}
-                                    >
-                                      {row.tps_utilization.toFixed(1)}%
-                                    </span>
-                                    <div className="w-16 bg-gray-200 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full ${
-                                          row.tps_utilization >= 90
-                                            ? "bg-rose-500"
-                                            : row.tps_utilization >= 70
-                                            ? "bg-amber-500"
-                                            : "bg-emerald-500"
-                                        }`}
-                                        style={{ width: `${Math.min(100, row.tps_utilization)}%` }}
-                                      />
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <span className="text-text-secondary dark:text-gray-500 text-xs">-</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-right">
-                                <span
-                                  className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                    dlr >= 90
-                                      ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                      : dlr >= 75
-                                      ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
-                                      : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
-                                  }`}
-                                >
-                                  {dlr.toFixed(1)}%
+                                <span className="inline-block px-2 py-0.5 rounded font-semibold text-xs bg-gray-100 dark:bg-gray-700/60 text-text-primary dark:text-gray-200">
+                                  {failureShare.toFixed(1)}%
                                 </span>
                               </td>
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">
-                                {Number(row.delivered || 0).toLocaleString()}
+                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
+                                {Number(row.attempts || 0).toLocaleString()}
                               </td>
-                              <td className="px-3 py-2 text-right text-rose-600 dark:text-rose-400">
-                                {Number(row.failed || 0).toLocaleString()}
-                              </td>
-                              <td className="px-3 py-2 text-right">
-                                <span
-                                  className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                    dlr >= 90
-                                      ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                      : dlr >= 75
-                                      ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
-                                      : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
-                                  }`}
-                                >
-                                  {dlr.toFixed(1)}%
-                                </span>
-                              </td>
-                              <td
-                                className={`px-3 py-2 text-right ${
-                                  Number(row.profit_margin || 0) >= 0
-                                    ? "text-text-primary dark:text-white"
-                                    : "text-rose-600 dark:text-rose-400 font-semibold"
-                                }`}
-                              >
-                                {Number(row.profit_margin || 0) < 0
-                                  ? `-$${Math.abs(Number(row.profit_margin || 0)).toFixed(2)}`
-                                  : `$${Number(row.profit_margin || 0).toFixed(2)}`}
-                              </td>
+
+                              {isTps ? (
+                                <>
+                                  <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
+                                    {Number(row.avg_tps || 0).toFixed(2)}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-semibold text-primary">
+                                    {Number(row.peak_tps || 0).toFixed(2)}
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-400">
+                                    {row.configured_tps ? `${row.configured_tps} TPS` : "Uncapped"}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    {row.configured_tps ? (
+                                      <div className="flex flex-col items-end gap-1">
+                                        <span
+                                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                            row.tps_utilization >= 90
+                                              ? "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
+                                              : row.tps_utilization >= 70
+                                              ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                                              : "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                                          }`}
+                                        >
+                                          {row.tps_utilization.toFixed(1)}%
+                                        </span>
+                                        <div className="w-16 bg-gray-200 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
+                                          <div
+                                            className={`h-full rounded-full ${
+                                              row.tps_utilization >= 90
+                                                ? "bg-rose-500"
+                                                : row.tps_utilization >= 70
+                                                ? "bg-amber-500"
+                                                : "bg-emerald-500"
+                                            }`}
+                                            style={{ width: `${Math.min(100, row.tps_utilization)}%` }}
+                                          />
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <span className="text-text-secondary dark:text-gray-500 text-xs">-</span>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <span
+                                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                                        dlr >= 90
+                                          ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                          : dlr >= 75
+                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
+                                      }`}
+                                    >
+                                      {dlr.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                </>
+                              ) : (
+                                <>
+                                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">
+                                    {Number(row.delivered || 0).toLocaleString()}
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-rose-600 dark:text-rose-400">
+                                    {Number(row.failed || 0).toLocaleString()}
+                                  </td>
+                                  <td className="px-3 py-2 text-right">
+                                    <span
+                                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
+                                        dlr >= 90
+                                          ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                          : dlr >= 75
+                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
+                                      }`}
+                                    >
+                                      {dlr.toFixed(1)}%
+                                    </span>
+                                  </td>
+                                  <td
+                                    className={`px-3 py-2 text-right ${
+                                      Number(row.profit_margin || 0) >= 0
+                                        ? "text-text-primary dark:text-white"
+                                        : "text-rose-600 dark:text-rose-400 font-semibold"
+                                    }`}
+                                  >
+                                    {Number(row.profit_margin || 0) < 0
+                                      ? `-$${Math.abs(Number(row.profit_margin || 0)).toFixed(2)}`
+                                      : `$${Number(row.profit_margin || 0).toFixed(2)}`}
+                                  </td>
+                                </>
+                              )}
                             </>
                           )}
 
