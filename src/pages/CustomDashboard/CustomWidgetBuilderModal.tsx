@@ -179,7 +179,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setLimit(editingWidget.limit || 15);
     } else {
       // Defaults for a new custom widget
-      setTitle("Vendors — DLR < 90%");
       setEntity("vendor");
       setPrimaryMetric("dlr_percent");
       setVisualization("table");
