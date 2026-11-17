@@ -756,35 +756,35 @@ const SummariseReport: React.FC = () => {
     }
     if (colKey === "revenue") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {currencySymbol}{Number(row.revenue || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "vendor_cost") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {currencySymbol}{Number(row.vendor_cost || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "asr_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {Number(row.asr_percent || 0).toFixed(2)}%
         </td>
       );
     }
     if (colKey === "dlr_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {Number(row.dlr_percent || 0).toFixed(2)}%
         </td>
       );
     }
     if (colKey === "margin_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {Number(row.margin_percent || 0).toFixed(2)}%
         </td>
       );
@@ -859,35 +859,35 @@ const SummariseReport: React.FC = () => {
     }
     if (colKey === "revenue") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {currencySymbol}{Number(totals?.revenue || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "vendor_cost") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {currencySymbol}{Number(totals?.vendor_cost || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "asr_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {Number(totals?.asr_percent || 0).toFixed(2)}%
         </td>
       );
     }
     if (colKey === "dlr_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {Number(totals?.dlr_percent || 0).toFixed(2)}%
         </td>
       );
     }
     if (colKey === "margin_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {Number(totals?.margin_percent || 0).toFixed(2)}%
         </td>
       );

@@ -24,6 +24,8 @@ import {
 import type { CustomWidgetDefinition, MetricType, CustomWidgetCondition } from "./customWidgetTypes";
 import { METRIC_LABELS, ENTITY_LABELS } from "./customWidgetTypes";
 import { getSummariseSummaryApi, getFailureReasonsApi } from "../../api/reportApi/summariseReportApi";
+import { StatusBadge } from "../../components/ui/StatusBadge";
+import { getDaysAgoInAppTimezone } from "../../helper/dateFormatter";
 
 interface CustomWidgetCardProps {
   widget: CustomWidgetDefinition;
@@ -172,38 +174,76 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   // Global timeframe selector on the dashboard overrides individual widget preset unless specified
-  const activeDatePreset = globalDatePreset || widget.filters.datePreset || "all";
+  const activeDatePreset = globalDatePreset || widget.filters.datePreset || "today";
 
   const getDateRange = useCallback(() => {
-    const today = new Date();
-    const toYMD = (d: Date) => {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    };
+    if (activeDatePreset === "all") return {};
 
     if (activeDatePreset === "today") {
-      const s = toYMD(today);
-      return { start_date: `${s} 00:00:00`, end_date: `${s} 23:59:59` };
+      const today = getDaysAgoInAppTimezone(0);
+      return {
+        start_date: `${today} 00:00:00`,
+        end_date: `${today} 23:59:59`,
+        startDate: today,
+        endDate: today,
+        today: true,
+      };
     }
+
     if (activeDatePreset === "yesterday") {
-      const y = new Date(today);
-      y.setDate(y.getDate() - 1);
-      const s = toYMD(y);
-      return { start_date: `${s} 00:00:00`, end_date: `${s} 23:59:59` };
+      const yesterday = getDaysAgoInAppTimezone(1);
+      return {
+        start_date: `${yesterday} 00:00:00`,
+        end_date: `${yesterday} 23:59:59`,
+        startDate: yesterday,
+        endDate: yesterday,
+      };
     }
-    if (activeDatePreset === "7d") {
-      const past = new Date(today);
-      past.setDate(past.getDate() - 7);
-      return { start_date: `${toYMD(past)} 00:00:00`, end_date: `${toYMD(today)} 23:59:59` };
+
+    if (
+      activeDatePreset === "5m" ||
+      activeDatePreset === "15m" ||
+      activeDatePreset === "1h" ||
+      activeDatePreset === "2h" ||
+      activeDatePreset === "4h"
+    ) {
+      const end = new Date();
+      const start = new Date();
+      if (activeDatePreset === "5m") start.setMinutes(start.getMinutes() - 5);
+      else if (activeDatePreset === "15m") start.setMinutes(start.getMinutes() - 15);
+      else if (activeDatePreset === "1h") start.setHours(start.getHours() - 1);
+      else if (activeDatePreset === "2h") start.setHours(start.getHours() - 2);
+      else if (activeDatePreset === "4h") start.setHours(start.getHours() - 4);
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const formatDT = (d: Date) =>
+        `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+
+      return {
+        start_date: formatDT(start),
+        end_date: formatDT(end),
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+      };
     }
-    if (activeDatePreset === "30d") {
-      const past = new Date(today);
-      past.setDate(past.getDate() - 30);
-      return { start_date: `${toYMD(past)} 00:00:00`, end_date: `${toYMD(today)} 23:59:59` };
-    }
-    return {};
+
+    const days =
+      activeDatePreset === "3d"
+        ? 3
+        : activeDatePreset === "7d"
+        ? 7
+        : activeDatePreset === "15d"
+        ? 15
+        : 30;
+
+    const start = getDaysAgoInAppTimezone(days - 1);
+    const end = getDaysAgoInAppTimezone(0);
+    return {
+      start_date: `${start} 00:00:00`,
+      end_date: `${end} 23:59:59`,
+      startDate: start,
+      endDate: end,
+    };
   }, [activeDatePreset]);
 
   const fetchData = useCallback(async () => {
@@ -426,6 +466,15 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     };
   }, [processedData, widget.primaryMetric]);
 
+  // Minimum width for bar chart to guarantee breathing room and enable smooth horizontal scrolling when bars increase
+  const barChartMinWidth = useMemo(() => {
+    if (!processedData || processedData.length === 0) return "100%";
+    const perBarWidth = 64; // Comfortable minimum space per bar for labels and margins
+    const basePadding = 56; // Room for Y-axis numbers and right margins
+    const calculatedPx = processedData.length * perBarWidth + basePadding;
+    return `${Math.max(calculatedPx, 340)}px`;
+  }, [processedData]);
+
   const sizeClass =
     widget.size === "small"
       ? "col-span-12 md:col-span-6 lg:col-span-4"
@@ -468,11 +517,11 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 <div className="absolute left-0 top-full mt-1.5 hidden group-hover/hint:block group-focus-within/hint:block w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3 z-50 text-xs select-text">
                   <div className="font-semibold text-text-primary dark:text-white pb-1.5 border-b border-gray-100 dark:border-gray-700 mb-2 flex items-center justify-between">
                     <span>Widget Guide</span>
-                    <span className="text-[10px] font-normal px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-text-secondary dark:text-gray-300 capitalize">
+                    <span className="text-xs font-normal px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-text-secondary dark:text-gray-300 capitalize">
                       {widget.visualization} View
                     </span>
                   </div>
-                  <div className="space-y-1.5 text-[11px]">
+                  <div className="space-y-1.5 text-xs">
                     <div>
                       <span className="text-text-secondary dark:text-gray-400">Grouping:</span>{" "}
                       <span className="font-medium text-text-primary dark:text-gray-200">
@@ -491,7 +540,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       </p>
                     )}
                     {metricMeta.formula && (
-                      <div className="bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg font-mono text-[10px] text-text-primary dark:text-gray-300 border border-gray-100 dark:border-gray-700">
+                      <div className="bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg font-mono text-xs text-text-primary dark:text-gray-300 border border-gray-100 dark:border-gray-700">
                         {metricMeta.formula}
                       </div>
                     )}
@@ -506,17 +555,20 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
               </div>
 
               {widget.condition && widget.condition.operator !== "none" && (
-                <span
-                  className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-medium ${
-                    widget.condition.mode === "filter"
-                      ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-700/40"
-                      : "bg-primary/10 text-primary border border-primary/20"
-                  }`}
+                <div
                   title={widget.condition.mode === "filter" ? "Rule: Showing matches only" : "Rule: Highlighting matches"}
+                  className="inline-flex items-center"
                 >
-                  <AlertTriangle size={10} />
-                  {formatConditionBadge(widget.condition)}
-                </span>
+                  <StatusBadge
+                    status="WARNING"
+                    customText={
+                      <span className="inline-flex items-center gap-1 text-xs font-medium leading-none">
+                        <AlertTriangle size={11} className="shrink-0" />
+                        <span>{formatConditionBadge(widget.condition)}</span>
+                      </span>
+                    }
+                  />
+                </div>
               )}
             </div>
             <div className="text-xs text-text-secondary dark:text-gray-400 flex items-center gap-1.5 flex-wrap mt-0.5">
@@ -590,7 +642,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           <div className="text-center py-10 text-text-secondary dark:text-gray-400 text-xs">
             <HelpCircle size={24} className="mx-auto mb-2 opacity-60" />
             <div>No records match this custom query and condition.</div>
-            <div className="text-[11px] mt-1">Try loosening the threshold or date filter.</div>
+            <div className="text-xs mt-1 text-text-secondary/80">Try loosening the threshold or date filter.</div>
           </div>
         )}
 
@@ -601,7 +653,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
               <div className="flex flex-col justify-between h-full py-1">
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <div className="text-2xl sm:text-3xl font-bold font-mono text-text-primary dark:text-white tracking-tight">
+                    <div className="text-2xl sm:text-3xl font-bold text-text-primary dark:text-white tracking-tight tabular-nums">
                       {widget.entity === "overview" && totals
                         ? formatMetricValue(widget.primaryMetric, totals[widget.primaryMetric] || 0)
                         : processedData[0]
@@ -617,12 +669,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     )}
                   </div>
                   {widget.entity === "overview" ? (
-                    <span className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700/60 text-text-secondary dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                    <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700/60 text-text-secondary dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                       System Total
                     </span>
                   ) : processedData.length > 0 ? (
                     <span
-                      className="text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-[170px]"
+                      className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 truncate max-w-[170px]"
                       title={`Top ${widget.entity}: ${processedData[0]?.name} (from ${processedData.length} records)`}
                     >
                       Top: {cleanDisplayName(processedData[0]?.name)}
@@ -632,11 +684,11 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
                 {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">
                         {widget.primaryMetric === "peak_tps" ? "Total Volume" : "Peak Rate"}
                       </div>
-                      <div className="text-xs font-semibold text-primary mt-0.5 font-mono">
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {widget.primaryMetric === "peak_tps"
                           ? `${Number(
                               (widget.entity === "overview" && totals?.attempts) ||
@@ -649,11 +701,11 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                             ).toFixed(2)} TPS`}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">
                         {widget.primaryMetric === "tps" ? "Total Volume" : "Avg Rate"}
                       </div>
-                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5 font-mono">
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {widget.primaryMetric === "tps"
                           ? `${Number(
                               (widget.entity === "overview" && totals?.attempts) ||
@@ -666,9 +718,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                             ).toFixed(2)} TPS`}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Peak Load</div>
-                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5 font-mono">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">Peak Load</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {Number(
                           (widget.entity === "overview" && (totals?.peak_tps_utilization ?? totals?.tps_utilization)) ||
                             (processedData[0]?.peak_tps_utilization ?? processedData[0]?.tps_utilization) || 0
@@ -678,42 +730,42 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                   </div>
                 ) : widget.entity === "failure_reason" ? (
                   <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Total Failures</div>
-                      <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5 font-mono">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">Total Failures</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {totalSum.toLocaleString()}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">#1 Reason Share</div>
-                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5 font-mono">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">#1 Reason Share</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {totalSum > 0 ? `${(((processedData[0]?.failed || 0) / totalSum) * 100).toFixed(1)}%` : "0.0%"}
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="grid grid-cols-3 gap-2 mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Volume</div>
-                      <div className="text-xs font-semibold text-text-primary dark:text-white mt-0.5">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">Volume</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {Number(
                           (widget.entity === "overview" && totals?.attempts) ||
                             processedData.reduce((acc, x) => acc + (x.attempts || 0), 0)
                         ).toLocaleString()}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Delivered</div>
-                      <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">Delivered</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {Number(
                           (widget.entity === "overview" && totals?.delivered) ||
                             processedData.reduce((acc, x) => acc + (x.delivered || 0), 0)
                         ).toLocaleString()}
                       </div>
                     </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2 text-center border border-gray-100 dark:border-gray-700/60">
-                      <div className="text-[10px] text-text-secondary dark:text-gray-400 uppercase font-semibold">Failures</div>
-                      <div className="text-xs font-semibold text-rose-600 dark:text-rose-400 mt-0.5">
+                    <div className="bg-gray-50 dark:bg-gray-700/40 rounded-lg p-2.5 text-center border border-gray-100 dark:border-gray-700/60">
+                      <div className="text-xs text-text-secondary dark:text-gray-400 uppercase font-medium">Failures</div>
+                      <div className="text-sm font-semibold text-text-primary dark:text-white mt-1 tabular-nums">
                         {Number(
                           (widget.entity === "overview" && totals?.failed) ||
                             processedData.reduce((acc, x) => acc + (x.failed || 0), 0)
@@ -727,9 +779,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
             {/* BAR CHART VISUALIZATION */}
             {widget.visualization === "bar" && processedData.length > 0 && (
-              <div className="h-[240px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 42 }}>
+              <div className="w-full overflow-x-auto custom-scrollbar pb-1">
+                <div style={{ minWidth: barChartMinWidth, width: "100%", height: 245 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 42 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} vertical={false} />
                     <XAxis
                       dataKey="cleanName"
@@ -821,32 +874,30 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                                 {cleanDisplayName(String(label))}
                               </span>
                               {isAlert && (
-                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800 shrink-0">
-                                  Rule Triggered
-                                </span>
+                                <StatusBadge status="CRITICAL" customText="Rule Triggered" />
                               )}
                             </div>
 
-                            <div className="space-y-1.5 font-sans">
+                            <div className="space-y-1.5 font-sans text-xs">
                               <div className="flex items-center justify-between">
                                 <span className="text-text-secondary dark:text-gray-400">{metricLabel}:</span>
-                                <span className={`font-mono font-bold ${isAlert ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}>
+                                <span className={`font-semibold tabular-nums ${isAlert ? "text-rose-600 dark:text-rose-400" : "text-primary"}`}>
                                   {formatMetricValue(widget.primaryMetric, Number(metricVal))}
                                 </span>
                               </div>
 
                               {isTpsMetric && (
                                 <>
-                                  <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                  <div className="flex items-center justify-between text-xs text-text-secondary dark:text-gray-400">
                                     <span>Observed Peak:</span>
-                                    <span className="font-mono text-text-primary dark:text-gray-200 font-medium">
+                                    <span className="text-text-primary dark:text-gray-200 font-medium tabular-nums">
                                       {Number(item.peak_tps || 0).toFixed(2)} TPS
                                     </span>
                                   </div>
                                   {item.configured_tps !== null && item.configured_tps !== undefined && (
-                                    <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                    <div className="flex items-center justify-between text-xs text-text-secondary dark:text-gray-400">
                                       <span>Configured Limit:</span>
-                                      <span className="font-mono text-text-primary dark:text-gray-200 font-medium">
+                                      <span className="text-text-primary dark:text-gray-200 font-medium tabular-nums">
                                         {item.configured_tps} TPS
                                       </span>
                                     </div>
@@ -855,25 +906,25 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                               )}
 
                               {item.attempts > 0 && (
-                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400 pt-1.5 border-t border-gray-100 dark:border-gray-700/60">
+                                <div className="flex items-center justify-between text-xs text-text-secondary dark:text-gray-400 pt-1.5 border-t border-gray-100 dark:border-gray-700/60">
                                   <span>Total Volume:</span>
-                                  <span className="font-mono text-text-primary dark:text-gray-200">
+                                  <span className="text-text-primary dark:text-gray-200 tabular-nums">
                                     {Number(item.attempts).toLocaleString()} SMS
                                   </span>
                                 </div>
                               )}
                               {item.delivered > 0 && (
-                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                <div className="flex items-center justify-between text-xs text-text-secondary dark:text-gray-400">
                                   <span>Delivered:</span>
-                                  <span className="font-mono text-emerald-600 dark:text-emerald-400">
+                                  <span className="text-emerald-600 dark:text-emerald-400 tabular-nums">
                                     {Number(item.delivered).toLocaleString()} ({Number(item.dlr_percent || 0).toFixed(1)}%)
                                   </span>
                                 </div>
                               )}
                               {item.failed > 0 && (
-                                <div className="flex items-center justify-between text-[11px] text-text-secondary dark:text-gray-400">
+                                <div className="flex items-center justify-between text-xs text-text-secondary dark:text-gray-400">
                                   <span>Failed:</span>
-                                  <span className="font-mono text-rose-500 dark:text-rose-400">
+                                  <span className="text-rose-500 dark:text-rose-400 tabular-nums">
                                     {Number(item.failed).toLocaleString()}
                                   </span>
                                 </div>
@@ -893,7 +944,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       />
                     )}
 
-                    <Bar dataKey={widget.primaryMetric} radius={[4, 4, 0, 0]} minPointSize={4}>
+                    <Bar dataKey={widget.primaryMetric} radius={[4, 4, 0, 0]} minPointSize={4} maxBarSize={48}>
                       {processedData.map((entry, index) => {
                         const isAlert = Boolean(entry._isMatch && widget.condition?.mode === "highlight");
                         const fill = isAlert ? "#ef4444" : PALETTE[index % PALETTE.length];
@@ -931,7 +982,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                               textAnchor="middle"
                               fontSize={10}
                               fontWeight={600}
-                              fontFamily="monospace"
+                              fontFamily="sans-serif"
                             >
                               {formatted}
                             </text>
@@ -942,7 +993,8 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            )}
+            </div>
+          )}
 
             {/* DONUT VISUALIZATION - CLEAN SIDE-BY-SIDE EXECUTIVE LAYOUT */}
             {widget.visualization === "donut" && donutData.length > 0 && (
@@ -951,10 +1003,14 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 <div className="w-[170px] h-[170px] shrink-0 relative flex items-center justify-center">
                   {/* Center Text inside Donut Hole (rendered behind the chart tooltip) */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none z-0">
-                    <span className="text-base font-bold font-mono text-text-primary dark:text-white leading-tight">
-                      {totalSum >= 1000 ? `${(totalSum / 1000).toFixed(1)}k` : totalSum}
+                    <span className="text-lg font-bold text-text-primary dark:text-white leading-tight tabular-nums">
+                      {totalSum >= 1000000
+                        ? `${(totalSum / 1000000).toFixed(1)}M`
+                        : totalSum >= 1000
+                        ? `${(totalSum / 1000).toFixed(1)}k`
+                        : totalSum.toLocaleString()}
                     </span>
-                    <span className="text-[10px] uppercase font-semibold text-text-secondary dark:text-gray-400 tracking-wider">
+                    <span className="text-xs uppercase font-medium text-text-secondary dark:text-gray-400 tracking-wider mt-0.5">
                       Total
                     </span>
                   </div>
@@ -1010,7 +1066,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 {/* Right: Clean Compact Ranked Legend List with Column Headers */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   {/* Legend Column Header */}
-                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-text-secondary dark:text-gray-400 pb-1.5 mb-1 border-b border-gray-100 dark:border-gray-700 select-none">
+                  <div className="flex items-center justify-between text-xs font-medium uppercase tracking-wider text-text-secondary dark:text-gray-400 pb-2 mb-1 border-b border-gray-100 dark:border-gray-700 select-none">
                     <span className="truncate pr-2">
                       {widget.entity === "vendor"
                         ? "Vendor / Trunk"
@@ -1020,9 +1076,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         ? "Destination"
                         : "Failure Reason"}
                     </span>
-                    <div className="flex items-center gap-2.5 font-mono shrink-0">
+                    <div className="flex items-center gap-3 shrink-0 tabular-nums">
                       <span>{METRIC_LABELS[widget.primaryMetric]?.split("(")[0]?.trim() || "Value"}</span>
-                      <span className="w-12 text-right">Share</span>
+                      <span className="w-14 text-right">Share</span>
                     </div>
                   </div>
 
@@ -1040,9 +1096,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                               {cleanDisplayName(item.name)}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2.5 shrink-0 font-mono text-[11px]">
+                          <div className="flex items-center gap-3 shrink-0 text-xs tabular-nums">
                             <span className="text-text-secondary dark:text-gray-400">{val.toLocaleString()}</span>
-                            <span className="font-semibold text-text-primary dark:text-white w-12 text-right">
+                            <span className="font-semibold text-text-primary dark:text-white w-14 text-right">
                               {pct.toFixed(1)}%
                             </span>
                           </div>
@@ -1059,9 +1115,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
               <div className="overflow-x-auto overflow-y-auto max-h-[260px] custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
-                    <tr className="border-b border-gray-100 dark:border-gray-700">
-                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider w-8">#</th>
-                      <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">
+                    <tr className="border-b border-gray-200 dark:border-gray-700">
+                      <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider w-8 whitespace-nowrap">#</th>
+                      <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider whitespace-nowrap">
                         {widget.entity === "vendor"
                           ? "Vendor / Trunk"
                           : widget.entity === "client"
@@ -1074,40 +1130,40 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       </th>
                       {widget.entity === "failure_reason" ? (
                         <>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">
+                          <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">
                             Failed Messages
                           </th>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">
+                          <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">
                             Share (%)
                           </th>
                         </>
                       ) : (
                         <>
-                          <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Volume</th>
+                          <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Volume</th>
                           {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) ? (
                             <>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Avg TPS</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Peak TPS</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Config Limit</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Avg TPS</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Peak TPS</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Config Limit</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap" title="Peak Load: Highest traffic burst as a % of configured limit">Peak Load</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">DLR %</th>
                             </>
                           ) : (
                             <>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Delivered</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Failed</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">DLR %</th>
-                              <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Margin ($)</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Delivered</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Failed</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">DLR %</th>
+                              <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right whitespace-nowrap">Margin ($)</th>
                             </>
                           )}
                         </>
                       )}
                       {widget.condition && widget.condition.operator !== "none" && widget.condition.mode === "highlight" && (
-                        <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-center">Status</th>
+                        <th className="px-3 py-2 text-xs font-medium text-text-secondary dark:text-gray-400 uppercase tracking-wider text-center whitespace-nowrap">Status</th>
                       )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-mono">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 bg-white dark:bg-gray-800">
                     {processedData.map((row, idx) => {
                       const isAlert = Boolean(row._isMatch && widget.condition?.mode === "highlight");
                       const dlr = Number(row.dlr_percent || 0);
@@ -1125,9 +1181,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                               : "hover:bg-gray-50 dark:hover:bg-gray-700/50 text-text-secondary dark:text-gray-300"
                           }`}
                         >
-                          <td className="px-3 py-2 text-text-secondary dark:text-gray-400 text-xs font-sans">{idx + 1}</td>
+                          <td className="px-3 py-2 text-text-secondary dark:text-gray-400 text-xs w-8 whitespace-nowrap">{idx + 1}</td>
                           <td
-                            className={`px-3 py-2 font-sans font-medium text-text-primary dark:text-white ${
+                            className={`px-3 py-2 font-medium text-text-primary dark:text-white text-xs ${
                               isFailureReason ? "max-w-[380px] lg:max-w-[480px]" : "max-w-[220px]"
                             } truncate`}
                             title={row.name}
@@ -1135,7 +1191,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                             <div className="flex items-center gap-1.5 truncate">
                               <span className="truncate">{cleanDisplayName(row.name)}</span>
                               {(row as any).is_deleted && (
-                                <span className="shrink-0 px-1 py-0.2 text-[9px] font-semibold bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
+                                <span className="shrink-0 px-1.5 py-0.5 text-xs font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded">
                                   Deleted
                                 </span>
                               )}
@@ -1144,108 +1200,68 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
                           {isFailureReason ? (
                             <>
-                              <td className="px-3 py-2 text-right font-semibold text-rose-600 dark:text-rose-400">
+                              <td className="px-3 py-2 text-right font-medium text-rose-600 dark:text-rose-400 text-xs tabular-nums whitespace-nowrap">
                                 {failedCount.toLocaleString()}
                               </td>
-                              <td className="px-3 py-2 text-right">
-                                <span className="inline-block px-2 py-0.5 rounded font-semibold text-xs bg-gray-100 dark:bg-gray-700/60 text-text-primary dark:text-gray-200">
-                                  {failureShare.toFixed(1)}%
-                                </span>
+                              <td className="px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap text-text-secondary dark:text-gray-300">
+                                {failureShare.toFixed(1)}%
                               </td>
                             </>
                           ) : (
                             <>
-                              <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
+                              <td className="px-3 py-2 text-right text-xs text-text-secondary dark:text-gray-300 tabular-nums whitespace-nowrap">
                                 {Number(row.attempts || 0).toLocaleString()}
                               </td>
 
                               {isTps ? (
                                 <>
-                                  <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-300">
+                                  <td className="px-3 py-2 text-right text-xs text-text-secondary dark:text-gray-300 tabular-nums whitespace-nowrap">
                                     {Number(row.avg_tps || 0).toFixed(2)}
                                   </td>
-                                  <td className="px-3 py-2 text-right font-semibold text-primary">
+                                  <td className="px-3 py-2 text-right text-xs font-semibold text-primary tabular-nums whitespace-nowrap">
                                     {Number(row.peak_tps || 0).toFixed(2)}
                                   </td>
-                                  <td className="px-3 py-2 text-right text-text-secondary dark:text-gray-400">
+                                  <td className="px-3 py-2 text-right text-xs text-text-secondary dark:text-gray-400 tabular-nums whitespace-nowrap">
                                     {row.configured_tps ? `${row.configured_tps} TPS` : "Uncapped"}
                                   </td>
-                                  <td className="px-3 py-2 text-right">
+                                  <td className="px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap">
                                     {row.configured_tps ? (
-                                      <div className="flex flex-col items-end gap-1">
-                                        <span
-                                          className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                            row.tps_utilization >= 90
-                                              ? "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800"
-                                              : row.tps_utilization >= 70
-                                              ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
-                                              : "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
-                                          }`}
-                                        >
-                                          {row.tps_utilization.toFixed(1)}%
-                                        </span>
-                                        <div className="w-16 bg-gray-200 dark:bg-gray-700 h-1 rounded-full overflow-hidden">
-                                          <div
-                                            className={`h-full rounded-full ${
-                                              row.tps_utilization >= 90
-                                                ? "bg-rose-500"
-                                                : row.tps_utilization >= 70
-                                                ? "bg-amber-500"
-                                                : "bg-emerald-500"
-                                            }`}
-                                            style={{ width: `${Math.min(100, row.tps_utilization)}%` }}
-                                          />
-                                        </div>
-                                      </div>
+                                      <span className="font-medium text-text-primary dark:text-gray-200">
+                                        {row.tps_utilization.toFixed(1)}%
+                                      </span>
                                     ) : (
-                                      <span className="text-text-secondary dark:text-gray-500 text-xs">-</span>
+                                      <span className="text-text-secondary dark:text-gray-500">-</span>
                                     )}
                                   </td>
-                                  <td className="px-3 py-2 text-right">
-                                    <span
-                                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                        dlr >= 90
-                                          ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                          : dlr >= 75
-                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
-                                      }`}
-                                    >
+                                  <td className="px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap">
+                                    <span className="font-medium text-text-primary dark:text-gray-200">
                                       {dlr.toFixed(1)}%
                                     </span>
                                   </td>
                                 </>
                               ) : (
                                 <>
-                                  <td className="px-3 py-2 text-right text-emerald-600 dark:text-emerald-400">
+                                  <td className="px-3 py-2 text-right text-xs text-emerald-600 dark:text-emerald-400 tabular-nums whitespace-nowrap">
                                     {Number(row.delivered || 0).toLocaleString()}
                                   </td>
-                                  <td className="px-3 py-2 text-right text-rose-600 dark:text-rose-400">
+                                  <td className="px-3 py-2 text-right text-xs text-rose-600 dark:text-rose-400 tabular-nums whitespace-nowrap">
                                     {Number(row.failed || 0).toLocaleString()}
                                   </td>
-                                  <td className="px-3 py-2 text-right">
-                                    <span
-                                      className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${
-                                        dlr >= 90
-                                          ? "text-emerald-700 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                          : dlr >= 75
-                                          ? "text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "text-rose-700 bg-rose-50 dark:bg-rose-900/30 dark:text-rose-400"
-                                      }`}
-                                    >
+                                  <td className="px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap">
+                                    <span className="font-medium text-text-primary dark:text-gray-200">
                                       {dlr.toFixed(1)}%
                                     </span>
                                   </td>
                                   <td
-                                    className={`px-3 py-2 text-right ${
-                                      Number(row.profit_margin || 0) >= 0
-                                        ? "text-text-primary dark:text-white"
-                                        : "text-rose-600 dark:text-rose-400 font-semibold"
+                                    className={`px-3 py-2 text-right text-xs tabular-nums whitespace-nowrap font-medium ${
+                                      Number(row.profit_margin || 0) < 0
+                                        ? "text-rose-600 dark:text-rose-400"
+                                        : "text-text-primary dark:text-white"
                                     }`}
                                   >
                                     {Number(row.profit_margin || 0) < 0
-                                      ? `-$${Math.abs(Number(row.profit_margin || 0)).toFixed(2)}`
-                                      : `$${Number(row.profit_margin || 0).toFixed(2)}`}
+                                      ? `-$${Math.abs(Number(row.profit_margin || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                      : `$${Number(row.profit_margin || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                                   </td>
                                 </>
                               )}
@@ -1253,16 +1269,11 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           )}
 
                           {widget.condition && widget.condition.operator !== "none" && widget.condition.mode === "highlight" && (
-                            <td className="px-3 py-2 text-center">
-                              {isAlert ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800">
-                                  Alert
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
-                                  OK
-                                </span>
-                              )}
+                            <td className="px-3 py-2 text-center whitespace-nowrap">
+                              <StatusBadge
+                                status={isAlert ? "CRITICAL" : "OK"}
+                                customText={isAlert ? "Alert" : "OK"}
+                              />
                             </td>
                           )}
                         </tr>

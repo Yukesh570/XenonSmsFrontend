@@ -955,7 +955,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
           </h1>
           <p className="text-xs sm:text-sm text-text-secondary dark:text-gray-400 mt-0.5">
             Live system metrics and SMS traffic analytics.{" "}
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-primary/10 text-primary">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
               {activeRangeLabel}
             </span>
           </p>
@@ -1208,7 +1208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
                       const rejected = dlrData.find((d) => d.name === "Rejected") || { name: "Rejected", value: 0, color: DLR_COLORS.Rejected };
 
                       const renderLegendItem = (item: { name: string; value: number; color: string }) => (
-                        <div key={item.name} className="inline-flex items-center gap-1 text-[11px] sm:text-xs text-text-secondary dark:text-gray-300 shrink-0 whitespace-nowrap">
+                        <div key={item.name} className="inline-flex items-center gap-1 text-xs text-text-secondary dark:text-gray-300 shrink-0 whitespace-nowrap">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
                           <span>{item.name}</span>
                           <span className="font-medium text-text-primary dark:text-white">({item.value}%)</span>
@@ -1308,11 +1308,11 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Vendor</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Route</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Vendor</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Route</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
                 </tr>
               </thead>
               <tbody>
@@ -1362,10 +1362,10 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Client</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Client</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Avg Latency</th>
                 </tr>
               </thead>
               <tbody>
@@ -1414,9 +1414,9 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Country</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Country</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Total</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Delivery Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -1559,25 +1559,25 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
             </h3>
             <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
               <div>
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">Avg Latency</p>
+                <p className="text-xs text-text-secondary dark:text-gray-400 mb-0.5">Avg Latency</p>
                 <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
                   {isLatencyLoading ? "…" : formatLatency(latencyStats?.avgLatencySeconds)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">P95 Latency</p>
+                <p className="text-xs text-text-secondary dark:text-gray-400 mb-0.5">P95 Latency</p>
                 <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
                   {isLatencyLoading ? "…" : formatLatency(latencyStats?.p95LatencySeconds)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">P50 Latency</p>
+                <p className="text-xs text-text-secondary dark:text-gray-400 mb-0.5">P50 Latency</p>
                 <p className="text-base sm:text-lg font-bold text-text-primary dark:text-white">
                   {isLatencyLoading ? "…" : formatLatency(latencyStats?.p50LatencySeconds)}
                 </p>
               </div>
               <div>
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mb-0.5">
+                <p className="text-xs text-text-secondary dark:text-gray-400 mb-0.5">
                   Stuck &gt;{latencyStats?.stuckThresholdMinutes ?? 5}m
                 </p>
                 <p
@@ -1601,7 +1601,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
                   Client TPS Throttled
                 </h3>
                 {tpsNotifications.length > 0 && (
-                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-primary rounded-full">
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-primary rounded-full">
                     {tpsNotifications.length}
                   </span>
                 )}
@@ -1641,7 +1641,7 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
                         </p>
 
                         {n.createdAt && (
-                          <div className="mt-1 flex items-center text-[10px] text-text-secondary dark:text-gray-400 font-mono">
+                          <div className="mt-1 flex items-center text-xs text-text-secondary dark:text-gray-400 tabular-nums">
                             <Clock size={10} className="mr-1 shrink-0 opacity-70" />
                             <span>{formatDateTime(n.createdAt)}</span>
                           </div>
@@ -1677,8 +1677,8 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                   <tr className="border-b border-gray-100 dark:border-gray-700">
-                    <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Error Reason</th>
-                    <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider w-32 text-right">Count</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Error Reason</th>
+                    <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider w-32 text-right">Count</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1738,10 +1738,10 @@ const Dashboard: React.FC<DashboardProps> = ({ isActive = true }) => {
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 bg-white dark:bg-gray-800">
                 <tr className="border-b border-gray-100 dark:border-gray-700">
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">System ID</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Username</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Company</th>
-                  <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Active Sessions</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">System ID</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Username</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Company</th>
+                  <th className="px-3 py-2 text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider">Active Sessions</th>
                 </tr>
               </thead>
               <tbody>

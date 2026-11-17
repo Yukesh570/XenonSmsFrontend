@@ -625,14 +625,14 @@ const MarginReport: React.FC = () => {
 
     if (colKey === "revenue") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {currencySymbol}{Number(row.revenue || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "vendor_cost") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {currencySymbol}{Number(row.vendor_cost || 0).toFixed(4)}
         </td>
       );
@@ -642,7 +642,7 @@ const MarginReport: React.FC = () => {
       return (
         <td
           key={colKey}
-          className={`px-4 py-3 text-sm whitespace-nowrap font-mono font-semibold ${margin >= 0
+          className={`px-4 py-3 text-sm whitespace-nowrap tabular-nums font-semibold ${margin >= 0
             ? "text-emerald-600 dark:text-emerald-400"
             : "text-red-600 dark:text-red-400"
             }`}
@@ -653,7 +653,7 @@ const MarginReport: React.FC = () => {
     }
     if (colKey === "margin_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap font-mono">
+        <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap tabular-nums font-medium">
           {Number(row.margin_percent || 0).toFixed(2)}%
         </td>
       );
@@ -679,14 +679,14 @@ const MarginReport: React.FC = () => {
     }
     if (colKey === "revenue") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {currencySymbol}{Number(totals?.revenue || 0).toFixed(4)}
         </td>
       );
     }
     if (colKey === "vendor_cost") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-text-primary dark:text-white whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {currencySymbol}{Number(totals?.vendor_cost || 0).toFixed(4)}
         </td>
       );
@@ -696,7 +696,7 @@ const MarginReport: React.FC = () => {
       return (
         <td
           key={colKey}
-          className={`px-4 py-3 text-sm font-bold font-mono whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${margin >= 0
+          className={`px-4 py-3 text-sm font-bold whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20 ${margin >= 0
             ? "text-emerald-600 dark:text-emerald-400"
             : "text-red-500 dark:text-red-400"
             }`}
@@ -707,7 +707,7 @@ const MarginReport: React.FC = () => {
     }
     if (colKey === "margin_percent") {
       return (
-        <td key={colKey} className="px-4 py-3 text-sm font-bold font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
+        <td key={colKey} className="px-4 py-3 text-sm font-bold text-blue-600 dark:text-blue-400 whitespace-nowrap tabular-nums bg-gray-50 dark:bg-gray-800 border-none sticky bottom-0 z-20">
           {Number(totals?.margin_percent || 0).toFixed(2)}%
         </td>
       );

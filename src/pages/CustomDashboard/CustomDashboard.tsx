@@ -11,7 +11,7 @@ import {
   DollarSign,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import type { WorkspaceTab, CustomWidgetDefinition } from "./customWidgetTypes";
+import type { WorkspaceTab, CustomWidgetDefinition, DatePreset } from "./customWidgetTypes";
 import { DEFAULT_WORKSPACE_TABS } from "./customWidgetTypes";
 import { CustomWidgetCard } from "./CustomWidgetCard";
 import { CustomWidgetBuilderModal } from "./CustomWidgetBuilderModal";
@@ -22,10 +22,17 @@ import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
 
 const STORAGE_KEY = "xenon_custom_data_workspace_v8";
 
-const RANGE_OPTIONS: { key: "today" | "yesterday" | "7d" | "30d" | "all"; label: string }[] = [
+const RANGE_OPTIONS: { key: DatePreset; label: string }[] = [
+  { key: "5m", label: "Last 5 Minutes" },
+  { key: "15m", label: "Last 15 Minutes" },
+  { key: "1h", label: "Last 1 Hour" },
+  { key: "2h", label: "Last 2 Hour" },
+  { key: "4h", label: "Last 4 Hour" },
   { key: "today", label: "Today" },
   { key: "yesterday", label: "Yesterday" },
+  { key: "3d", label: "Last 3 Days" },
   { key: "7d", label: "Last 7 Days" },
+  { key: "15d", label: "Last 15 Days" },
   { key: "30d", label: "Last 30 Days" },
   { key: "all", label: "All Available" },
 ];
@@ -71,7 +78,7 @@ export const CustomDashboard: React.FC = () => {
   const [isAddTabOpen, setIsAddTabOpen] = useState<boolean>(false);
 
   // Global Date Filter
-  const [globalDatePreset, setGlobalDatePreset] = useState<"today" | "yesterday" | "7d" | "30d" | "all">("all");
+  const [globalDatePreset, setGlobalDatePreset] = useState<DatePreset>("today");
   const [rangeOpen, setRangeOpen] = useState<boolean>(false);
   const rangeDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -268,14 +275,14 @@ export const CustomDashboard: React.FC = () => {
               className="h-[34px] flex items-center gap-1.5 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs sm:text-sm font-medium text-text-primary dark:text-white shadow-sm hover:border-primary hover:text-primary transition-colors"
             >
               <Calendar size={14} className="text-primary" />
-              <span>Timeframe: {RANGE_OPTIONS.find((o) => o.key === globalDatePreset)?.label || "All Available"}</span>
+              <span>Timeframe: {RANGE_OPTIONS.find((o) => o.key === globalDatePreset)?.label || "Today"}</span>
               <ChevronDown
                 size={14}
                 className={`transition-transform duration-200 ${rangeOpen ? "rotate-180" : ""}`}
               />
             </button>
             {rangeOpen && (
-              <div className="absolute right-0 mt-1 w-44 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1">
+              <div className="absolute right-0 mt-1 w-48 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 py-1 max-h-72 overflow-y-auto">
                 {RANGE_OPTIONS.map((opt) => (
                   <button
                     key={opt.key}
@@ -343,7 +350,7 @@ export const CustomDashboard: React.FC = () => {
                   <Layers size={14} className={isActive ? "text-primary" : "text-gray-400 dark:text-gray-500"} />
                   <span className="truncate max-w-[160px]">{tab.name}</span>
                   <span
-                    className={`text-[10px] sm:text-[11px] px-1.5 py-0.5 rounded-full font-medium ${
+                    className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
@@ -359,7 +366,7 @@ export const CustomDashboard: React.FC = () => {
                         e.stopPropagation();
                         handleDeleteTab(tab.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity ml-0.5 text-sm leading-none text-gray-400 hover:text-red-500"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity ml-0.5 text-sm leading-none text-gray-400 hover:text-red-500"
                       title="Delete Tab"
                     >
                       ×
@@ -430,7 +437,7 @@ export const CustomDashboard: React.FC = () => {
 
             {/* Quick Starter Cards */}
             <div className="mt-8 pt-5 border-t border-gray-100 dark:border-gray-700 text-left">
-              <div className="text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2.5">
+              <div className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2.5">
                 Or quickly insert a recommended monitor:
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -444,7 +451,7 @@ export const CustomDashboard: React.FC = () => {
                       primaryMetric: "dlr_percent",
                       visualization: "table",
                       size: "medium",
-                      filters: { datePreset: "all" },
+                      filters: { datePreset: "today" },
                       condition: { metric: "dlr_percent", operator: "lt", value: 90, mode: "filter" },
                       sortBy: "metric_asc",
                       limit: 15,
@@ -456,7 +463,7 @@ export const CustomDashboard: React.FC = () => {
                     <ShieldAlert size={14} className="text-amber-500" />
                     Degraded Vendors (DLR &lt; 90%)
                   </div>
-                  <div className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                  <div className="text-xs text-text-secondary dark:text-gray-400 mt-1">
                     Filters only vendor trunks with deliverability below 90%.
                   </div>
                 </button>
@@ -471,7 +478,7 @@ export const CustomDashboard: React.FC = () => {
                       primaryMetric: "profit_margin",
                       visualization: "table",
                       size: "medium",
-                      filters: { datePreset: "all" },
+                      filters: { datePreset: "today" },
                       sortBy: "metric_desc",
                       limit: 15,
                     });
@@ -482,7 +489,7 @@ export const CustomDashboard: React.FC = () => {
                     <DollarSign size={14} className="text-emerald-500" />
                     Client Profit Margins
                   </div>
-                  <div className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                  <div className="text-xs text-text-secondary dark:text-gray-400 mt-1">
                     Ranks clients by profit margin and message revenue.
                   </div>
                 </button>

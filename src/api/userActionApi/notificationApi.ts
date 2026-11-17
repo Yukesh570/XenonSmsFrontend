@@ -5,6 +5,8 @@ export interface NotificationData {
   title: string;
   description: string;
   createdAt?: string;
+  updatedAt?: string;
+  updatedBy?: string;
   seen?: boolean;
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Sliders,
   Table as TableIcon,
@@ -15,6 +15,9 @@ import {
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
+import Select, { type SelectOption } from "../../components/ui/Select";
+import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import type {
   CustomWidgetDefinition,
   EntityGroupBy,
@@ -22,6 +25,7 @@ import type {
   VisualizationType,
   ConditionOperator,
   ConditionMode,
+  DatePreset,
 } from "./customWidgetTypes";
 import {
   METRIC_LABELS,
@@ -109,6 +113,111 @@ const METRIC_HINTS: Record<MetricType, { summary: string; formula: string; detai
   },
 };
 
+const SIZE_OPTIONS: SelectOption[] = [
+  { value: "small", label: "Small (1/3 Width)" },
+  { value: "medium", label: "Medium (1/2 Width)" },
+  { value: "large", label: "Large (Full Width)" },
+];
+
+const ENTITY_OPTIONS: SelectOption[] = [
+  { value: "vendor", label: "By Vendor (Trunk / Route)" },
+  { value: "client", label: "By Client (Account)" },
+  { value: "country", label: "By Country (Destination)" },
+  { value: "failure_reason", label: "By Failure Reason" },
+  { value: "overview", label: "Overall Summary (Switch Aggregate)" },
+];
+
+const METRIC_OPTIONS: SelectOption[] = [
+  { value: "dlr_percent", label: "Delivery Rate (DLR %)" },
+  { value: "peak_tps", label: "Peak Throughput (Peak TPS)" },
+  { value: "tps", label: "Average Throughput (TPS)" },
+  { value: "peak_tps_utilization", label: "Peak Load (%)" },
+  { value: "attempts", label: "Total Attempts / Volume" },
+  { value: "delivered", label: "Delivered Messages" },
+  { value: "failed", label: "Failed Messages" },
+  { value: "rejected", label: "Rejected Messages" },
+  { value: "profit_margin", label: "Profit Margin ($)" },
+  { value: "margin_percent", label: "Margin %" },
+  { value: "revenue", label: "Revenue ($)" },
+  { value: "vendor_cost", label: "Vendor Cost ($)" },
+];
+
+const FAILURE_METRIC_OPTIONS: SelectOption[] = [
+  { value: "failed", label: "Failed Messages (Error Occurrences)" },
+];
+
+const DATE_PRESET_OPTIONS: SelectOption[] = [
+  { value: "5m", label: "Last 5 Minutes" },
+  { value: "15m", label: "Last 15 Minutes" },
+  { value: "1h", label: "Last 1 Hour" },
+  { value: "2h", label: "Last 2 Hour" },
+  { value: "4h", label: "Last 4 Hour" },
+  { value: "today", label: "Today" },
+  { value: "yesterday", label: "Yesterday" },
+  { value: "3d", label: "Last 3 Days" },
+  { value: "7d", label: "Last 7 Days" },
+  { value: "15d", label: "Last 15 Days" },
+  { value: "30d", label: "Last 30 Days" },
+  { value: "all", label: "All Available History" },
+];
+
+const COND_METRIC_OPTIONS: SelectOption[] = [
+  { value: "dlr_percent", label: "DLR %" },
+  { value: "peak_tps_utilization", label: "Peak Load (%)" },
+  { value: "peak_tps", label: "Peak TPS" },
+  { value: "tps", label: "Average TPS" },
+  { value: "margin_percent", label: "Margin %" },
+  { value: "profit_margin", label: "Profit Margin ($)" },
+  { value: "failed", label: "Failed Count" },
+  { value: "rejected", label: "Rejected Count" },
+  { value: "attempts", label: "Total Attempts" },
+];
+
+const COND_OPERATOR_OPTIONS: SelectOption[] = [
+  { value: "lt", label: "Less Than (<)" },
+  { value: "lte", label: "Less Than or Equal (<=)" },
+  { value: "gt", label: "Greater Than (>)" },
+  { value: "gte", label: "Greater Than or Equal (>=)" },
+  { value: "eq", label: "Equals (=)" },
+];
+
+const COND_MODE_OPTIONS: SelectOption[] = [
+  { value: "filter", label: "Show Matches Only" },
+  { value: "highlight", label: "Highlight Matches" },
+];
+
+const SORT_BY_OPTIONS: SelectOption[] = [
+  { value: "metric_asc", label: "Metric Ascending (Lowest / Worst First)" },
+  { value: "metric_desc", label: "Metric Descending (Highest / Best First)" },
+  { value: "attempts_desc", label: "Volume / Attempts Descending" },
+  { value: "name_asc", label: "Alphabetical (Name A-Z)" },
+];
+
+const LIMIT_OPTIONS: SelectOption[] = [
+  { value: "5", label: "Top 5" },
+  { value: "10", label: "Top 10" },
+  { value: "15", label: "Top 15" },
+  { value: "20", label: "Top 20" },
+  { value: "50", label: "Top 50" },
+];
+
+const PRESETS = [
+  { key: "vendor_dlr_below_90", label: "Vendor DLR < 90%", icon: TrendingDown },
+  { key: "client_margins", label: "Client Margins", icon: DollarSign },
+  { key: "failure_reasons", label: "Failure Reasons", icon: PieChart },
+  { key: "country_deliverability", label: "Country Deliverability", icon: Globe },
+  { key: "negative_margins", label: "Negative Margin Routes", icon: AlertTriangle },
+  { key: "tps_saturation", label: "High Load (>80%)", icon: Activity },
+  { key: "top_peak_tps", label: "Top Peak TPS", icon: Zap },
+];
+
+const VISUALIZATION_TYPES = [
+  { id: "table", label: "Data Table", icon: TableIcon, desc: "Detailed ranked rows" },
+  { id: "bar", label: "Bar Chart", icon: BarChart2, desc: "Comparative ranking" },
+  { id: "donut", label: "Donut Chart", icon: PieChartIcon, desc: "Proportional share" },
+  { id: "kpi", label: "KPI Stat Card", icon: Activity, desc: "Single aggregate card" },
+];
+
 interface CustomWidgetBuilderModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -138,7 +247,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
   const [clientFilter, setClientFilter] = useState<string>("");
   const [vendorFilter, setVendorFilter] = useState<string>("");
   const [countryFilter, setCountryFilter] = useState<string>("");
-  const [datePreset, setDatePreset] = useState<"today" | "yesterday" | "7d" | "30d" | "all">("all");
+  const [datePreset, setDatePreset] = useState<DatePreset>("today");
 
   // Condition Rule
   const [hasCondition, setHasCondition] = useState<boolean>(false);
@@ -162,7 +271,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setClientFilter(editingWidget.filters.client || "");
       setVendorFilter(editingWidget.filters.vendor || "");
       setCountryFilter(editingWidget.filters.country || "");
-      setDatePreset(editingWidget.filters.datePreset || "all");
+      setDatePreset((editingWidget.filters.datePreset as DatePreset) || "today");
       setIncludeDeleted(Boolean(editingWidget.filters.include_deleted));
 
       if (editingWidget.condition && editingWidget.condition.operator !== "none") {
@@ -179,6 +288,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setLimit(editingWidget.limit || 15);
     } else {
       // Defaults for a new custom widget
+      setTitle("");
       setEntity("vendor");
       setPrimaryMetric("dlr_percent");
       setVisualization("table");
@@ -186,7 +296,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setClientFilter("");
       setVendorFilter("");
       setCountryFilter("");
-      setDatePreset("all");
+      setDatePreset("today");
       setHasCondition(true);
       setCondMetric("dlr_percent");
       setCondOperator("lt");
@@ -196,6 +306,31 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setLimit(15);
     }
   }, [editingWidget, isOpen]);
+
+  // Options memoization for custom Select components
+  const clientOptions = useMemo<SelectOption[]>(() => {
+    const list = clientsList.map((c) => ({
+      value: c.name,
+      label: c.name,
+    }));
+    return [{ value: "", label: "All Clients" }, ...list];
+  }, [clientsList]);
+
+  const vendorOptions = useMemo<SelectOption[]>(() => {
+    const list = vendorsList.map((v) => {
+      const name = v.profileName || v.name || "";
+      return { value: name, label: name };
+    });
+    return [{ value: "", label: "All Vendors" }, ...list];
+  }, [vendorsList]);
+
+  const countryOptions = useMemo<SelectOption[]>(() => {
+    const list = countriesList.map((cn) => ({
+      value: cn.name,
+      label: cn.name,
+    }));
+    return [{ value: "", label: "All Countries" }, ...list];
+  }, [countriesList]);
 
   // Quick preset shortcuts
   const applyPreset = (presetKey: string) => {
@@ -287,17 +422,17 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       },
       condition: hasCondition
         ? {
-          metric: condMetric,
-          operator: condOperator,
-          value: Number(condValue),
-          mode: condMode,
-        }
+            metric: condMetric,
+            operator: condOperator,
+            value: Number(condValue),
+            mode: condMode,
+          }
         : {
-          metric: primaryMetric,
-          operator: "none",
-          value: 0,
-          mode: "filter",
-        },
+            metric: primaryMetric,
+            operator: "none",
+            value: 0,
+            mode: "filter",
+          },
       sortBy,
       limit: Number(limit) || 15,
     };
@@ -314,7 +449,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Sliders size={20} className="text-primary shrink-0" />
-            <span className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
+            <span className="text-base sm:text-lg font-semibold text-text-primary dark:text-white">
               {editingWidget ? "Edit Custom Widget" : "Build Custom Data Widget"}
             </span>
           </div>
@@ -348,116 +483,72 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       }
       className="max-w-4xl"
     >
-      <div className="space-y-6 pb-2">
-        {/* Quick Preset Bar */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
+        className="space-y-4 pb-2"
+      >
+        {/* Quick Preset Templates */}
         {!editingWidget && (
-          <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
-            <div className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-              <Zap size={13} className="text-amber-500" />
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+            <div className="text-xs font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+              <Zap size={13} className="text-primary" />
               Quick Preset Templates
             </div>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => applyPreset("vendor_dlr_below_90")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <TrendingDown size={13} className="text-rose-500 shrink-0" />
-                <span>Vendor DLR &lt; 90%</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("client_margins")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <DollarSign size={13} className="text-emerald-500 shrink-0" />
-                <span>Client Margins</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("failure_reasons")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <PieChart size={13} className="text-indigo-500 shrink-0" />
-                <span>Failure Reasons</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("country_deliverability")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <Globe size={13} className="text-blue-500 shrink-0" />
-                <span>Country Deliverability</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("negative_margins")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <AlertTriangle size={13} className="text-amber-500 shrink-0" />
-                <span>Negative Margin Routes</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("tps_saturation")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <Activity size={13} className="text-orange-500 shrink-0" />
-                <span>High Load (&gt;80%)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => applyPreset("top_peak_tps")}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-sm"
-              >
-                <Zap size={13} className="text-sky-500 shrink-0" />
-                <span>Top Peak TPS</span>
-              </button>
+              {PRESETS.map((p) => {
+                const Icon = p.icon;
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => applyPreset(p.key)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-text-secondary hover:text-text-primary dark:text-gray-200 border border-gray-200 dark:border-gray-700 transition-colors shadow-input"
+                  >
+                    <Icon size={13} className="text-primary shrink-0" />
+                    <span>{p.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
         {/* Section 1: Basic Identity & Layout */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <legend className="text-sm font-semibold text-text-primary dark:text-white px-2">
             1. Widget Name & Layout
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2 space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Widget Title</label>
-              <input
-                type="text"
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
+            <div className="md:col-span-2">
+              <Input
+                label="Widget Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Degraded Vendors Watchlist"
-                className="w-full px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
               />
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Width / Size</label>
-              <select
+            <div>
+              <Select
+                label="Width / Size"
                 value={size}
-                onChange={(e) => setSize(e.target.value as any)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="small">Small (1/3 Width)</option>
-                <option value="medium">Medium (1/2 Width)</option>
-                <option value="large">Large (Full Width)</option>
-              </select>
+                onChange={(v) => setSize(v as "small" | "medium" | "large")}
+                options={SIZE_OPTIONS}
+                clearable={false}
+                isLoading={false}
+              />
             </div>
           </div>
 
           {/* Visualization selector */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Visualization Type</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { id: "table", label: "Data Table", icon: TableIcon, desc: "Detailed ranked rows" },
-                { id: "bar", label: "Bar Chart", icon: BarChart2, desc: "Comparative ranking" },
-                { id: "donut", label: "Donut Chart", icon: PieChartIcon, desc: "Proportional share" },
-                { id: "kpi", label: "KPI Stat Card", icon: Activity, desc: "Single aggregate card" },
-              ].map((item) => {
+          <div className="mt-3">
+            <label className="mb-1.5 block text-xs font-medium text-text-secondary dark:text-gray-400">
+              Visualization Type
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {VISUALIZATION_TYPES.map((item) => {
                 const Icon = item.icon;
                 const isSel = visualization === item.id;
                 return (
@@ -465,96 +556,74 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                     key={item.id}
                     type="button"
                     onClick={() => {
-                      setVisualization(item.id as any);
+                      setVisualization(item.id as VisualizationType);
                       if (item.id === "kpi" && !editingWidget && entity !== "overview") {
                         setEntity("overview");
                       }
                     }}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition-all ${isSel
-                      ? "bg-primary/10 border-primary text-primary shadow-sm"
-                      : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-gray-700 dark:hover:text-gray-200"
-                      }`}
+                    className={`flex flex-col items-center justify-center p-3 rounded-lg border text-center transition-all ${
+                      isSel
+                        ? "bg-primary/10 border-primary text-primary shadow-sm ring-1 ring-primary"
+                        : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-text-secondary dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 hover:text-text-primary dark:hover:text-gray-200 shadow-input"
+                    }`}
                   >
-                    <Icon size={22} className={isSel ? "text-primary" : "text-gray-400"} />
+                    <Icon size={22} className={isSel ? "text-primary" : "text-gray-400 dark:text-gray-500"} />
                     <span className="text-xs font-semibold mt-1.5">{item.label}</span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{item.desc}</span>
+                    <span className="text-xs text-text-secondary/70 dark:text-gray-500 mt-0.5">{item.desc}</span>
                   </button>
                 );
               })}
             </div>
           </div>
-        </div>
+        </fieldset>
 
         {/* Section 2: Data Dimension & Metric */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <legend className="text-sm font-semibold text-text-primary dark:text-white px-2">
             2. Data Dimension & Metric
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Entity (Group By)</label>
-              <select
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+            <div>
+              <Select
+                label="Entity (Group By)"
                 value={entity}
-                onChange={(e) => {
-                  const val = e.target.value as any;
+                onChange={(v) => {
+                  const val = v as EntityGroupBy;
                   setEntity(val);
                   if (val === "failure_reason" && primaryMetric !== "failed") {
                     setPrimaryMetric("failed");
                   }
                 }}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="vendor">By Vendor (Trunk / Route)</option>
-                <option value="client">By Client (Account)</option>
-                <option value="country">By Country (Destination)</option>
-                <option value="failure_reason">By Failure Reason</option>
-                <option value="overview">Overall Summary (Switch Aggregate)</option>
-              </select>
-              <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                options={ENTITY_OPTIONS}
+                clearable={false}
+                isLoading={false}
+              />
+              <p className="text-xs text-text-secondary dark:text-gray-400 mt-1.5">
                 {ENTITY_HINTS[entity] || "Groups data across selected entities."}
               </p>
               {visualization === "kpi" && (
-                <p className="text-[11px] text-primary dark:text-primary mt-1 font-medium">
+                <p className="text-xs text-primary dark:text-primary mt-1 font-medium">
                   💡 Select <strong>Overall Summary</strong> for switch-wide aggregate stats, or select Client/Vendor to feature the #1 top-ranked entity.
                 </p>
               )}
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Primary Metric</label>
-              <select
+            <div>
+              <Select
+                label="Primary Metric"
                 value={primaryMetric}
-                onChange={(e) => setPrimaryMetric(e.target.value as any)}
+                onChange={(v) => setPrimaryMetric(v as MetricType)}
+                options={entity === "failure_reason" ? FAILURE_METRIC_OPTIONS : METRIC_OPTIONS}
                 disabled={entity === "failure_reason"}
-                className={`w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary ${
-                  entity === "failure_reason" ? "opacity-75 cursor-not-allowed bg-gray-50 dark:bg-gray-800" : ""
-                }`}
-              >
-                {entity === "failure_reason" ? (
-                  <option value="failed">Failed Messages (Error Occurrences)</option>
-                ) : (
-                  <>
-                    <option value="dlr_percent">Delivery Rate (DLR %)</option>
-                    <option value="peak_tps">Peak Throughput (Peak TPS)</option>
-                    <option value="tps">Average Throughput (TPS)</option>
-                    <option value="peak_tps_utilization">Peak Load (%)</option>
-                    <option value="attempts">Total Attempts / Volume</option>
-                    <option value="delivered">Delivered Messages</option>
-                    <option value="failed">Failed Messages</option>
-                    <option value="rejected">Rejected Messages</option>
-                    <option value="profit_margin">Profit Margin ($)</option>
-                    <option value="margin_percent">Margin %</option>
-                    <option value="revenue">Revenue ($)</option>
-                    <option value="vendor_cost">Vendor Cost ($)</option>
-                  </>
-                )}
-              </select>
+                clearable={false}
+                isLoading={false}
+              />
               {entity === "failure_reason" ? (
-                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                <p className="text-xs text-text-secondary dark:text-gray-400 mt-1.5 font-medium">
                   💡 Failure reasons exclusively track error occurrences (deliveries, DLR %, and margins do not apply).
                 </p>
               ) : (
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                <p className="text-xs text-text-secondary dark:text-gray-400 mt-1.5">
                   {METRIC_HINTS[primaryMetric]?.summary}
                 </p>
               )}
@@ -563,198 +632,131 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
 
           {/* Metric Guide & Formula Callout Box */}
           {METRIC_HINTS[primaryMetric] && (
-            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-start gap-2.5">
+            <div className="mt-3 bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/60 rounded-lg p-3 flex items-start gap-2.5">
               <Info size={16} className="text-primary shrink-0 mt-0.5" />
               <div className="text-xs space-y-1 min-w-0">
                 <div className="font-semibold text-text-primary dark:text-white flex items-center gap-2 flex-wrap">
                   <span>{METRIC_LABELS[primaryMetric] || primaryMetric}</span>
-                  <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-primary/10 text-primary font-mono border border-primary/20">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">
                     Formula: {METRIC_HINTS[primaryMetric].formula}
                   </span>
                 </div>
-                <p className="text-text-secondary dark:text-gray-300 text-[11px] leading-relaxed">
+                <p className="text-text-secondary dark:text-gray-400 text-xs leading-relaxed">
                   {METRIC_HINTS[primaryMetric].detail}
                 </p>
               </div>
             </div>
           )}
-        </div>
+        </fieldset>
 
         {/* Section 3: Scope Filters */}
-        <div className="space-y-4">
-          <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2 flex items-center justify-between">
-            <span>3. Target Scope Filters</span>
-            <span className="text-[11px] font-normal text-text-secondary dark:text-gray-400">Optional: filter data before grouping</span>
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Filter Client</label>
-              <select
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="">All Clients</option>
-                {clientsList.map((c, i) => (
-                  <option key={i} value={c.name}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Filter Vendor</label>
-              <select
-                value={vendorFilter}
-                onChange={(e) => setVendorFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="">All Vendors</option>
-                {vendorsList.map((v, i) => {
-                  const name = v.profileName || v.name || "";
-                  return (
-                    <option key={i} value={name}>
-                      {name}
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Filter Country</label>
-              <select
-                value={countryFilter}
-                onChange={(e) => setCountryFilter(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="">All Countries</option>
-                {countriesList.map((cn, i) => (
-                  <option key={i} value={cn.name}>
-                    {cn.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Time Window</label>
-              <select
-                value={datePreset}
-                onChange={(e) => setDatePreset(e.target.value as any)}
-                className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-              >
-                <option value="today">Today</option>
-                <option value="yesterday">Yesterday</option>
-                <option value="7d">Last 7 Days</option>
-                <option value="30d">Last 30 Days</option>
-                <option value="all">All Available History</option>
-              </select>
-            </div>
-
-            {/* <div className="md:col-span-4 flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="cw-include-deleted"
-                checked={includeDeleted}
-                onChange={(e) => setIncludeDeleted(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary cursor-pointer"
-              />
-              <label htmlFor="cw-include-deleted" className="text-xs text-gray-700 dark:text-gray-300 cursor-pointer select-none">
-                Include soft-deleted accounts (default is active accounts only)
-              </label>
-            </div> */}
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <legend className="text-sm font-semibold text-text-primary dark:text-white px-2">
+              3. Target Scope Filters
+            </legend>
+            <span className="text-xs font-normal text-text-secondary dark:text-gray-400">
+              Optional: filter data before grouping
+            </span>
           </div>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-start">
+            <Select
+              label="Filter Client"
+              value={clientFilter}
+              onChange={setClientFilter}
+              options={clientOptions}
+              placeholder="All Clients"
+              clearable
+              isLoading={false}
+            />
+            <Select
+              label="Filter Vendor"
+              value={vendorFilter}
+              onChange={setVendorFilter}
+              options={vendorOptions}
+              placeholder="All Vendors"
+              clearable
+              isLoading={false}
+            />
+            <Select
+              label="Filter Country"
+              value={countryFilter}
+              onChange={setCountryFilter}
+              options={countryOptions}
+              placeholder="All Countries"
+              clearable
+              isLoading={false}
+            />
+            <Select
+              label="Time Window"
+              value={datePreset}
+              onChange={(v) => setDatePreset(v as DatePreset)}
+              options={DATE_PRESET_OPTIONS}
+              clearable={false}
+              isLoading={false}
+            />
+          </div>
+        </fieldset>
 
         {/* Section 4: Condition Rule / Threshold */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-            <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider flex items-center gap-2">
-              <AlertTriangle size={14} className="text-amber-500" />
-              4. Custom Condition / Threshold Rule
-            </h3>
-            <label className="flex items-center gap-2 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={hasCondition}
-                onChange={(e) => setHasCondition(e.target.checked)}
-                className="rounded bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-primary focus:ring-0"
-              />
-              Enable Rule Threshold
-            </label>
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700 mb-3">
+            <legend className="text-sm font-semibold text-text-primary dark:text-white px-2 flex items-center gap-1.5">
+              <AlertTriangle size={14} className="text-primary" />
+              <span>4. Custom Condition / Threshold Rule</span>
+            </legend>
+            <ToggleSwitch
+              label="Enable Rule Threshold"
+              checked={hasCondition}
+              onChange={setHasCondition}
+            />
           </div>
 
           {hasCondition && (
-            <div className="p-4 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Metric</label>
-                  <select
-                    value={condMetric}
-                    onChange={(e) => setCondMetric(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
-                  >
-                    <option value="dlr_percent">DLR %</option>
-                    <option value="peak_tps_utilization">Peak Load (%)</option>
-                    <option value="peak_tps">Peak TPS</option>
-                    <option value="tps">Average TPS</option>
-                    <option value="margin_percent">Margin %</option>
-                    <option value="profit_margin">Profit Margin ($)</option>
-                    <option value="failed">Failed Count</option>
-                    <option value="rejected">Rejected Count</option>
-                    <option value="attempts">Total Attempts</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Operator</label>
-                  <select
-                    value={condOperator}
-                    onChange={(e) => setCondOperator(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
-                  >
-                    <option value="lt">Less Than (&lt;)</option>
-                    <option value="lte">Less Than or Equal (&lt;=)</option>
-                    <option value="gt">Greater Than (&gt;)</option>
-                    <option value="gte">Greater Than or Equal (&gt;=)</option>
-                    <option value="eq">Equals (=)</option>
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Threshold Value</label>
-                  <input
-                    type="number"
-                    value={condValue}
-                    onChange={(e) => setCondValue(Number(e.target.value))}
-                    className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] text-gray-500 dark:text-gray-400">Rule Action</label>
-                  <select
-                    value={condMode}
-                    onChange={(e) => setCondMode(e.target.value as any)}
-                    className="w-full px-2.5 py-1.5 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-xs text-gray-800 dark:text-gray-100 focus:outline-none"
-                  >
-                    <option value="filter">Show Matches Only</option>
-                    <option value="highlight">Highlight Matches</option>
-                  </select>
-                </div>
+            <div className="p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-start">
+                <Select
+                  label="Metric"
+                  value={condMetric}
+                  onChange={(v) => setCondMetric(v as MetricType)}
+                  options={COND_METRIC_OPTIONS}
+                  clearable={false}
+                  isLoading={false}
+                />
+                <Select
+                  label="Operator"
+                  value={condOperator}
+                  onChange={(v) => setCondOperator(v as ConditionOperator)}
+                  options={COND_OPERATOR_OPTIONS}
+                  clearable={false}
+                  isLoading={false}
+                />
+                <Input
+                  label="Threshold Value"
+                  type="number"
+                  value={condValue}
+                  onChange={(e) => setCondValue(Number(e.target.value))}
+                  isClearable={false}
+                />
+                <Select
+                  label="Rule Action"
+                  value={condMode}
+                  onChange={(v) => setCondMode(v as ConditionMode)}
+                  options={COND_MODE_OPTIONS}
+                  clearable={false}
+                  isLoading={false}
+                />
               </div>
 
-              <div className="text-[11px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 px-3 py-2 rounded-lg border border-amber-200 dark:border-amber-500/20 space-y-1">
-                <div className="flex items-center gap-1.5">
-                  <span>⚡</span>
-                  <strong>Rule Behavior:</strong>
-                  <code className="font-semibold text-amber-900 dark:text-amber-200 bg-amber-100 dark:bg-amber-900/30 px-1 py-0.5 rounded text-[10px]">
+              <div className="text-xs text-text-secondary dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2.5 rounded-lg space-y-1">
+                <div className="flex items-center gap-1.5 text-text-primary dark:text-white">
+                  <Zap size={13} className="text-primary shrink-0" />
+                  <span className="font-medium text-xs">Rule Behavior:</span>
+                  <code className="font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded text-xs font-mono">
                     {condMetric} {condOperator} {condValue}
                   </code>
                 </div>
-                <p className="text-[10.5px] leading-relaxed text-amber-900/90 dark:text-amber-300/90">
+                <p className="text-xs leading-relaxed text-text-secondary dark:text-gray-400">
                   {condMode === "filter"
                     ? "• Show Matches Only: Only displays entities that meet this rule condition (hides non-matching items)."
                     : "• Highlight Matches: Displays all entities and highlights the ones that meet this rule condition."}
@@ -762,11 +764,11 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               </div>
             </div>
           )}
-        </div>
+        </fieldset>
 
         {/* Section 5: Sorting & Limits */}
         {visualization === "kpi" && entity === "overview" ? (
-          <div className="bg-gray-50 dark:bg-gray-900/40 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2.5">
+          <div className="bg-gray-50 dark:bg-gray-800/50 p-3.5 rounded-lg border border-gray-200 dark:border-gray-700 text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2.5">
             <span className="text-base">📊</span>
             <div>
               <span className="font-semibold text-text-primary dark:text-gray-200">Switch Aggregate Mode:</span>{" "}
@@ -774,43 +776,31 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 pb-2">
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <legend className="text-sm font-semibold text-text-primary dark:text-white px-2">
               5. Sorting & Maximum Records {visualization === "kpi" && "(Used for Ranking #1 Top Entity)"}
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Sort By</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-                >
-                  <option value="metric_asc">Metric Ascending (Lowest / Worst First)</option>
-                  <option value="metric_desc">Metric Descending (Highest / Best First)</option>
-                  <option value="attempts_desc">Volume / Attempts Descending</option>
-                  <option value="name_asc">Alphabetical (Name A-Z)</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Limit Display Rows</label>
-                <select
-                  value={limit}
-                  onChange={(e) => setLimit(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-xs text-gray-900 dark:text-white focus:outline-none focus:border-primary"
-                >
-                  <option value={5}>Top 5</option>
-                  <option value={10}>Top 10</option>
-                  <option value={15}>Top 15</option>
-                  <option value={20}>Top 20</option>
-                  <option value={50}>Top 50</option>
-                </select>
-              </div>
+            </legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-start">
+              <Select
+                label="Sort By"
+                value={sortBy}
+                onChange={(v) => setSortBy(v as "metric_desc" | "metric_asc" | "attempts_desc" | "name_asc")}
+                options={SORT_BY_OPTIONS}
+                clearable={false}
+                isLoading={false}
+              />
+              <Select
+                label="Limit Display Rows"
+                value={String(limit)}
+                onChange={(v) => setLimit(Number(v))}
+                options={LIMIT_OPTIONS}
+                clearable={false}
+                isLoading={false}
+              />
             </div>
-          </div>
+          </fieldset>
         )}
-      </div>
+      </form>
     </Modal>
   );
 };

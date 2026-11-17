@@ -1,5 +1,6 @@
 import React from 'react';
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const STATUS_COLORS: Record<string, { bg: string; text: string; border: string; label: string }> = {
   // --- PM Provided DLR Statuses ---
   DELIVERED: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Delivered" },
@@ -48,17 +49,22 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string; border: s
   ACKNOWLEDGED: { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B", label: "Acknowledged" },
   INVESTIGATING: { bg: "#DBEAFE", text: "#1E40AF", border: "#2563EB", label: "Investigating" },
   RESOLVED: { bg: "#DCFCE7", text: "#166534", border: "#16A34A", label: "Resolved" },
+
+  // --- R4 Evidence & Financial Review statuses ---
+  FINAL_UNMATCHED: { bg: "#FEE2E2", text: "#991B1B", border: "#DC2626", label: "Final Unmatched" },
+  FINANCIAL_REVIEW_PENDING: { bg: "#FEF3C7", text: "#92400E", border: "#F59E0B", label: "Pending Review" },
 };
 
 interface StatusBadgeProps {
   status?: string | null;
   customText?: React.ReactNode; // Allow overriding the text while keeping the color
+  className?: string;
 }
 
-export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customText }) => {
+export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customText, className = "" }) => {
   if (status === null || status === undefined || status === "") {
     return (
-      <span className="px-2 py-0.5 rounded text-xs font-medium border bg-gray-100 text-gray-600 border-gray-300">
+      <span className={`px-2 py-0.5 rounded text-xs font-medium border bg-gray-100 text-gray-600 border-gray-300 ${className}`}>
         {customText || "-"}
       </span>
     );
@@ -69,7 +75,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, customText }) 
 
   return (
     <span
-      className="px-2 py-0.5 rounded text-xs font-medium border"
+      className={`px-2 py-0.5 rounded text-xs font-medium border ${className}`}
       style={{
         backgroundColor: config.bg,
         color: config.text,

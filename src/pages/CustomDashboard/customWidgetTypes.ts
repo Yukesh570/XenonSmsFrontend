@@ -28,11 +28,25 @@ export interface CustomWidgetCondition {
   mode: ConditionMode; // "filter" shows only matching records; "highlight" flags them
 }
 
+export type DatePreset =
+  | "5m"
+  | "15m"
+  | "1h"
+  | "2h"
+  | "4h"
+  | "today"
+  | "yesterday"
+  | "3d"
+  | "7d"
+  | "15d"
+  | "30d"
+  | "all";
+
 export interface CustomWidgetFilters {
   client?: string;
   vendor?: string;
   country?: string;
-  datePreset?: "today" | "yesterday" | "7d" | "30d" | "all";
+  datePreset?: DatePreset;
   startDate?: string;
   endDate?: string;
   include_deleted?: boolean;
@@ -105,7 +119,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "peak_tps",
         visualization: "kpi",
         size: "small",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
       },
       {
         id: "w-vendor-tps-ranking",
@@ -114,7 +128,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "peak_tps",
         visualization: "table",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         sortBy: "metric_desc",
         limit: 15,
       },
@@ -125,7 +139,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "peak_tps_utilization",
         visualization: "bar",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         condition: {
           metric: "peak_tps_utilization",
           operator: "gt",
@@ -149,7 +163,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "dlr_percent",
         visualization: "table",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         condition: {
           metric: "dlr_percent",
           operator: "lt",
@@ -166,7 +180,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "dlr_percent",
         visualization: "bar",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         condition: {
           metric: "dlr_percent",
           operator: "lt",
@@ -183,7 +197,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "attempts",
         visualization: "table",
         size: "large",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         sortBy: "attempts_desc",
         limit: 15,
       },
@@ -201,7 +215,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "profit_margin",
         visualization: "table",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         sortBy: "metric_desc",
         limit: 15,
       },
@@ -212,7 +226,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "attempts",
         visualization: "bar",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         sortBy: "attempts_desc",
         limit: 10,
       },
@@ -223,7 +237,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "profit_margin",
         visualization: "table",
         size: "large",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         condition: {
           metric: "profit_margin",
           operator: "lt",
@@ -247,7 +261,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "failed",
         visualization: "donut",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         limit: 10,
       },
       {
@@ -257,7 +271,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "failed",
         visualization: "table",
         size: "medium",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         limit: 15,
       },
       {
@@ -267,7 +281,7 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
         primaryMetric: "failed",
         visualization: "table",
         size: "large",
-        filters: { datePreset: "all" },
+        filters: { datePreset: "today" },
         condition: {
           metric: "failed",
           operator: "gt",

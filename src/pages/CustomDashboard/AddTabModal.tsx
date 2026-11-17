@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Layers, Plus, ShieldAlert, DollarSign, Activity } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 import type { WorkspaceTab, CustomWidgetDefinition } from "./customWidgetTypes";
 
 interface AddTabModalProps {
@@ -201,23 +202,19 @@ export const AddTabModal: React.FC<AddTabModalProps> = ({ isOpen, onClose, onCre
       }
       className="max-w-2xl"
     >
-      <form onSubmit={handleCreate} className="space-y-6">
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
-            Tab Name
-          </label>
-          <input
-            type="text"
+      <form onSubmit={handleCreate} className="space-y-4">
+        <div>
+          <Input
+            label="Tab Name"
             value={tabName}
             onChange={(e) => setTabName(e.target.value)}
             placeholder="e.g. Degraded Vendors, High Volume Clients..."
-            className="w-full px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl text-sm text-gray-900 dark:text-white focus:outline-none focus:border-primary"
             autoFocus
           />
         </div>
 
-        <div className="space-y-3">
-          <label className="text-xs font-semibold uppercase tracking-wider text-gray-700 dark:text-gray-300">
+        <div className="space-y-2">
+          <label className="block text-xs font-medium text-text-secondary dark:text-gray-400">
             Starting Template
           </label>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -228,10 +225,10 @@ export const AddTabModal: React.FC<AddTabModalProps> = ({ isOpen, onClose, onCre
                 <div
                   key={tmpl.id}
                   onClick={() => setSelectedTemplate(tmpl.id)}
-                  className={`cursor-pointer p-4 rounded-xl border transition-all text-left flex flex-col justify-between ${
+                  className={`cursor-pointer p-3.5 rounded-lg border transition-all text-left flex flex-col justify-between ${
                     isSelected
-                      ? "bg-primary/10 border-primary text-primary shadow-sm"
-                      : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600"
+                      ? "bg-primary/10 border-primary text-primary shadow-sm ring-1 ring-primary"
+                      : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 shadow-input"
                   }`}
                 >
                   <div>

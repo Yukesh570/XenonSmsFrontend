@@ -349,18 +349,18 @@ const CreditPaymentOverviewPage: React.FC = () => {
   return (
     <div className="container mx-auto" onClick={() => setContextMenuPos(null)}>
       {/* Top Header & Breadcrumb */}
-      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
-              Credit & Payments Overview
-            </h1>
-            <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
-              Authoritative financial balance management and ledger overview
-            </p>
-          </div>
+      <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="sm:flex-1 min-w-0">
+          <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
+            Credit & Payments Overview
+          </h1>
+          <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
+            Authoritative financial balance management and ledger overview
+          </p>
+        </div>
 
-          {/* Compact View Mode Toggle Switch */}
+        {/* Compact View Mode Toggle Switch */}
+        <div className="shrink-0 flex justify-center items-center">
           <div className="inline-flex items-center p-0.5 rounded-md bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <button
               type="button"
@@ -387,7 +387,7 @@ const CreditPaymentOverviewPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2 text-sm text-text-secondary">
+        <div className="flex items-center sm:justify-end sm:flex-1 space-x-2 text-sm text-text-secondary whitespace-nowrap">
           <Home size={16} className="text-gray-400" />
           <NavLink to="/dashboard" className="text-gray-400 hover:text-primary">
             Home

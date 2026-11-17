@@ -54,7 +54,13 @@ const formatLocalDate = (date: Date) => {
 };
 
 const DEFAULT_SEARCH_COLUMNS = ["title"];
-const DEFAULT_TABLE_COLUMNS = ["title", "description", "createdAt", "updatedAt",];
+const DEFAULT_TABLE_COLUMNS = [
+  "title",
+  "description",
+  "createdAt",
+  "updatedAt",
+  "updatedBy",
+];
 
 const AllNotifications: React.FC = () => {
   const [notifications, setNotifications] = useState<NotificationData[]>([]);
@@ -89,7 +95,19 @@ const AllNotifications: React.FC = () => {
   // --- Column Order State & Persistence ---
   const [tableColumns, setTableColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("allnotifications_table_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_TABLE_COLUMNS;
+    if (!saved) return DEFAULT_TABLE_COLUMNS;
+    try {
+      const parsed = JSON.parse(saved);
+      const missingDefaults = DEFAULT_TABLE_COLUMNS.filter(
+        (k) => !parsed.includes(k)
+      );
+      if (missingDefaults.length > 0) {
+        return Array.from(new Set([...parsed, ...missingDefaults]));
+      }
+      return parsed;
+    } catch {
+      return DEFAULT_TABLE_COLUMNS;
+    }
   });
 
   useEffect(() => {
@@ -157,6 +175,18 @@ const AllNotifications: React.FC = () => {
       type: "date",
       filterKey: "updatedAt",
       render: (c: any) => ((c?.updatedAt || c?.updated_at) ? formatDateTime(c.updatedAt || c.updated_at) : "-"),
+    },
+    {
+      key: "updatedBy",
+      label: "Updated By",
+      isSearchable: false,
+      tableLabel: "Updated By",
+      type: "text",
+      filterKey: "updatedBy",
+      render: (c: any) =>
+        c.updatedByName ||
+        (typeof c.updatedBy === "object" ? c.updatedBy?.username : c.updatedBy) ||
+        "-",
     },
   ];
 
