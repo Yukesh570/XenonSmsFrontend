@@ -22,7 +22,7 @@ import {
   LabelList,
 } from "recharts";
 import type { CustomWidgetDefinition, MetricType, CustomWidgetCondition } from "./customWidgetTypes";
-import { METRIC_LABELS } from "./customWidgetTypes";
+import { METRIC_LABELS, ENTITY_LABELS } from "./customWidgetTypes";
 import { getSummariseSummaryApi, getFailureReasonsApi } from "../../api/reportApi/summariseReportApi";
 
 interface CustomWidgetCardProps {
@@ -89,9 +89,72 @@ const formatMetricValue = (metric: MetricType, value: number): string => {
     return `${Number(value).toFixed(2)} TPS`;
   }
   if (metric === "profit_margin" || metric === "revenue" || metric === "vendor_cost") {
-    return `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const num = Number(value || 0);
+    if (num < 0) {
+      return `-$${Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    return `$${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
   return Number(value).toLocaleString();
+};
+
+const METRIC_DESCRIPTIONS: Record<string, { summary: string; formula: string }> = {
+  profit_margin: {
+    summary: "Net revenue earnings generated from traffic after carrier costs.",
+    formula: "Profit Margin = Client Revenue − Vendor Cost",
+  },
+  margin_percent: {
+    summary: "Gross profitability percentage relative to total billed client revenue.",
+    formula: "Margin % = (Profit Margin / Revenue) × 100",
+  },
+  dlr_percent: {
+    summary: "Percentage of submitted messages confirmed successfully delivered to handsets.",
+    formula: "DLR % = (Delivered SMS / Total Volume) × 100",
+  },
+  peak_tps_utilization: {
+    summary: "Peak traffic burst compared against the configured maximum TPS limit.",
+    formula: "Peak Load % = (Peak Observed TPS / Configured Limit) × 100",
+  },
+  avg_tps_utilization: {
+    summary: "Average traffic load compared against the configured capacity limit.",
+    formula: "Average Load % = (Average TPS / Configured Limit) × 100",
+  },
+  tps_utilization: {
+    summary: "Capacity utilization rate against configured TPS limit.",
+    formula: "Load % = (Observed TPS / Configured Limit) × 100",
+  },
+  peak_tps: {
+    summary: "Highest throughput rate (messages per second) reached within any hour.",
+    formula: "Peak TPS = Max hourly message volume / 3,600 sec",
+  },
+  tps: {
+    summary: "Average messages per second processed across the active timeframe.",
+    formula: "Average TPS = Total Messages / Time Window (sec)",
+  },
+  attempts: {
+    summary: "Total volume of SMS messages submitted into the switch.",
+    formula: "Volume = Count of all processed SMS records",
+  },
+  delivered: {
+    summary: "Count of SMS messages confirmed delivered by terminal carrier DLRs.",
+    formula: "Delivered = Count of messages with status DELIVERED",
+  },
+  failed: {
+    summary: "Count of messages that failed to deliver or expired without carrier delivery.",
+    formula: "Failed = Count of messages with status FAILED or EXPIRED",
+  },
+  rejected: {
+    summary: "Messages rejected before sending due to routing rules, balance, or blacklist.",
+    formula: "Rejected = Count of messages with status REJECTED",
+  },
+  revenue: {
+    summary: "Gross revenue billed to customers in the switch's base currency.",
+    formula: "Revenue = Sum of client charges (base currency)",
+  },
+  vendor_cost: {
+    summary: "Total carrier termination charges incurred in the switch's base currency.",
+    formula: "Vendor Cost = Sum of vendor charges (base currency)",
+  },
 };
 
 export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
@@ -174,7 +237,34 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
         const summary = res?.summary || [];
         const t = res?.totals || summary[0] || {};
         setTotals(t);
-        setData(summary);
+        const normalized = summary.map((row) => ({
+          ...row,
+          name: "Overall Switch Total",
+          cleanName: "Overall Switch Total",
+          profit_margin: Number(row.profit_margin ?? t.profit_margin ?? 0),
+          margin_percent: Number(row.margin_percent ?? t.margin_percent ?? 0),
+          revenue: Number(row.revenue ?? t.revenue ?? 0),
+          vendor_cost: Number(row.vendor_cost ?? t.vendor_cost ?? 0),
+          attempts: Number(row.attempts ?? t.attempts ?? 0),
+          delivered: Number(row.delivered ?? t.delivered ?? 0),
+          failed: Number(row.failed ?? t.failed ?? 0),
+          dlr_percent: typeof row.dlr_percent === "number" ? row.dlr_percent : Number(t.dlr_percent || 0),
+        }));
+        if (normalized.length === 0 && Object.keys(t).length > 0) {
+          normalized.push({
+            name: "Overall Switch Total",
+            cleanName: "Overall Switch Total",
+            profit_margin: Number(t.profit_margin || 0),
+            margin_percent: Number(t.margin_percent || 0),
+            revenue: Number(t.revenue || 0),
+            vendor_cost: Number(t.vendor_cost || 0),
+            attempts: Number(t.attempts || 0),
+            delivered: Number(t.delivered || 0),
+            failed: Number(t.failed || 0),
+            dlr_percent: Number(t.dlr_percent || 0),
+          } as any);
+        }
+        setData(normalized);
       } else {
         const groupByParam =
           widget.entity === "country"
@@ -322,12 +412,28 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     return top;
   }, [processedData, widget.visualization, widget.primaryMetric]);
 
+  const { chartDataMin, chartDataMax } = useMemo(() => {
+    if (!processedData || processedData.length === 0) {
+      return { chartDataMin: 0, chartDataMax: 0 };
+    }
+    const vals = processedData.map((d) => Number(d[widget.primaryMetric] || 0));
+    return {
+      chartDataMin: Math.min(...vals),
+      chartDataMax: Math.max(...vals),
+    };
+  }, [processedData, widget.primaryMetric]);
+
   const sizeClass =
     widget.size === "small"
       ? "col-span-12 md:col-span-6 lg:col-span-4"
       : widget.size === "medium"
       ? "col-span-12 lg:col-span-6"
       : "col-span-12";
+
+  const metricMeta = METRIC_DESCRIPTIONS[widget.primaryMetric] || {
+    summary: "Tracks custom switch traffic metrics.",
+    formula: "",
+  };
 
   return (
     <div
@@ -342,10 +448,60 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             <GripVertical size={16} />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               <h3 className="font-semibold text-sm sm:text-base text-text-primary dark:text-white truncate" title={widget.title}>
                 {widget.title}
               </h3>
+
+              {/* Informative Hint / Guide Tooltip */}
+              <div className="relative group/hint inline-flex items-center">
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-primary dark:hover:text-primary transition-colors p-0.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700/60"
+                  title="Click or hover to understand what this widget displays"
+                >
+                  <HelpCircle size={13} />
+                </button>
+                <div className="absolute left-0 top-full mt-1.5 hidden group-hover/hint:block group-focus-within/hint:block w-72 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3 z-50 text-xs select-text">
+                  <div className="font-semibold text-text-primary dark:text-white pb-1.5 border-b border-gray-100 dark:border-gray-700 mb-2 flex items-center justify-between">
+                    <span>Widget Guide</span>
+                    <span className="text-[10px] font-normal px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-text-secondary dark:text-gray-300 capitalize">
+                      {widget.visualization} View
+                    </span>
+                  </div>
+                  <div className="space-y-1.5 text-[11px]">
+                    <div>
+                      <span className="text-text-secondary dark:text-gray-400">Grouping:</span>{" "}
+                      <span className="font-medium text-text-primary dark:text-gray-200">
+                        {ENTITY_LABELS[widget.entity] || widget.entity}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-text-secondary dark:text-gray-400">Primary Metric:</span>{" "}
+                      <span className="font-medium text-text-primary dark:text-gray-200">
+                        {METRIC_LABELS[widget.primaryMetric] || widget.primaryMetric}
+                      </span>
+                    </div>
+                    {metricMeta.summary && (
+                      <p className="text-text-secondary dark:text-gray-300 pt-1 leading-relaxed border-t border-gray-50 dark:border-gray-700/60">
+                        {metricMeta.summary}
+                      </p>
+                    )}
+                    {metricMeta.formula && (
+                      <div className="bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg font-mono text-[10px] text-text-primary dark:text-gray-300 border border-gray-100 dark:border-gray-700">
+                        {metricMeta.formula}
+                      </div>
+                    )}
+                    {widget.condition && widget.condition.operator !== "none" && (
+                      <div className="pt-1.5 border-t border-gray-100 dark:border-gray-700 text-amber-700 dark:text-amber-400 font-medium">
+                        Active Rule: {METRIC_LABELS[widget.condition.metric] || widget.condition.metric}{" "}
+                        {widget.condition.operator} {widget.condition.value} ({widget.condition.mode === "filter" ? "filter only" : "highlight"})
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {widget.condition && widget.condition.operator !== "none" && (
                 <span
                   className={`inline-flex items-center gap-1 text-[10px] px-2.5 py-0.5 rounded-full font-medium ${
@@ -360,8 +516,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                 </span>
               )}
             </div>
-            <div className="text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2 mt-0.5">
+            <div className="text-xs text-text-secondary dark:text-gray-400 flex items-center gap-1.5 flex-wrap mt-0.5">
               <span>{METRIC_LABELS[widget.primaryMetric] || widget.primaryMetric}</span>
+              <span className="text-gray-300 dark:text-gray-600">•</span>
+              <span className="text-text-secondary dark:text-gray-300 font-medium">{ENTITY_LABELS[widget.entity] || widget.entity}</span>
               {widget.filters.client && <span>• Client: {widget.filters.client}</span>}
               {widget.filters.vendor && <span>• Vendor: {widget.filters.vendor}</span>}
               {widget.filters.country && <span>• {widget.filters.country}</span>}
@@ -553,7 +711,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             {widget.visualization === "bar" && processedData.length > 0 && (
               <div className="h-[240px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 25 }}>
+                  <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 42 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} vertical={false} />
                     <XAxis
                       dataKey="cleanName"
@@ -563,7 +721,10 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       interval={0}
                       angle={-20}
                       textAnchor="end"
-                      height={46}
+                      height={52}
+                      tickMargin={14}
+                      dy={6}
+                      dx={-4}
                       tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
                       tickFormatter={(val) => (String(val).length > 18 ? `${String(val).slice(0, 17)}…` : String(val))}
                     />
@@ -573,26 +734,42 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       tickLine={false}
                       tick={{ fill: isDark ? "#9ca3af" : "#64748b", fontSize: 11 }}
                       domain={[
-                        0,
+                        (dataMin: number) => {
+                          if (dataMin < 0 || chartDataMin < 0) {
+                            const minVal = Math.min(dataMin, chartDataMin);
+                            return Math.floor(minVal * 1.25);
+                          }
+                          return 0;
+                        },
                         (dataMax: number) => {
+                          const targetMax = Math.max(dataMax, chartDataMax);
                           const isPercent =
                             widget.primaryMetric.includes("percent") ||
                             widget.primaryMetric.includes("utilization");
                           if (isPercent) {
-                            return Math.max(100, Math.ceil(dataMax * 1.2));
+                            if (targetMax <= 0.5) return 1;
+                            if (targetMax <= 1.5) return 2;
+                            if (targetMax <= 5) return Math.max(2, Math.ceil(targetMax * 1.25));
+                            if (targetMax <= 15) return Math.ceil(targetMax * 1.2);
+                            if (targetMax <= 40) return Math.ceil((targetMax * 1.2) / 5) * 5;
+                            if (targetMax <= 80) return Math.ceil((targetMax * 1.12) / 5) * 5;
+                            return Math.max(100, Math.ceil(targetMax * 1.1));
                           }
-                          if (dataMax <= 0.1) {
-                            return Number((Math.max(0.01, dataMax) * 1.35).toFixed(3));
+                          if (targetMax <= 0.1) {
+                            return Number((Math.max(0.01, targetMax) * 1.35).toFixed(3));
                           }
-                          if (dataMax <= 1) {
-                            return Number((dataMax * 1.25).toFixed(2));
+                          if (targetMax <= 1) {
+                            return Number((targetMax * 1.25).toFixed(2));
                           }
-                          return Math.ceil(dataMax * 1.2);
+                          if (targetMax <= 10) {
+                            return Math.ceil(targetMax * 1.25);
+                          }
+                          return Math.ceil(targetMax * 1.2);
                         },
                       ]}
                       tickFormatter={(val) => {
                         if (widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization")) {
-                          return `${val}%`;
+                          return `${Number(Number(val).toFixed(1))}%`;
                         }
                         if (val >= 1000) {
                           return `${(val / 1000).toFixed(1)}k`;
@@ -609,7 +786,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                         if (!active || !payload || !payload.length) return null;
                         const item = payload[0].payload;
                         const metricVal = item[widget.primaryMetric];
-                        const isAlert = item._isMatch;
+                        const isAlert = Boolean(item._isMatch && widget.condition?.mode === "highlight");
                         const metricLabel = METRIC_LABELS[widget.primaryMetric] || widget.primaryMetric;
                         const isTpsMetric = [
                           "tps",
@@ -689,60 +866,58 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                       }}
                     />
 
-                    {/* Warning/Alert Threshold Reference Line */}
-                    {widget.condition &&
-                      widget.condition.operator !== "none" &&
-                      typeof widget.condition.value === "number" && (
-                        <ReferenceLine
-                          y={widget.condition.value}
-                          stroke="#f59e0b"
-                          strokeDasharray="4 4"
-                          strokeWidth={1.5}
-                          label={{
-                            value: `Threshold (${widget.condition.value}${
-                              widget.primaryMetric.includes("percent") || widget.primaryMetric.includes("utilization") ? "%" : ""
-                            })`,
-                            position: "insideTopRight",
-                            fill: isDark ? "#fbbf24" : "#d97706",
-                            fontSize: 10,
-                            fontWeight: 600,
-                          }}
-                        />
-                      )}
+                    {/* Zero baseline reference line when negative values are present */}
+                    {chartDataMin < 0 && (
+                      <ReferenceLine
+                        y={0}
+                        stroke={isDark ? "#4b5563" : "#cbd5e1"}
+                        strokeWidth={1}
+                      />
+                    )}
 
-                    {/* 100% Policy Limit Line for Utilization Metrics */}
-                    {["peak_tps_utilization", "tps_utilization", "avg_tps_utilization"].includes(widget.primaryMetric) &&
-                      widget.condition?.value !== 100 && (
-                        <ReferenceLine
-                          y={100}
-                          stroke="#ef4444"
-                          strokeDasharray="3 3"
-                          strokeWidth={1.5}
-                          label={{
-                            value: "100% Limit",
-                            position: "insideBottomRight",
-                            fill: isDark ? "#f87171" : "#dc2626",
-                            fontSize: 10,
-                            fontWeight: 600,
-                          }}
-                        />
-                      )}
-
-                    <Bar dataKey={widget.primaryMetric} radius={[4, 4, 0, 0]}>
+                    <Bar dataKey={widget.primaryMetric} radius={[4, 4, 0, 0]} minPointSize={4}>
                       {processedData.map((entry, index) => {
-                        const isAlert = entry._isMatch;
+                        const isAlert = Boolean(entry._isMatch && widget.condition?.mode === "highlight");
                         const fill = isAlert ? "#ef4444" : PALETTE[index % PALETTE.length];
-                        return <Cell key={`cell-${index}`} fill={fill} />;
+                        const val = Number(entry[widget.primaryMetric] || 0);
+                        const isZero = val === 0;
+                        return (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={fill}
+                            fillOpacity={isZero ? 0 : 1}
+                          />
+                        );
                       })}
                       <LabelList
                         dataKey={widget.primaryMetric}
-                        position="top"
-                        formatter={(val: any) => formatMetricValue(widget.primaryMetric, Number(val))}
-                        style={{
-                          fill: isDark ? "#9ca3af" : "#475569",
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          fontFamily: "monospace",
+                        content={(props: any) => {
+                          const { x, y, width, height, value } = props;
+                          if (value === null || value === undefined || isNaN(value)) return null;
+                          const numVal = Number(value);
+                          if (numVal === 0) return null;
+
+                          const formatted = formatMetricValue(widget.primaryMetric, numVal);
+                          const isNegative = numVal < 0;
+
+                          // Negative bars extend downwards from y (the 0 baseline).
+                          // Shallow bars (height <= 28) sit 10px ABOVE the baseline to prevent colliding with rotated X-axis text.
+                          // Deep bars (height > 28) sit comfortably inside the bar.
+                          const labelY = isNegative ? (height > 28 ? y + 16 : y - 10) : y - 6;
+
+                          return (
+                            <text
+                              x={x + width / 2}
+                              y={labelY}
+                              fill={isNegative ? (isDark ? "#f87171" : "#dc2626") : (isDark ? "#9ca3af" : "#475569")}
+                              textAnchor="middle"
+                              fontSize={10}
+                              fontWeight={600}
+                              fontFamily="monospace"
+                            >
+                              {formatted}
+                            </text>
+                          );
                         }}
                       />
                     </Bar>
@@ -875,6 +1050,8 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           ? "Client Account"
                           : widget.entity === "country"
                           ? "Destination"
+                          : widget.entity === "overview"
+                          ? "Scope / Aggregate"
                           : "Failure Reason"}
                       </th>
                       <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Volume</th>
@@ -894,14 +1071,14 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                           <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-right">Margin ($)</th>
                         </>
                       )}
-                      {widget.condition && widget.condition.operator !== "none" && (
+                      {widget.condition && widget.condition.operator !== "none" && widget.condition.mode === "highlight" && (
                         <th className="px-3 py-2 text-[11px] font-semibold text-text-secondary dark:text-gray-400 uppercase tracking-wider text-center">Status</th>
                       )}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700/60 font-mono">
                     {processedData.map((row, idx) => {
-                      const isAlert = row._isMatch;
+                      const isAlert = Boolean(row._isMatch && widget.condition?.mode === "highlight");
                       const dlr = Number(row.dlr_percent || 0);
                       const isTps = ["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric);
 
@@ -1016,12 +1193,14 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                                     : "text-rose-600 dark:text-rose-400 font-semibold"
                                 }`}
                               >
-                                ${Number(row.profit_margin || 0).toFixed(2)}
+                                {Number(row.profit_margin || 0) < 0
+                                  ? `-$${Math.abs(Number(row.profit_margin || 0)).toFixed(2)}`
+                                  : `$${Number(row.profit_margin || 0).toFixed(2)}`}
                               </td>
                             </>
                           )}
 
-                          {widget.condition && widget.condition.operator !== "none" && (
+                          {widget.condition && widget.condition.operator !== "none" && widget.condition.mode === "highlight" && (
                             <td className="px-3 py-2 text-center">
                               {isAlert ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded font-medium bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-800">

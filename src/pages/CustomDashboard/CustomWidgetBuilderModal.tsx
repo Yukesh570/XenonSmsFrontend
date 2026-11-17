@@ -11,6 +11,7 @@ import {
   DollarSign,
   Globe,
   PieChart,
+  Info,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
@@ -26,6 +27,87 @@ import {
   METRIC_LABELS,
   ENTITY_LABELS,
 } from "./customWidgetTypes";
+
+const ENTITY_HINTS: Record<EntityGroupBy, string> = {
+  vendor: "Groups traffic per terminating carrier trunk / route provider.",
+  client: "Groups traffic per customer account / SMPP user.",
+  country: "Groups traffic per destination country / territory.",
+  failure_reason: "Groups failed messages by carrier error code & failure reason.",
+  overview: "Calculates single system-wide aggregate totals across the switch.",
+};
+
+const METRIC_HINTS: Record<MetricType, { summary: string; formula: string; detail: string }> = {
+  dlr_percent: {
+    summary: "Delivery success percentage confirmed by terminal carrier DLR receipts.",
+    formula: "(Delivered SMS ÷ Total Volume) × 100",
+    detail: "Measures overall route quality. A drop below 90% typically flags carrier degradation, expired messages, or invalid numbers.",
+  },
+  profit_margin: {
+    summary: "Net revenue earnings generated from traffic after deducting carrier costs.",
+    formula: "Client Revenue − Vendor Cost",
+    detail: "Calculates total net profit in base currency ($). Positive values indicate profit; negative values flag loss-making routes.",
+  },
+  margin_percent: {
+    summary: "Gross profitability percentage relative to total billed client revenue.",
+    formula: "(Profit Margin ÷ Client Revenue) × 100",
+    detail: "Measures commercial efficiency. Shows what percentage of each client dollar is retained after carrier termination costs.",
+  },
+  peak_tps_utilization: {
+    summary: "Peak traffic burst compared against the configured maximum TPS limit.",
+    formula: "(Peak Observed TPS ÷ Configured Limit) × 100",
+    detail: "Identifies capacity saturation. Values approaching or exceeding 100% indicate clients or trunks bursting past their provisioned limits.",
+  },
+  avg_tps_utilization: {
+    summary: "Average traffic load compared against the configured capacity limit.",
+    formula: "(Average TPS ÷ Configured Limit) × 100",
+    detail: "Measures sustained workload against provisioned capacity across the selected timeframe.",
+  },
+  tps_utilization: {
+    summary: "Capacity utilization rate against configured TPS limit.",
+    formula: "(Observed TPS ÷ Configured Limit) × 100",
+    detail: "Tracks traffic rate against maximum allowed throttle limit.",
+  },
+  peak_tps: {
+    summary: "Highest throughput rate (messages per second) reached within any hour.",
+    formula: "Max hourly volume ÷ 3,600 sec",
+    detail: "Captures the single biggest traffic burst in the selected timeframe, helping size connection bandwidth and TPS limits.",
+  },
+  tps: {
+    summary: "Average messages per second processed across the active timeframe.",
+    formula: "Total Messages ÷ Duration (seconds)",
+    detail: "Reflects steady-state throughput volume for planning and capacity management.",
+  },
+  attempts: {
+    summary: "Total count of SMS messages submitted into the switch.",
+    formula: "Count of all processed SMS records",
+    detail: "The gross traffic volume processed by the switch, regardless of delivery outcome.",
+  },
+  delivered: {
+    summary: "Count of SMS messages confirmed delivered to handsets.",
+    formula: "Count of messages with status DELIVERED",
+    detail: "Messages that received a final positive delivery receipt from the handset or downstream operator.",
+  },
+  failed: {
+    summary: "Count of messages that failed or expired without delivery.",
+    formula: "Count of messages with status FAILED or EXPIRED",
+    detail: "Messages that were rejected by carriers, encountered routing errors, or timed out without delivery.",
+  },
+  rejected: {
+    summary: "Messages rejected before sending due to balance, rules, or blacklist.",
+    formula: "Count of messages with status REJECTED",
+    detail: "Messages rejected internally by the switch before carrier submission (e.g., insufficient balance, invalid prefix, blacklist).",
+  },
+  revenue: {
+    summary: "Gross revenue billed to customers in the switch's base currency.",
+    formula: "Sum of base_client_charge",
+    detail: "Total billing amount charged to clients for submitting messages through the platform.",
+  },
+  vendor_cost: {
+    summary: "Total carrier termination charges incurred in the switch's base currency.",
+    formula: "Sum of base_vendor_charge",
+    detail: "Total wholesale costs owed to downstream vendors/carriers for terminating messages.",
+  },
+};
 
 interface CustomWidgetBuilderModalProps {
   isOpen: boolean;
@@ -423,8 +505,11 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="failure_reason">By Failure Reason</option>
                 <option value="overview">Overall Summary (Switch Aggregate)</option>
               </select>
+              <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                {ENTITY_HINTS[entity] || "Groups data across selected entities."}
+              </p>
               {visualization === "kpi" && (
-                <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                <p className="text-[11px] text-primary dark:text-primary mt-1 font-medium">
                   💡 Select <strong>Overall Summary</strong> for switch-wide aggregate stats, or select Client/Vendor to feature the #1 top-ranked entity.
                 </p>
               )}
@@ -450,8 +535,29 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
                 <option value="revenue">Revenue ($)</option>
                 <option value="vendor_cost">Vendor Cost ($)</option>
               </select>
+              <p className="text-[11px] text-text-secondary dark:text-gray-400 mt-1">
+                {METRIC_HINTS[primaryMetric]?.summary}
+              </p>
             </div>
           </div>
+
+          {/* Metric Guide & Formula Callout Box */}
+          {METRIC_HINTS[primaryMetric] && (
+            <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-start gap-2.5">
+              <Info size={16} className="text-primary shrink-0 mt-0.5" />
+              <div className="text-xs space-y-1 min-w-0">
+                <div className="font-semibold text-text-primary dark:text-white flex items-center gap-2 flex-wrap">
+                  <span>{METRIC_LABELS[primaryMetric] || primaryMetric}</span>
+                  <span className="text-[10px] font-normal px-2 py-0.5 rounded bg-primary/10 text-primary font-mono border border-primary/20">
+                    Formula: {METRIC_HINTS[primaryMetric].formula}
+                  </span>
+                </div>
+                <p className="text-text-secondary dark:text-gray-300 text-[11px] leading-relaxed">
+                  {METRIC_HINTS[primaryMetric].detail}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Section 3: Scope Filters */}
