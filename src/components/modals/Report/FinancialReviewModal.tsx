@@ -1,7 +1,6 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
-import { StatusBadge } from "../../ui/StatusBadge";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
 export interface TerminalFailureRow {
@@ -66,8 +65,8 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                 Status
               </label>
-              <div className="p-1">
-                <StatusBadge status={viewLog.status} />
+              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                {viewLog.status || "-"}
               </div>
             </div>
             <div>

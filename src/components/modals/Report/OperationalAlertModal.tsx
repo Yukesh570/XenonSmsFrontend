@@ -3,7 +3,6 @@ import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import Select from "../../ui/Select";
 import TextArea from "../../ui/TextArea";
-import { StatusBadge } from "../../ui/StatusBadge";
 import { formatDateTime } from "../../../helper/dateFormatter";
 import { Lock, UserCheck, User as UserIcon } from "lucide-react";
 import type {
@@ -68,16 +67,16 @@ export const OperationalAlertModal: React.FC<OperationalAlertModalProps> = ({
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                 Severity
               </label>
-              <div className="p-1">
-                <StatusBadge status={viewRow.severity} />
+              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                {viewRow.severity || "-"}
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                 Status
               </label>
-              <div className="p-1">
-                <StatusBadge status={viewRow.status} />
+              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                {viewRow.status || "-"}
               </div>
             </div>
             <div>

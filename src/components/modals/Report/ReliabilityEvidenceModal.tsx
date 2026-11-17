@@ -1,7 +1,6 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
-import { StatusBadge } from "../../ui/StatusBadge";
 import { formatDateTime } from "../../../helper/dateFormatter";
 import type { EvidenceSource } from "../../../api/reportApi/r4MonitoringApi";
 
@@ -119,8 +118,8 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
                   <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                     Status / Outcome
                   </label>
-                  <div className="p-1">
-                    <StatusBadge status={viewRow.outcome || viewRow.status || (isDlrConflict ? viewRow.winner_status : undefined)} />
+                  <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                    {viewRow.outcome || viewRow.status || (isDlrConflict ? viewRow.winner_status : undefined) || "-"}
                   </div>
                 </div>
                 <div>
@@ -159,16 +158,16 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
                     <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                       Existing ({viewRow.existingSource})
                     </label>
-                    <div className="p-1">
-                      <StatusBadge status={viewRow.existingStatus} />
+                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                      {viewRow.existingStatus || "-"}
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                       Incoming ({viewRow.incomingSource})
                     </label>
-                    <div className="p-1">
-                      <StatusBadge status={viewRow.incomingStatus} />
+                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                      {viewRow.incomingStatus || "-"}
                     </div>
                   </div>
                 </>
@@ -179,16 +178,16 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
                     <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                       Winner Status
                     </label>
-                    <div className="p-1">
-                      <StatusBadge status={viewRow.winner_status} />
+                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                      {viewRow.winner_status || "-"}
                     </div>
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
                       Loser Status
                     </label>
-                    <div className="p-1">
-                      <StatusBadge status={viewRow.loser_status} />
+                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
+                      {viewRow.loser_status || "-"}
                     </div>
                   </div>
                 </>
