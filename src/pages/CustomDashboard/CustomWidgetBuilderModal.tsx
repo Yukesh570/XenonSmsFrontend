@@ -25,7 +25,6 @@ import type {
   VisualizationType,
   ConditionOperator,
   ConditionMode,
-  DatePreset,
 } from "./customWidgetTypes";
 import {
   METRIC_LABELS,
@@ -146,21 +145,6 @@ const FAILURE_METRIC_OPTIONS: SelectOption[] = [
   { value: "failed", label: "Failed Messages (Error Occurrences)" },
 ];
 
-const DATE_PRESET_OPTIONS: SelectOption[] = [
-  { value: "5m", label: "Last 5 Minutes" },
-  { value: "15m", label: "Last 15 Minutes" },
-  { value: "1h", label: "Last 1 Hour" },
-  { value: "2h", label: "Last 2 Hour" },
-  { value: "4h", label: "Last 4 Hour" },
-  { value: "today", label: "Today" },
-  { value: "yesterday", label: "Yesterday" },
-  { value: "3d", label: "Last 3 Days" },
-  { value: "7d", label: "Last 7 Days" },
-  { value: "15d", label: "Last 15 Days" },
-  { value: "30d", label: "Last 30 Days" },
-  { value: "all", label: "All Available History" },
-];
-
 const COND_METRIC_OPTIONS: SelectOption[] = [
   { value: "dlr_percent", label: "DLR %" },
   { value: "peak_tps_utilization", label: "Peak Load (%)" },
@@ -247,7 +231,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
   const [clientFilter, setClientFilter] = useState<string>("");
   const [vendorFilter, setVendorFilter] = useState<string>("");
   const [countryFilter, setCountryFilter] = useState<string>("");
-  const [datePreset, setDatePreset] = useState<DatePreset>("today");
 
   // Condition Rule
   const [hasCondition, setHasCondition] = useState<boolean>(false);
@@ -271,7 +254,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setClientFilter(editingWidget.filters.client || "");
       setVendorFilter(editingWidget.filters.vendor || "");
       setCountryFilter(editingWidget.filters.country || "");
-      setDatePreset((editingWidget.filters.datePreset as DatePreset) || "today");
       setIncludeDeleted(Boolean(editingWidget.filters.include_deleted));
 
       if (editingWidget.condition && editingWidget.condition.operator !== "none") {
@@ -296,7 +278,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setClientFilter("");
       setVendorFilter("");
       setCountryFilter("");
-      setDatePreset("today");
       setHasCondition(true);
       setCondMetric("dlr_percent");
       setCondOperator("lt");
@@ -417,7 +398,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
         client: clientFilter || undefined,
         vendor: vendorFilter || undefined,
         country: countryFilter || undefined,
-        datePreset,
         include_deleted: includeDeleted === true ? true : false,
       },
       condition: hasCondition
@@ -659,7 +639,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               Optional: filter data before grouping
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-start">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
             <Select
               label="Filter Client"
               value={clientFilter}
@@ -685,14 +665,6 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               options={countryOptions}
               placeholder="All Countries"
               clearable
-              isLoading={false}
-            />
-            <Select
-              label="Time Window"
-              value={datePreset}
-              onChange={(v) => setDatePreset(v as DatePreset)}
-              options={DATE_PRESET_OPTIONS}
-              clearable={false}
               isLoading={false}
             />
           </div>

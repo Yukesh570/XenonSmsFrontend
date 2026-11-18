@@ -173,8 +173,8 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Global timeframe selector on the dashboard overrides individual widget preset unless specified
-  const activeDatePreset = globalDatePreset || widget.filters.datePreset || "today";
+  // Global timeframe selector on the dashboard controls all widget date ranges
+  const activeDatePreset = globalDatePreset || "today";
 
   const getDateRange = useCallback(() => {
     if (activeDatePreset === "all") return {};
