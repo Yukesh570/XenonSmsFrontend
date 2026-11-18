@@ -126,8 +126,8 @@ const METRIC_DESCRIPTIONS: Record<string, { summary: string; formula: string }> 
     formula: "Load % = (Observed TPS / Configured Limit) × 100",
   },
   peak_tps: {
-    summary: "Highest throughput rate (messages per second) reached within any hour.",
-    formula: "Peak TPS = Max hourly message volume / 3,600 sec",
+    summary: "Highest throughput rate (messages per second) reached within any 1-second window.",
+    formula: "Peak TPS = Max 1-second burst volume",
   },
   tps: {
     summary: "Average messages per second processed across the active timeframe.",
@@ -662,7 +662,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
                     </div>
                     {["tps", "peak_tps", "peak_tps_utilization", "avg_tps_utilization", "tps_utilization"].includes(widget.primaryMetric) && (
                       <div className="text-xs text-text-secondary dark:text-gray-400 mt-1">
-                        {widget.primaryMetric === "peak_tps" && "Peak hourly throughput rate observed"}
+                        {widget.primaryMetric === "peak_tps" && "Peak 1-second throughput burst observed"}
                         {widget.primaryMetric === "tps" && "Average sustained window throughput"}
                         {widget.primaryMetric === "tps_utilization" && "Capacity saturation vs configured policy limit"}
                       </div>

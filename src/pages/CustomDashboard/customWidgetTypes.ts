@@ -90,11 +90,11 @@ export const METRIC_LABELS: Record<MetricType, string> = {
 };
 
 export const ENTITY_LABELS: Record<EntityGroupBy, string> = {
-  vendor: "By Vendor (Trunk / Route)",
-  client: "By Client (Account)",
-  country: "By Country (Destination)",
+  vendor: "By Vendor",
+  client: "By Client",
+  country: "By Country",
   failure_reason: "By Failure Reason",
-  overview: "Overall Summary (Single Aggregate)",
+  overview: "Overall Summary",
 };
 
 export const OPERATOR_LABELS: Record<ConditionOperator, string> = {

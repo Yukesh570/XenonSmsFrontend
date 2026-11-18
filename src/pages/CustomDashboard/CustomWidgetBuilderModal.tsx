@@ -71,9 +71,10 @@ const METRIC_HINTS: Record<MetricType, { summary: string; formula: string; detai
     detail: "Tracks traffic rate against maximum allowed throttle limit.",
   },
   peak_tps: {
-    summary: "Highest throughput rate (messages per second) reached within any hour.",
-    formula: "Max hourly volume ÷ 3,600 sec",
-    detail: "Captures the single biggest traffic burst in the selected timeframe, helping size connection bandwidth and TPS limits.",
+    summary: "Highest throughput rate (messages per second) reached within any 1-second window.",
+    formula: "Max 1-second burst volume",
+    detail:
+      "Captures the single highest 1-second traffic burst in the selected timeframe, helping verify carrier connection bandwidth and TPS throttle limits.",
   },
   tps: {
     summary: "Average messages per second processed across the active timeframe.",
@@ -119,11 +120,11 @@ const SIZE_OPTIONS: SelectOption[] = [
 ];
 
 const ENTITY_OPTIONS: SelectOption[] = [
-  { value: "vendor", label: "By Vendor (Trunk / Route)" },
-  { value: "client", label: "By Client (Account)" },
-  { value: "country", label: "By Country (Destination)" },
+  { value: "vendor", label: "By Vendor" },
+  { value: "client", label: "By Client" },
+  { value: "country", label: "By Country" },
   { value: "failure_reason", label: "By Failure Reason" },
-  { value: "overview", label: "Overall Summary (Switch Aggregate)" },
+  { value: "overview", label: "Overall Summary" },
 ];
 
 const METRIC_OPTIONS: SelectOption[] = [
@@ -171,8 +172,8 @@ const COND_MODE_OPTIONS: SelectOption[] = [
 ];
 
 const SORT_BY_OPTIONS: SelectOption[] = [
-  { value: "metric_asc", label: "Metric Ascending (Lowest / Worst First)" },
   { value: "metric_desc", label: "Metric Descending (Highest / Best First)" },
+  { value: "metric_asc", label: "Metric Ascending (Lowest / Worst First)" },
   { value: "attempts_desc", label: "Volume / Attempts Descending" },
   { value: "name_asc", label: "Alphabetical (Name A-Z)" },
 ];
@@ -240,7 +241,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
   const [condMode, setCondMode] = useState<ConditionMode>("filter");
 
   // Sorting
-  const [sortBy, setSortBy] = useState<"metric_desc" | "metric_asc" | "attempts_desc" | "name_asc">("metric_asc");
+  const [sortBy, setSortBy] = useState<"metric_desc" | "metric_asc" | "attempts_desc" | "name_asc">("metric_desc");
   const [limit, setLimit] = useState<number>(15);
   const [includeDeleted, setIncludeDeleted] = useState<boolean>(false);
 
@@ -283,7 +284,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setCondOperator("lt");
       setCondValue(90);
       setCondMode("filter");
-      setSortBy("metric_asc");
+      setSortBy("metric_desc");
       setLimit(15);
     }
   }, [editingWidget, isOpen]);
