@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   GripVertical,
   Settings,
@@ -21,7 +21,7 @@ import {
   ReferenceLine,
   LabelList,
 } from "recharts";
-import type { CustomWidgetDefinition, MetricType, CustomWidgetCondition } from "./customWidgetTypes";
+import type { CustomWidgetDefinition, CustomWidgetSize, MetricType, CustomWidgetCondition } from "./customWidgetTypes";
 import { METRIC_LABELS, ENTITY_LABELS } from "./customWidgetTypes";
 import { getSummariseSummaryApi, getFailureReasonsApi } from "../../api/reportApi/summariseReportApi";
 import { StatusBadge } from "../../components/ui/StatusBadge";
@@ -33,7 +33,9 @@ interface CustomWidgetCardProps {
   isDark?: boolean;
   onEdit: (widget: CustomWidgetDefinition) => void;
   onRemove: (id: string) => void;
-  onResize: (id: string) => void;
+  onResize: (id: string, dimensions?: { width?: number; height?: number } | CustomWidgetSize) => void;
+  onEnableDrag?: (id: string) => void;
+  onDisableDrag?: () => void;
   isDragging?: boolean;
 }
 
@@ -166,12 +168,104 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
   onEdit,
   onRemove,
   onResize,
+  onEnableDrag,
+  onDisableDrag,
   isDragging,
 }) => {
   const [data, setData] = useState<any[]>([]);
   const [totals, setTotals] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Freeform interactive resizing state (any width, any height)
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const [liveDimensions, setLiveDimensions] = useState<{
+    width: number;
+    height: number;
+    deltaX: number;
+    deltaY: number;
+  } | null>(null);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDisableDrag?.();
+
+    const cardEl = cardRef.current;
+    if (!cardEl) return;
+
+    const startRect = cardEl.getBoundingClientRect();
+    const startWidth = startRect.width;
+    const startHeight = startRect.height;
+    const startMouseX = e.clientX;
+    const startMouseY = e.clientY;
+
+    const parentContainer = cardEl.closest(".flex-wrap") as HTMLElement | null;
+    const maxContainerWidth = parentContainer ? parentContainer.clientWidth : window.innerWidth;
+
+    setIsResizing(true);
+    setLiveDimensions({
+      width: Math.round(startWidth),
+      height: Math.round(startHeight),
+      deltaX: 0,
+      deltaY: 0,
+    });
+
+    let currentW = Math.round(startWidth);
+    let currentH = Math.round(startHeight);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = Math.round(moveEvent.clientX - startMouseX);
+      const deltaY = Math.round(moveEvent.clientY - startMouseY);
+
+      // Freeform resizing: any width (min 260px up to container width), any height (min 180px up to 1400px)
+      const newWidth = Math.max(260, Math.min(maxContainerWidth, Math.round(startWidth + deltaX)));
+      const newHeight = Math.max(180, Math.min(1400, Math.round(startHeight + deltaY)));
+
+      currentW = newWidth;
+      currentH = newHeight;
+      setLiveDimensions({ width: newWidth, height: newHeight, deltaX, deltaY });
+
+      // Direct DOM update on wrapper flex item so sibling cards wrap cleanly without overlapping
+      const wrapperEl = cardEl.parentElement;
+      if (wrapperEl) {
+        wrapperEl.style.width = `${newWidth}px`;
+        wrapperEl.style.minWidth = `${newWidth}px`;
+        wrapperEl.style.height = `${newHeight}px`;
+        wrapperEl.style.flex = "0 0 auto";
+        wrapperEl.style.maxWidth = "100%";
+      }
+      cardEl.style.width = "100%";
+      cardEl.style.height = "100%";
+    };
+
+    const handleMouseUp = () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+
+      setIsResizing(false);
+      setLiveDimensions(null);
+
+      // Clean up direct DOM inline styles so React state takes over cleanly
+      const wrapperEl = cardEl.parentElement;
+      if (wrapperEl) {
+        wrapperEl.style.minWidth = "";
+      }
+      cardEl.style.width = "";
+      cardEl.style.height = "";
+
+      onResize(widget.id, { width: currentW, height: currentH });
+    };
+
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "se-resize";
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
 
   // Global timeframe selector on the dashboard controls all widget date ranges
   const activeDatePreset = globalDatePreset || "today";
@@ -246,6 +340,13 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     };
   }, [activeDatePreset]);
 
+  // Stable query parameters so resizing or title changes never trigger API requests
+  const entity = widget.entity;
+  const filterClient = widget.filters?.client;
+  const filterVendor = widget.filters?.vendor;
+  const filterCountry = widget.filters?.country;
+  const filterIncludeDeleted = widget.filters?.include_deleted;
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -253,13 +354,13 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
       const dateRange = getDateRange();
       const filters: Record<string, any> = {
         ...dateRange,
-        include_deleted: widget.filters?.include_deleted === true,
+        include_deleted: filterIncludeDeleted === true,
       };
-      if (widget.filters.client) filters.client = widget.filters.client;
-      if (widget.filters.vendor) filters.vendor = widget.filters.vendor;
-      if (widget.filters.country) filters.country = widget.filters.country;
+      if (filterClient) filters.client = filterClient;
+      if (filterVendor) filters.vendor = filterVendor;
+      if (filterCountry) filters.country = filterCountry;
 
-      if (widget.entity === "failure_reason") {
+      if (entity === "failure_reason") {
         const res = await getFailureReasonsApi({ filters });
         const list = (res?.data || []).map((item) => ({
           name: item.failure_reason || "Unknown Failure",
@@ -272,7 +373,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
         }));
         setData(list);
         setTotals({ failed: list.reduce((acc, x) => acc + x.failed, 0) });
-      } else if (widget.entity === "overview") {
+      } else if (entity === "overview") {
         const res = await getSummariseSummaryApi({ filters, group_by: [] });
         const summary = res?.summary || [];
         const t = res?.totals || summary[0] || {};
@@ -307,9 +408,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
         setData(normalized);
       } else {
         const groupByParam =
-          widget.entity === "country"
+          entity === "country"
             ? ["country"]
-            : widget.entity === "vendor"
+            : entity === "vendor"
             ? ["vendor"]
             : ["client"];
 
@@ -319,9 +420,9 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
         const normalized = summary.map((row) => {
           let name = "Unknown";
-          if (widget.entity === "vendor") name = row.vendor || "No Vendor";
-          else if (widget.entity === "client") name = row.client || "No Client";
-          else if (widget.entity === "country") name = row.country || row.message__country__name || "Unknown Country";
+          if (entity === "vendor") name = row.vendor || "No Vendor";
+          else if (entity === "client") name = row.client || "No Client";
+          else if (entity === "country") name = row.country || row.message__country__name || "Unknown Country";
 
           const attempts = Number(row.attempts || 0);
           const delivered = Number(row.delivered || 0);
@@ -370,7 +471,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [widget, getDateRange]);
+  }, [getDateRange, entity, filterClient, filterVendor, filterCountry, filterIncludeDeleted]);
 
   useEffect(() => {
     fetchData();
@@ -475,12 +576,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
     return `${Math.max(calculatedPx, 340)}px`;
   }, [processedData]);
 
-  const sizeClass =
-    widget.size === "small"
-      ? "col-span-12 md:col-span-6 lg:col-span-4"
-      : widget.size === "medium"
-      ? "col-span-12 lg:col-span-6"
-      : "col-span-12";
+  const effectiveHeight = isResizing ? liveDimensions?.height : widget.customHeight;
 
   const metricMeta = METRIC_DESCRIPTIONS[widget.primaryMetric] || {
     summary: "Tracks custom switch traffic metrics.",
@@ -489,14 +585,21 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
   return (
     <div
-      className={`${sizeClass} flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden ${
+      ref={cardRef}
+      className={`relative w-full h-full flex flex-col bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden group/card ${
         isDragging ? "opacity-40 scale-[0.98]" : ""
-      }`}
+      } ${isResizing ? "ring-2 ring-primary/50 border-primary shadow-md" : ""}`}
     >
       {/* Widget Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 select-none">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-text-primary dark:hover:text-gray-300 p-0.5 rounded transition-colors" title="Drag to reorder">
+          <div
+            className="cursor-grab active:cursor-grabbing text-gray-400 dark:text-gray-500 hover:text-text-primary dark:hover:text-gray-300 p-0.5 rounded transition-colors"
+            title="Drag to reorder"
+            onMouseEnter={() => onEnableDrag?.(widget.id)}
+            onMouseLeave={() => onDisableDrag?.()}
+            onMouseDown={() => onEnableDrag?.(widget.id)}
+          >
             <GripVertical size={16} />
           </div>
           <div className="min-w-0">
@@ -595,10 +698,22 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
           <button
             type="button"
             onClick={() => onResize(widget.id)}
-            title={`Current size: ${widget.size}. Click to toggle width.`}
+            title={
+              widget.customWidth
+                ? `Custom size: ${widget.customWidth}×${widget.customHeight || "auto"}px. Click to reset to grid presets.`
+                : `Current size: ${widget.size}. Click to toggle width or drag bottom corner.`
+            }
             className="h-[26px] px-2 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-700 text-text-secondary dark:text-gray-300 hover:border-primary hover:text-primary transition-colors font-mono"
           >
-            {widget.size === "small" ? "1x" : widget.size === "medium" ? "2x" : "Full"}
+            {widget.customWidth
+              ? `${widget.customWidth}px`
+              : widget.size === "small"
+              ? "1x"
+              : widget.size === "medium"
+              ? "2x"
+              : widget.size === "large"
+              ? "3x"
+              : "Full"}
           </button>
           <button
             type="button"
@@ -780,7 +895,7 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             {/* BAR CHART VISUALIZATION */}
             {widget.visualization === "bar" && processedData.length > 0 && (
               <div className="w-full overflow-x-auto custom-scrollbar pb-1">
-                <div style={{ minWidth: barChartMinWidth, width: "100%", height: 245 }}>
+                <div style={{ minWidth: barChartMinWidth, width: "100%", height: effectiveHeight ? Math.max(180, effectiveHeight - 110) : 245 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={processedData} margin={{ top: 22, right: 15, left: -10, bottom: 42 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={isDark ? "#374151" : "#f1f5f9"} vertical={false} />
@@ -1112,7 +1227,12 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
 
             {/* TABLE VISUALIZATION */}
             {widget.visualization === "table" && processedData.length > 0 && (
-              <div className="overflow-x-auto overflow-y-auto max-h-[260px] custom-scrollbar">
+              <div
+                className="overflow-x-auto overflow-y-auto custom-scrollbar flex-1"
+                style={{
+                  maxHeight: effectiveHeight ? `${Math.max(180, effectiveHeight - 95)}px` : "260px",
+                }}
+              >
                 <table className="w-full text-left border-collapse">
                   <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
                     <tr className="border-b border-gray-200 dark:border-gray-700">
@@ -1285,6 +1405,38 @@ export const CustomWidgetCard: React.FC<CustomWidgetCardProps> = ({
             )}
           </>
         )}
+      </div>
+
+      {/* Resizing Live Dimension Badge Indicator - Theme Colored, No Blinker */}
+      {isResizing && liveDimensions && (
+        <div className="absolute bottom-6 right-3 px-3 py-1.5 bg-primary text-white text-xs font-semibold rounded-lg shadow-xl shadow-primary/30 backdrop-blur-md pointer-events-none z-50 flex items-center gap-2 border border-white/20 select-none animate-in fade-in duration-100">
+          <span className="font-mono tracking-wide">{liveDimensions.width}px × {liveDimensions.height}px</span>
+          <span className="text-[10px] opacity-85 font-normal font-mono">
+            ({liveDimensions.deltaX >= 0 ? `+${liveDimensions.deltaX}` : liveDimensions.deltaX}px, {liveDimensions.deltaY >= 0 ? `+${liveDimensions.deltaY}` : liveDimensions.deltaY}px)
+          </span>
+        </div>
+      )}
+
+      {/* Bottom Corner Resize Dragger */}
+      <div
+        onMouseDown={handleResizeMouseDown}
+        onMouseEnter={() => onDisableDrag?.()}
+        draggable={false}
+        onDragStart={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }}
+        title="Drag corner to freely resize width & height (any size)"
+        className={`absolute bottom-0 right-0 p-1.5 cursor-se-resize transition-all z-20 group/resizer ${
+          isResizing
+            ? "opacity-100 text-primary scale-110"
+            : "opacity-40 hover:opacity-100 text-gray-400 hover:text-primary dark:text-gray-500 dark:hover:text-primary"
+        }`}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="transition-transform group-hover/resizer:scale-110">
+          <path d="M12 4L4 12M12 8L8 12M12 11L11 12" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+        </svg>
       </div>
     </div>
   );

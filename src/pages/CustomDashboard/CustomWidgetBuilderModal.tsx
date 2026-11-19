@@ -12,6 +12,7 @@ import {
   Globe,
   PieChart,
   Info,
+  Lock,
 } from "lucide-react";
 import Modal from "../../components/ui/Modal";
 import Button from "../../components/ui/Button";
@@ -20,6 +21,7 @@ import Select, { type SelectOption } from "../../components/ui/Select";
 import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import type {
   CustomWidgetDefinition,
+  CustomWidgetSize,
   EntityGroupBy,
   MetricType,
   VisualizationType,
@@ -114,9 +116,10 @@ const METRIC_HINTS: Record<MetricType, { summary: string; formula: string; detai
 };
 
 const SIZE_OPTIONS: SelectOption[] = [
-  { value: "small", label: "Small (1/3 Width)" },
-  { value: "medium", label: "Medium (1/2 Width)" },
-  { value: "large", label: "Large (Full Width)" },
+  { value: "small", label: "1x (1/3 Width)" },
+  { value: "medium", label: "2x (1/2 Width)" },
+  { value: "large", label: "3x (2/3 Width)" },
+  { value: "full", label: "Full (Full Width)" },
 ];
 
 const ENTITY_OPTIONS: SelectOption[] = [
@@ -226,7 +229,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
   const [entity, setEntity] = useState<EntityGroupBy>("vendor");
   const [primaryMetric, setPrimaryMetric] = useState<MetricType>("dlr_percent");
   const [visualization, setVisualization] = useState<VisualizationType>("table");
-  const [size, setSize] = useState<"small" | "medium" | "large">("medium");
+  const [size, setSize] = useState<CustomWidgetSize>("medium");
 
   // Filters
   const [clientFilter, setClientFilter] = useState<string>("");
@@ -279,7 +282,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
       setClientFilter("");
       setVendorFilter("");
       setCountryFilter("");
-      setHasCondition(true);
+      setHasCondition(false);
       setCondMetric("dlr_percent");
       setCondOperator("lt");
       setCondValue(90);
@@ -515,7 +518,7 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
               <Select
                 label="Width / Size"
                 value={size}
-                onChange={(v) => setSize(v as "small" | "medium" | "large")}
+                onChange={(v) => setSize(v as CustomWidgetSize)}
                 options={SIZE_OPTIONS}
                 clearable={false}
                 isLoading={false}
@@ -675,8 +678,14 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700 mb-3">
             <legend className="text-sm font-semibold text-text-primary dark:text-white px-2 flex items-center gap-1.5">
-              <AlertTriangle size={14} className="text-primary" />
+              <AlertTriangle size={14} className={hasCondition ? "text-primary" : "text-gray-400 dark:text-gray-500"} />
               <span>4. Custom Condition / Threshold Rule</span>
+              {!hasCondition && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full ml-1">
+                  <Lock size={10} />
+                  Locked
+                </span>
+              )}
             </legend>
             <ToggleSwitch
               label="Enable Rule Threshold"
@@ -685,58 +694,70 @@ export const CustomWidgetBuilderModal: React.FC<CustomWidgetBuilderModalProps> =
             />
           </div>
 
-          {hasCondition && (
-            <div className="p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-start">
-                <Select
-                  label="Metric"
-                  value={condMetric}
-                  onChange={(v) => setCondMetric(v as MetricType)}
-                  options={COND_METRIC_OPTIONS}
-                  clearable={false}
-                  isLoading={false}
-                />
-                <Select
-                  label="Operator"
-                  value={condOperator}
-                  onChange={(v) => setCondOperator(v as ConditionOperator)}
-                  options={COND_OPERATOR_OPTIONS}
-                  clearable={false}
-                  isLoading={false}
-                />
-                <Input
-                  label="Threshold Value"
-                  type="number"
-                  value={condValue}
-                  onChange={(e) => setCondValue(Number(e.target.value))}
-                  isClearable={false}
-                />
-                <Select
-                  label="Rule Action"
-                  value={condMode}
-                  onChange={(v) => setCondMode(v as ConditionMode)}
-                  options={COND_MODE_OPTIONS}
-                  clearable={false}
-                  isLoading={false}
-                />
-              </div>
-
-              <div className="text-xs text-text-secondary dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2.5 rounded-lg space-y-1">
-                <div className="flex items-center gap-1.5 text-text-primary dark:text-white">
-                  <Zap size={13} className="text-primary shrink-0" />
-                  <span className="font-medium text-xs">Rule Behavior:</span>
-                  <code className="font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded text-xs font-mono">
-                    {condMetric} {condOperator} {condValue}
-                  </code>
-                </div>
-                <p className="text-xs leading-relaxed text-text-secondary dark:text-gray-400">
-                  {condMode === "filter"
-                    ? "• Show Matches Only: Only displays entities that meet this rule condition (hides non-matching items)."
-                    : "• Highlight Matches: Displays all entities and highlights the ones that meet this rule condition."}
-                </p>
-              </div>
+          <div
+            className={`p-3.5 bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg space-y-3 transition-opacity ${
+              !hasCondition ? "opacity-50 pointer-events-none select-none" : ""
+            }`}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-start">
+              <Select
+                label="Metric"
+                value={condMetric}
+                onChange={(v) => setCondMetric(v as MetricType)}
+                options={COND_METRIC_OPTIONS}
+                clearable={false}
+                isLoading={false}
+                disabled={!hasCondition}
+              />
+              <Select
+                label="Operator"
+                value={condOperator}
+                onChange={(v) => setCondOperator(v as ConditionOperator)}
+                options={COND_OPERATOR_OPTIONS}
+                clearable={false}
+                isLoading={false}
+                disabled={!hasCondition}
+              />
+              <Input
+                label="Threshold Value"
+                type="number"
+                value={condValue}
+                onChange={(e) => setCondValue(Number(e.target.value))}
+                isClearable={false}
+                disabled={!hasCondition}
+              />
+              <Select
+                label="Rule Action"
+                value={condMode}
+                onChange={(v) => setCondMode(v as ConditionMode)}
+                options={COND_MODE_OPTIONS}
+                clearable={false}
+                isLoading={false}
+                disabled={!hasCondition}
+              />
             </div>
-          )}
+
+            <div className="text-xs text-text-secondary dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2.5 rounded-lg space-y-1">
+              <div className="flex items-center gap-1.5 text-text-primary dark:text-white">
+                <Zap size={13} className={hasCondition ? "text-primary shrink-0" : "text-gray-400 shrink-0"} />
+                <span className="font-medium text-xs">Rule Behavior:</span>
+                <code
+                  className={`font-semibold px-1.5 py-0.5 rounded text-xs font-mono ${
+                    hasCondition
+                      ? "text-primary bg-primary/10"
+                      : "text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700"
+                  }`}
+                >
+                  {condMetric} {condOperator} {condValue}
+                </code>
+              </div>
+              <p className="text-xs leading-relaxed text-text-secondary dark:text-gray-400">
+                {condMode === "filter"
+                  ? "• Show Matches Only: Only displays entities that meet this rule condition (hides non-matching items)."
+                  : "• Highlight Matches: Displays all entities and highlights the ones that meet this rule condition."}
+              </p>
+            </div>
+          </div>
         </fieldset>
 
         {/* Section 5: Sorting & Limits */}

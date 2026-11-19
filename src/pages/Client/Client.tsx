@@ -968,10 +968,7 @@ const Client: React.FC = () => {
                   <td
                     key={col.key}
                     className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
-                    onClick={() => {
-                      setRateModalClient({ id: client.id!, name: client.name });
-                      setIsRateModalOpen(true);
-                    }}
+                    onClick={() => handleEdit(client)}
                   >
                     {cellData || "-"}
                   </td>

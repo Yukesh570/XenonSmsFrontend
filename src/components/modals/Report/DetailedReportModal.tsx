@@ -1,5 +1,4 @@
 import React from "react";
-import { Layers } from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
 import { type DetailedReportData } from "../../../api/reportApi/detailedReportApi";
@@ -17,49 +16,6 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
   viewLog,
 }) => {
   if (!isOpen || !viewLog) return null;
-
-  // Helper to extract rule ID strings from array, number, or string (filtering out empty arrays/values)
-  const formatRuleList = (raw: any): string[] => {
-    if (!raw) return [];
-    if (Array.isArray(raw)) {
-      return raw.filter((id) => id != null && String(id).trim() !== "").map((id) => `#${id}`);
-    }
-    const str = String(raw).trim();
-    if (!str || str.toLowerCase() === "none") return [];
-    return [str.startsWith("#") ? str : `#${str}`];
-  };
-
-  const senderRules = viewLog.senderTranslationRuleId
-    ? [`#${viewLog.senderTranslationRuleId}`]
-    : [];
-  const destRules = formatRuleList(viewLog.destinationTranslationRuleIds ?? (viewLog as any).destination_translation_rule_ids);
-  const textRules = formatRuleList(viewLog.textTranslationRuleIds ?? (viewLog as any).text_translation_rule_ids);
-  const vendorRules = formatRuleList(viewLog.vendorTransformRuleIds ?? (viewLog as any).vendor_transform_rule_ids);
-
-  const hasEffectiveRules = senderRules.length > 0 || destRules.length > 0 || textRules.length > 0;
-  const hasVendorRules = vendorRules.length > 0;
-
-  // Normalized values across Ingress, Effective, and Vendor Wire
-  const rawSender = viewLog.source_addr || viewLog.senderId || "-";
-  const effectiveSender = viewLog.effectiveSenderId || rawSender;
-  const vendorSender = viewLog.finalVendorSenderId || (viewLog as any).final_vendor_sender_id || effectiveSender;
-
-  const rawDestination = viewLog.originalDestination || (viewLog as any).original_destination || viewLog.destination || "-";
-  const effectiveDestination = viewLog.effectiveDestination || (viewLog as any).effective_destination || viewLog.destination || "-";
-  const vendorDestination = viewLog.finalVendorDestination || (viewLog as any).final_vendor_destination || effectiveDestination;
-
-  const rawSegments = viewLog.originalSegmentCount ?? (viewLog as any).original_segment_count ?? viewLog.part_total ?? "-";
-  const effectiveSegments = viewLog.effectiveSegmentCount ?? (viewLog as any).effective_segment_count ?? viewLog.part_total ?? "-";
-  const vendorSegments = viewLog.finalVendorSegmentCount ?? (viewLog as any).final_vendor_segment_count ?? effectiveSegments;
-
-  const rawText = viewLog.originalMessageText || (viewLog as any).original_text || viewLog.content || "";
-  const effectiveText = viewLog.effectiveMessageText || (viewLog as any).effective_text || (viewLog as any).effectiveText || viewLog.content || "";
-  const vendorText = viewLog.finalVendorMessageText || (viewLog as any).final_vendor_text || effectiveText;
-
-  const hasTextTransform =
-    (rawText && effectiveText && rawText !== effectiveText) ||
-    (effectiveText && vendorText && effectiveText !== vendorText) ||
-    (vendorText && vendorText !== (viewLog.content || ""));
 
   return (
     <Modal
@@ -190,195 +146,17 @@ export const DetailedReportModal: React.FC<DetailedReportModalProps> = ({
           </div>
         </fieldset>
 
-        {/* 3-Layer Transformation Lifecycle (Ingress -> Effective -> Vendor Wire) */}
-        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Layers size={16} className="text-primary" />
-              <span className="text-xs font-bold uppercase tracking-wider text-text-primary dark:text-white">
-                Payload Transformation Lifecycle (3 Layers)
-              </span>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] uppercase text-text-secondary dark:text-gray-400 font-semibold">
-                  <th className="px-4 py-2 w-32">Entity</th>
-                  <th className="px-4 py-2">1. Ingress (Raw Client)</th>
-                  <th className="px-4 py-2">2. Effective</th>
-                  <th className="px-4 py-2">3. Vendor Wire</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-mono">
-                {/* SENDER ID */}
-                <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
-                    Sender ID
-                  </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
-                    {rawSender}
-                  </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
-                    {effectiveSender}
-                    {viewLog.senderTranslationRuleId ? (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-sans font-normal bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
-                        Rule #{viewLog.senderTranslationRuleId}
-                      </span>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
-                    {vendorSender}
-                  </td>
-                </tr>
-
-                {/* DESTINATION */}
-                <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
-                    Destination
-                  </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
-                    {rawDestination}
-                  </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
-                    {effectiveDestination}
-                    {destRules.length > 0 && (
-                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-sans font-normal bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
-                        Rule {destRules.join(", ")}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
-                    {vendorDestination}
-                  </td>
-                </tr>
-
-                {/* SEGMENTS */}
-                <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
-                    Segments
-                  </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
-                    {rawSegments}
-                  </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
-                    {effectiveSegments}
-                  </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
-                    {vendorSegments}
-                  </td>
-                </tr>
-
-                {/* APPLIED RULES */}
-                <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
-                    Applied Rules
-                  </td>
-                  <td className="px-4 py-2.5 text-text-secondary dark:text-gray-400 font-sans text-[11px]">
-                    — <span className="text-[10px] text-gray-400 dark:text-gray-500">(Raw Client)</span>
-                  </td>
-                  <td className="px-4 py-2.5 font-sans">
-                    {hasEffectiveRules ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {destRules.length > 0 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
-                            Destination Rule {destRules.join(", ")}
-                          </span>
-                        )}
-                        {senderRules.length > 0 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            Sender Rule {senderRules.join(", ")}
-                          </span>
-                        )}
-                        {textRules.length > 0 && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                            Text Rule {textRules.join(", ")}
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                        None (Unmodified)
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2.5 font-sans">
-                    {hasVendorRules ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
-                          Vendor Rule {vendorRules.join(", ")}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                        None (Pass-Through)
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* Message Content */}
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <legend className="text-sm font-semibold text-primary px-2">
             Message Content
           </legend>
-          <div className="flex justify-between items-center mb-2">
-            {!hasTextTransform ? (
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-sans font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
-                Unmodified Pass-Through
-              </span>
-            ) : <span />}
-            <span className="text-xs font-medium text-text-secondary dark:text-gray-400">Parts: {viewLog.part_total || 0}</span>
+          <div className="flex justify-end text-xs font-medium text-text-secondary dark:text-gray-400 mb-2">
+            <span>Parts: {viewLog.part_total || 0}</span>
           </div>
-
-          {hasTextTransform ? (
-            <div className="space-y-3 font-sans">
-              {rawText && rawText !== (effectiveText || viewLog.content) && (
-                <div>
-                  <label className="block text-xs font-semibold text-text-secondary dark:text-gray-400 mb-1">
-                    1. Ingress Text (Client Raw)
-                  </label>
-                  <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                    {rawText}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-primary mb-1 flex items-center gap-1.5">
-                  2. Effective Text (Phase 4 Ingress Filter)
-                  {textRules.length > 0 && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-sans bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300">
-                      Rules {textRules.join(', ')}
-                    </span>
-                  )}
-                </label>
-                <div className="w-full bg-blue-50/30 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                  {effectiveText || viewLog.content}
-                </div>
-              </div>
-
-              {vendorText && vendorText !== (effectiveText || viewLog.content) && (
-                <div>
-                  <label className="block text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">
-                    3. Final Vendor Wire Text (Phase 5 Egress Adapt)
-                  </label>
-                  <div className="w-full bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/50 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                    {vendorText}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[100px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-              {viewLog.content || <span className="text-gray-400 italic">No message content available.</span>}
-            </div>
-          )}
+          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[100px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
+            {viewLog.content || <span className="text-gray-400 italic">No message content available.</span>}
+          </div>
         </fieldset>
 
         {/* Footer Actions */}

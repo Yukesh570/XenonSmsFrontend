@@ -984,10 +984,7 @@ const Vendor: React.FC = () => {
                   <td
                     key={col.key}
                     className="px-4 py-4 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
-                    onClick={() => {
-                      setRateModalVendor({ id: vendor.id!, profileName: vendor.profileName });
-                      setIsRateModalOpen(true);
-                    }}
+                    onClick={() => handleEdit(vendor)}
                   >
                     {cellData || "-"}
                   </td>

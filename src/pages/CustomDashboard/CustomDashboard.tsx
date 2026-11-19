@@ -6,12 +6,11 @@ import {
   Calendar,
   ChevronDown,
   RotateCcw,
-  Copy,
   ShieldAlert,
   DollarSign,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
-import type { WorkspaceTab, CustomWidgetDefinition, DatePreset } from "./customWidgetTypes";
+import type { WorkspaceTab, CustomWidgetDefinition, CustomWidgetSize, DatePreset } from "./customWidgetTypes";
 import { DEFAULT_WORKSPACE_TABS } from "./customWidgetTypes";
 import { CustomWidgetCard } from "./CustomWidgetCard";
 import { CustomWidgetBuilderModal } from "./CustomWidgetBuilderModal";
@@ -100,6 +99,7 @@ export const CustomDashboard: React.FC = () => {
 
   // Drag and drop state
   const [draggedWidgetId, setDraggedWidgetId] = useState<string | null>(null);
+  const [reorderWidgetId, setReorderWidgetId] = useState<string | null>(null);
 
   // Persist to localStorage
   useEffect(() => {
@@ -142,21 +142,6 @@ export const CustomDashboard: React.FC = () => {
   const handleAddTab = (newTab: WorkspaceTab) => {
     setTabs((prev) => [...prev, newTab]);
     setActiveTabId(newTab.id);
-  };
-
-  const handleDuplicateTab = () => {
-    if (!activeTab) return;
-    const dup: WorkspaceTab = {
-      ...activeTab,
-      id: `tab-${Date.now()}`,
-      name: `${activeTab.name} (Copy)`,
-      widgets: activeTab.widgets.map((w) => ({
-        ...w,
-        id: `cw-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      })),
-    };
-    setTabs((prev) => [...prev, dup]);
-    setActiveTabId(dup.id);
   };
 
   const handleDeleteTab = (tabId: string) => {
@@ -205,7 +190,10 @@ export const CustomDashboard: React.FC = () => {
     );
   };
 
-  const handleResizeWidget = (widgetId: string) => {
+  const handleResizeWidget = (
+    widgetId: string,
+    dimensions?: { width?: number; height?: number } | CustomWidgetSize
+  ) => {
     setTabs((prev) =>
       prev.map((tab) => {
         if (tab.id !== activeTabId) return tab;
@@ -213,9 +201,36 @@ export const CustomDashboard: React.FC = () => {
           ...tab,
           widgets: tab.widgets.map((w) => {
             if (w.id !== widgetId) return w;
+            if (typeof dimensions === "object" && dimensions !== null) {
+              return {
+                ...w,
+                customWidth: dimensions.width,
+                customHeight: dimensions.height,
+              };
+            }
+            if (typeof dimensions === "string") {
+              return {
+                ...w,
+                size: dimensions,
+                customWidth: undefined,
+                customHeight: undefined,
+              };
+            }
+            // Preset cycle button clicked
             const nextSize =
-              w.size === "small" ? "medium" : w.size === "medium" ? "large" : "small";
-            return { ...w, size: nextSize };
+              w.size === "small"
+                ? "medium"
+                : w.size === "medium"
+                ? "large"
+                : w.size === "large"
+                ? "full"
+                : "small";
+            return {
+              ...w,
+              size: nextSize,
+              customWidth: undefined,
+              customHeight: undefined,
+            };
           }),
         };
       })
@@ -375,30 +390,17 @@ export const CustomDashboard: React.FC = () => {
                 </button>
               );
             })}
-
-            {/* Add Tab Button */}
-            <button
-              type="button"
-              onClick={() => setIsAddTabOpen(true)}
-              className="flex items-center gap-1 pb-2.5 pt-2 px-2.5 text-xs sm:text-sm font-medium text-text-secondary dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors border-b-2 border-transparent -mb-px whitespace-nowrap"
-            >
-              <Plus size={14} />
-              Add Tab
-            </button>
           </div>
 
-          {/* Active Tab Actions */}
-          <div className="flex items-center gap-2 pb-2 sm:pb-1">
-            <button
-              type="button"
-              onClick={handleDuplicateTab}
-              className="flex items-center gap-1.5 text-xs text-text-secondary dark:text-gray-400 hover:text-text-primary dark:hover:text-white px-2.5 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              title="Duplicate current tab"
-            >
-              <Copy size={13} />
-              <span className="hidden sm:inline">Duplicate Tab</span>
-            </button>
-          </div>
+          {/* Add Tab Button */}
+          <button
+            type="button"
+            onClick={() => setIsAddTabOpen(true)}
+            className="flex items-center gap-1.5 pb-2.5 pt-2 px-2.5 text-xs sm:text-sm font-medium text-text-secondary dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors border-b-2 border-transparent -mb-px whitespace-nowrap shrink-0"
+          >
+            <Plus size={14} />
+            <span>Add Tab</span>
+          </button>
         </div>
 
         {/* Active Tab Subtitle / Description */}
@@ -498,38 +500,70 @@ export const CustomDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Widgets Grid */}
+        {/* Widgets Layout */}
         {activeTab?.widgets && activeTab.widgets.length > 0 && (
-          <div className="grid grid-cols-12 gap-2.5 sm:gap-3">
-            {activeTab.widgets.map((widget) => (
-              <div
-                key={widget.id}
-                draggable
-                onDragStart={() => handleDragStart(widget.id)}
-                onDragOver={handleDragOver}
-                onDrop={() => handleDrop(widget.id)}
-                className={`transition-all ${
-                  widget.size === "small"
-                    ? "col-span-12 md:col-span-6 lg:col-span-4"
-                    : widget.size === "medium"
-                    ? "col-span-12 lg:col-span-6"
-                    : "col-span-12"
-                }`}
-              >
-                <CustomWidgetCard
-                  widget={widget}
-                  globalDatePreset={globalDatePreset}
-                  isDark={isDark}
-                  onEdit={(w) => {
-                    setEditingWidget(w);
-                    setIsBuilderOpen(true);
+          <div className="flex flex-wrap gap-2.5 sm:gap-3 items-start">
+            {activeTab.widgets.map((widget) => {
+              const hasCustomWidth = typeof widget.customWidth === "number" && widget.customWidth > 0;
+              const hasCustomHeight = typeof widget.customHeight === "number" && widget.customHeight > 0;
+
+              return (
+                <div
+                  key={widget.id}
+                  draggable={reorderWidgetId === widget.id}
+                  onDragStart={(e) => {
+                    if (reorderWidgetId !== widget.id) {
+                      e.preventDefault();
+                      return;
+                    }
+                    handleDragStart(widget.id);
                   }}
-                  onRemove={handleRemoveWidget}
-                  onResize={handleResizeWidget}
-                  isDragging={draggedWidgetId === widget.id}
-                />
-              </div>
-            ))}
+                  onDragEnd={() => {
+                    setDraggedWidgetId(null);
+                    setReorderWidgetId(null);
+                  }}
+                  onDragOver={handleDragOver}
+                  onDrop={() => {
+                    handleDrop(widget.id);
+                    setReorderWidgetId(null);
+                  }}
+                  style={{
+                    width: hasCustomWidth ? `${widget.customWidth}px` : undefined,
+                    height: hasCustomHeight ? `${widget.customHeight}px` : undefined,
+                    flex: hasCustomWidth ? "0 0 auto" : undefined,
+                    maxWidth: "100%",
+                  }}
+                  className={`transition-[width,height] ${
+                    hasCustomWidth
+                      ? ""
+                      : widget.size === "small"
+                      ? "w-full md:w-[calc(50%-6px)] lg:w-[calc(33.333%-8px)]"
+                      : widget.size === "medium"
+                      ? "w-full lg:w-[calc(50%-6px)]"
+                      : widget.size === "large"
+                      ? "w-full lg:w-[calc(66.666%-6px)]"
+                      : "w-full"
+                  }`}
+                >
+                  <CustomWidgetCard
+                    widget={widget}
+                    globalDatePreset={globalDatePreset}
+                    isDark={isDark}
+                    onEdit={(w) => {
+                      setEditingWidget(w);
+                      setIsBuilderOpen(true);
+                    }}
+                    onRemove={handleRemoveWidget}
+                    onResize={handleResizeWidget}
+                    onEnableDrag={(id) => setReorderWidgetId(id)}
+                    onDisableDrag={() => {
+                      if (!draggedWidgetId) setReorderWidgetId(null);
+                    }}
+                    isDragging={draggedWidgetId === widget.id}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

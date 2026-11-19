@@ -52,13 +52,17 @@ export interface CustomWidgetFilters {
   include_deleted?: boolean;
 }
 
+export type CustomWidgetSize = "small" | "medium" | "large" | "full";
+
 export interface CustomWidgetDefinition {
   id: string;
   title: string;
   entity: EntityGroupBy;
   primaryMetric: MetricType;
   visualization: VisualizationType;
-  size: "small" | "medium" | "large";
+  size: CustomWidgetSize;
+  customWidth?: number;
+  customHeight?: number;
   filters: CustomWidgetFilters;
   condition?: CustomWidgetCondition;
   sortBy?: "metric_desc" | "metric_asc" | "attempts_desc" | "name_asc";
