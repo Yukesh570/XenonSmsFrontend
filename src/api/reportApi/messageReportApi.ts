@@ -26,7 +26,22 @@ export interface MessageLogData {
   characterCount?: string;
   failure_reason?: string;
   effectiveSenderId?: string;
+  originalDestination?: string;
+  effectiveDestination?: string;
+  originalMessageText?: string;
+  effectiveMessageText?: string;
+  originalSegmentCount?: number;
+  effectiveSegmentCount?: number;
+  destinationTranslationRuleIds?: number[] | string;
+  textTranslationRuleIds?: number[] | string;
+  translationLatencyUs?: number;
   senderTranslationRuleId?: number | string;
+  finalVendorSenderId?: string;
+  finalVendorDestination?: string;
+  finalVendorMessageText?: string;
+  finalVendorSegmentCount?: number;
+  vendorTransformRuleIds?: number[] | string;
+  vendorTransformLatencyUs?: number;
   mcc?: string | null;
   mnc?: string | null;
 

@@ -775,11 +775,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     }
 
     try {
-      const res = await findVendorRateApi({
+      const vendParams: any = {
         terminatingVendor: rowData.terminatingVendor,
         MCC: rowData.MCC,
-        MNC: rowData.MNC,
-      });
+      };
+      if (rowData.MNC && rowData.MNC !== "ALL") {
+        vendParams.MNC = rowData.MNC;
+      }
+      const res = await findVendorRateApi(vendParams);
       const results = res.results || (Array.isArray(res) ? res : []);
       const matchedRate = results.length > 0 ? String(results[0].rate) : "N/A";
       const matchedCurrency = results.length > 0 ? results[0].currencyCode : "";
@@ -834,11 +837,14 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     }
 
     try {
-      const res = await findCustomerRateApi({
+      const custParams: any = {
         routeGroupName: routeGroup,
         MCC: rowData.MCC,
-        MNC: rowData.MNC,
-      });
+      };
+      if (rowData.MNC && rowData.MNC !== "ALL") {
+        custParams.MNC = rowData.MNC;
+      }
+      const res = await findCustomerRateApi(custParams);
       const results = res.results || (Array.isArray(res) ? res : []);
       const matchedRate = results.length > 0 ? String(results[0].rate) : "N/A";
       const matchedCurrency = results.length > 0 ? results[0].currencyCode : "";
@@ -922,7 +928,11 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
               const total = groupTotals.get(k) || 0;
               return !isPercentage || total < 100;
             });
-            if (validOpt) candidateMnc = validOpt.value;
+            if (validOpt) {
+              candidateMnc = validOpt.value;
+            } else if (codes.mncOptions.length > 0) {
+              candidateMnc = codes.mncOptions[0].value;
+            }
           }
         }
 
@@ -1253,8 +1263,7 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
     );
 
     try {
-      const apiPromises: Promise<any>[] = [];
-
+      // 1. Update modified existing routes first so reductions in percentage are committed to DB before adding new routes
       if (targetModifiedRoutes.length > 0) {
         const payload = targetModifiedRoutes.map((route) => ({
           id: route.id,
@@ -1272,9 +1281,10 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
             : { priority: Number(route.priority) }),
         }));
         
-        apiPromises.push(bulkUpdateCustomRouteApi(payload, moduleName));
+        await bulkUpdateCustomRouteApi(payload, moduleName);
       }
 
+      // 2. Create new routes now that capacity has been freed up in the database
       if (targetNewRows.length > 0) {
         const payloads = targetNewRows.map((row) => ({
           name: routeGroup,
@@ -1290,22 +1300,20 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
           status: row.status,
         }));
 
-        apiPromises.push(
-          createCustomRouteApi(payloads.length === 1 ? payloads[0] : payloads, moduleName)
+        await createCustomRouteApi(
+          payloads.length === 1 ? payloads[0] : payloads,
+          moduleName
         );
       }
 
+      // 3. Update route group country configuration if needed
       if (section.config.id) {
-        apiPromises.push(
-          updateRouteGroupCountryApi(
-            section.config.id,
-            { routingType: section.config.routingType },
-            moduleName
-          )
+        await updateRouteGroupCountryApi(
+          section.config.id,
+          { routingType: section.config.routingType },
+          moduleName
         );
       }
-
-      await Promise.all(apiPromises);
       toast.success("Route changes saved successfully.");
 
       const affectedGroupKeys = new Set<string>();
@@ -2156,14 +2164,6 @@ export const SubRouteTableModal: React.FC<SubRouteTableModalProps> = ({
                                               value: cleanVal,
                                               displayLabel: label,
                                             };
-                                          }).filter((opt) => {
-                                            if (opt.value === row.MNC) return true;
-                                            if (isPercentage && row.MCC) {
-                                              const key = normalizeKey(row.MCC, opt.value);
-                                              const gTotal = mccMncGroupsMap.get(key)?.total || 0;
-                                              if (gTotal >= 100) return false;
-                                            }
-                                            return true;
                                           });
 
                                           const rowVendorOptions = vendorOptions.filter((opt) => {

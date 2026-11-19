@@ -95,16 +95,22 @@ const DEFAULT_SEARCH_COLUMNS = [
   "countryName",
   "mccmnc",
   "destination",
+  "effectiveDestination",
   "message_id",
   "status",
   "source_addr",
   "vendorName",
   "effectiveSenderId",
+  "finalVendorSenderId",
 ];
 const DEFAULT_TABLE_COLUMNS = [
   "message_id",
   "destination",
+  "effectiveDestination",
+  "finalVendorDestination",
   "source_addr",
+  "effectiveSenderId",
+  "finalVendorSenderId",
   "countryName",
   "mccmnc",
   "status",
@@ -112,8 +118,7 @@ const DEFAULT_TABLE_COLUMNS = [
   "vendorName",
   "segmentNumber",
   "failure_reason",
-  "createdAt", "updatedAt",
-  "effectiveSenderId",
+  "createdAt",
 ];
 
 type DatePresetKey =
@@ -266,10 +271,16 @@ const MessageReport: React.FC = () => {
         filterKey: "mccmnc",
       },
       { key: "destination", label: "Destination", type: "text", filterKey: "destination__icontains" },
+      { key: "effectiveDestination", label: "Effective Destination", type: "text", filterKey: "effectiveDestination__icontains" },
+      { key: "finalVendorDestination", label: "Final Vendor Destination", type: "text", filterKey: "finalVendorDestination__icontains" },
+      { key: "text", label: "Text", type: "text", filterKey: "text__icontains" },
+      { key: "effectiveMessageText", label: "Effective Text", type: "text", filterKey: "effectiveMessageText__icontains" },
+      { key: "finalVendorMessageText", label: "Final Vendor Text", type: "text", filterKey: "finalVendorMessageText__icontains" },
       { key: "message_id", label: "Message ID", type: "text", filterKey: "message_id__icontains" },
       { key: "status", label: "Status", type: "text", options: statusOptions, filterKey: "status__icontains" },
       { key: "source_addr", label: "Sender ID", type: "text", filterKey: "source_addr__icontains" },
       { key: "effectiveSenderId", label: "Effective Sender ID", type: "text", filterKey: "effectiveSenderId__icontains" },
+      { key: "finalVendorSenderId", label: "Final Vendor Sender ID", type: "text", filterKey: "finalVendorSenderId__icontains" },
       {
         key: "vendorName",
         label: "Vendor",
@@ -364,7 +375,17 @@ const MessageReport: React.FC = () => {
         type: "text",
         render: (log: any) => (
           <span className="text-sm">
-            {log.effectiveSenderId || "-"}
+            {log.effectiveSenderId || log.effective_sender_id || log.source_addr || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "finalVendorSenderId",
+        label: "Final Vendor Sender ID",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm font-mono font-medium text-indigo-600 dark:text-indigo-400">
+            {log.finalVendorSenderId || log.final_vendor_sender_id || log.effectiveSenderId || log.source_addr || "-"}
           </span>
         ),
       },
@@ -424,6 +445,62 @@ const MessageReport: React.FC = () => {
             }}
           >
             {log.text}
+          </div>
+        ),
+      },
+      {
+        key: "effectiveDestination",
+        label: "Effective Destination",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm font-mono">
+            {log.effectiveDestination || log.effective_destination || log.destination || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "finalVendorDestination",
+        label: "Final Vendor Destination",
+        type: "text",
+        render: (log: any) => (
+          <span className="text-sm font-mono font-medium text-indigo-600 dark:text-indigo-400">
+            {log.finalVendorDestination || log.final_vendor_destination || log.effectiveDestination || log.destination || "-"}
+          </span>
+        ),
+      },
+      {
+        key: "effectiveMessageText",
+        label: "Effective Text",
+        type: "text",
+        render: (log: any) => (
+          <div
+            className="max-w-xs truncate text-sm text-text-secondary cursor-pointer hover:text-primary transition-colors"
+            title={log.effectiveMessageText || log.effective_text || log.text}
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewLog(log);
+              setIsModalOpen(true);
+            }}
+          >
+            {log.effectiveMessageText || log.effective_text || log.text || "-"}
+          </div>
+        ),
+      },
+      {
+        key: "finalVendorMessageText",
+        label: "Final Vendor Text",
+        type: "text",
+        render: (log: any) => (
+          <div
+            className="max-w-xs truncate text-sm font-mono text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline transition-colors"
+            title={log.finalVendorMessageText || log.final_vendor_text || log.effectiveMessageText || log.text || "-"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewLog(log);
+              setIsModalOpen(true);
+            }}
+          >
+            {log.finalVendorMessageText || log.final_vendor_text || log.effectiveMessageText || log.text || "-"}
           </div>
         ),
       },

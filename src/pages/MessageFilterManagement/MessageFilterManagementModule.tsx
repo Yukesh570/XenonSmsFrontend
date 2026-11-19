@@ -156,7 +156,7 @@ const MessageFilterManagementModule: React.FC = () => {
             onClick={() => handleTabChange("destinationRules")}
           >
             <PhoneCall size={16} />
-            <span>Destination Rules</span>
+            <span>Destination Rules (P4)</span>
           </button>
 
           {/* Message Text Rules */}
@@ -170,7 +170,7 @@ const MessageFilterManagementModule: React.FC = () => {
             onClick={() => handleTabChange("messageTextRules")}
           >
             <FileText size={16} />
-            <span>Message Text Rules</span>
+            <span>Message Text Rules (P4)</span>
           </button>
 
           {/* Message Text Lists */}
@@ -184,7 +184,7 @@ const MessageFilterManagementModule: React.FC = () => {
             onClick={() => handleTabChange("messageTextLists")}
           >
             <List size={16} />
-            <span>Text Replacement Lists</span>
+            <span>Text Replacement Lists (P4)</span>
           </button>
 
           {/* Policy & Cache */}
@@ -198,10 +198,10 @@ const MessageFilterManagementModule: React.FC = () => {
             onClick={() => handleTabChange("policy")}
           >
             <Sliders size={16} />
-            <span>Policy & Cache</span>
+            <span>Filter Policy & Cache (P4)</span>
           </button>
 
-          {/* Simulator Console */}
+          {/* Phase 4 Content Simulator */}
           <button
             type="button"
             className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
@@ -212,7 +212,7 @@ const MessageFilterManagementModule: React.FC = () => {
             onClick={() => handleTabChange("testConsole")}
           >
             <PlayCircle size={16} />
-            <span>Test Simulator</span>
+            <span>P4 Content Simulator</span>
           </button>
         </div>
       </div>

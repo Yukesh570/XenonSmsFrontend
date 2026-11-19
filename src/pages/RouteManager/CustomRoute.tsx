@@ -9,6 +9,7 @@ import {
 } from "../../api/routeManagerApi/customRouteApi";
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
+import { getVendorsApi } from "../../api/connectivityApi/vendorApi";
 
 import { CustomRouteModal } from "../../components/modals/RouteManager/CustomRouteModal";
 import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
@@ -68,7 +69,7 @@ const formatLocalDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const DEFAULT_SEARCH_COLUMNS = ["name", "status", "country"];
+const DEFAULT_SEARCH_COLUMNS = ["name", "country", "terminatingVendor", "status"];
 const DEFAULT_TABLE_COLUMNS = [
   "name",
   "country",
@@ -83,6 +84,7 @@ const CustomRoute: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [countryOptions, setCountryOptions] = useState<Option[]>([]);
   const [routeGroupOptions, setRouteGroupOptions] = useState<Option[]>([]);
+  const [vendorOptions, setVendorOptions] = useState<Option[]>([]);
 
   const [activeRouteGroup, setActiveRouteGroup] = useState<string | null>(null);
   const [activeRouteGroupId, setActiveRouteGroupId] = useState<number | null>(null);
@@ -103,7 +105,19 @@ const CustomRoute: React.FC = () => {
 
   const [searchColumns, setSearchColumns] = useState<string[]>(() => {
     const saved = localStorage.getItem("customroute_search_columns");
-    return saved ? JSON.parse(saved) : DEFAULT_SEARCH_COLUMNS;
+    if (saved) {
+      try {
+        const parsed: string[] = JSON.parse(saved);
+        const missing = DEFAULT_SEARCH_COLUMNS.filter((col) => !parsed.includes(col));
+        if (missing.length > 0) {
+          return Array.from(new Set([...DEFAULT_SEARCH_COLUMNS, ...parsed]));
+        }
+        return parsed;
+      } catch {
+        return DEFAULT_SEARCH_COLUMNS;
+      }
+    }
+    return DEFAULT_SEARCH_COLUMNS;
   });
 
   useEffect(() => {
@@ -166,6 +180,17 @@ const CustomRoute: React.FC = () => {
       } catch (err: any) {
         console.error("Failed to load route groups for filter", err);
       }
+
+      try {
+        const vendorRes: any = await getVendorsApi("vendor", 1, 1000);
+        const vendorList = vendorRes.results || (Array.isArray(vendorRes) ? vendorRes : (vendorRes as any).data || []);
+        setVendorOptions(vendorList.map((v: any) => ({
+          label: v.profileName || v.name || `Vendor ${v.id}`,
+          value: String(v.id),
+        })));
+      } catch (err: any) {
+        console.error("Failed to load vendors for filter", err);
+      }
     };
     loadDropdowns();
   }, [routeName]);
@@ -201,6 +226,15 @@ const CustomRoute: React.FC = () => {
         }
         return "-";
       },
+    },
+    {
+      key: "terminatingVendor",
+      label: "Vendor",
+      type: "text",
+      options: vendorOptions,
+      isMultiSelect: true,
+      filterKey: "terminatingVendor",
+      isSearchOnly: true,
     },
     {
       key: "status",
@@ -451,12 +485,16 @@ const CustomRoute: React.FC = () => {
     const initialName = queryParams.get("name") || (location.state as any)?.searchName;
     const clientName = queryParams.get("client") || (location.state as any)?.clientName;
     const vendorName = queryParams.get("vendor") || (location.state as any)?.vendorName;
+    const vendorParam = queryParams.get("terminatingVendor") || (location.state as any)?.terminatingVendor;
     const countryParam = queryParams.get("country") || queryParams.get("country__name__in") || (location.state as any)?.country;
     const autoOpen = queryParams.get("autoOpen") === "true" || Boolean((location.state as any)?.autoOpen);
 
     const initialFilters: Record<string, string> = {};
     if (initialName || clientName || vendorName) {
       initialFilters.name = initialName || clientName || vendorName;
+    }
+    if (vendorParam) {
+      initialFilters.terminatingVendor = vendorParam;
     }
     if (countryParam) {
       initialFilters.country = countryParam;

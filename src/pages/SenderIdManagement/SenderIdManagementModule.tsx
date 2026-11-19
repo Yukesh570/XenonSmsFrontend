@@ -140,7 +140,7 @@ const SenderIdManagementModule: React.FC = () => {
       {/* Main Hub Tabs */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-4">
         <div className="flex border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 pt-2 gap-2 sm:gap-6 bg-white dark:bg-gray-800 overflow-x-auto">
-          {/* Sender Authorization */}
+          {/* Phase 1: Sender Authorization */}
           <button
             type="button"
             className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
@@ -154,7 +154,7 @@ const SenderIdManagementModule: React.FC = () => {
             <span>Authorization & Compliance</span>
           </button>
 
-          {/* Sender ID Translation */}
+          {/* Phase 2: Sender ID Translation */}
           <button
             type="button"
             className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
@@ -168,7 +168,7 @@ const SenderIdManagementModule: React.FC = () => {
             <span>Translation & Rewriting</span>
           </button>
 
-          {/* Sender Pools */}
+          {/* Phase 3: Sender Pools */}
           <button
             type="button"
             className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
@@ -182,7 +182,7 @@ const SenderIdManagementModule: React.FC = () => {
             <span>Sender Pools</span>
           </button>
 
-          {/* Sender Replacement Lists */}
+          {/* Phase 3: Replacement Lists */}
           <button
             type="button"
             className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
