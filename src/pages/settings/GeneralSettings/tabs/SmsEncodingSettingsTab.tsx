@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { 
-  Save, 
-  CheckCircle2, 
-  AlertCircle, 
-  TrendingDown, 
+import {
+  Save,
+  CheckCircle2,
+  AlertCircle,
+  TrendingDown,
   Activity,
   Search,
   Lock,
@@ -91,7 +91,7 @@ const SAMPLE_PRESETS = [
   {
     id: "gsm7-standard",
     label: "Standard GSM-7 (61 Chars)",
-    text: "Hello, your verification code is 482910. Valid for 5 minutes.",
+    text: "Hello, your verification code is 482910.",
     expectedLang: undefined,
     description: "Pure standard GSM 7-bit alphabet text (160 characters per SMS credit).",
   },
@@ -443,19 +443,17 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
           <button
             type="button"
             onClick={() => setActiveSubTab("configuration")}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
-              activeSubTab === "configuration"
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${activeSubTab === "configuration"
                 ? "bg-white dark:bg-gray-800 text-primary dark:text-white shadow-sm"
                 : "text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+              }`}
           >
             Configuration & Tables
             <span
-              className={`text-[11px] px-2 py-0.5 rounded-full font-semibold transition-all border ${
-                activeSubTab === "configuration"
+              className={`text-[11px] px-2 py-0.5 rounded-full font-semibold transition-all border ${activeSubTab === "configuration"
                   ? "bg-primary text-white border-primary shadow-xs"
                   : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600 shadow-2xs"
-              }`}
+                }`}
             >
               {activeLanguageCount} Active
             </span>
@@ -463,11 +461,10 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
           <button
             type="button"
             onClick={() => setActiveSubTab("simulator")}
-            className={`flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${
-              activeSubTab === "simulator"
+            className={`flex items-center gap-2 px-4 sm:px-5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 ${activeSubTab === "simulator"
                 ? "bg-white dark:bg-gray-800 text-primary dark:text-white shadow-sm"
                 : "text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+              }`}
           >
             SMS Simulator
           </button>
@@ -485,13 +482,13 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> NLI Active (ENFORCE)
             </span>
           ) : (
-            <StatusBadge 
-              status={config?.rollout_mode === "SHADOW" ? "PENDING" : "UNKNOWN"} 
+            <StatusBadge
+              status={config?.rollout_mode === "SHADOW" ? "PENDING" : "UNKNOWN"}
               customText={
                 <span className="inline-flex items-center gap-1.5">
                   <AlertCircle className="w-3.5 h-3.5" /> {config?.rollout_mode || "OFF"} Mode
                 </span>
-              } 
+              }
             />
           )}
         </div>
@@ -651,9 +648,8 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                 return (
                   <tr
                     key={lang.id || index}
-                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 transition-colors ${
-                      lang.enabled ? "bg-primary-light/40 dark:bg-purple-950/20" : ""
-                    }`}
+                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700 transition-colors ${lang.enabled ? "bg-primary-light/40 dark:bg-purple-950/20" : ""
+                      }`}
                   >
                     {/* S.N. Column (Locked) */}
                     <td className="px-4 py-3 text-xs text-text-secondary dark:text-gray-400 text-center font-medium">
@@ -729,11 +725,10 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                   key={preset.id}
                   type="button"
                   onClick={() => handleSelectPreset(preset.text)}
-                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150 font-medium whitespace-nowrap shrink-0 ${
-                    isSelected
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all duration-150 font-medium whitespace-nowrap shrink-0 ${isSelected
                       ? "bg-primary text-white border-primary shadow-sm font-semibold"
                       : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-secondary dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/80 hover:text-text-primary dark:hover:text-white"
-                  }`}
+                    }`}
                   title={preset.description}
                 >
                   {preset.label}
@@ -790,15 +785,15 @@ const SmsEncodingSettingsTab: React.FC<Props> = ({ canUpdate = true }) => {
                       {analysisResult.encoding === "GSM7_NLI" && analysisResult.segments === 1
                         ? "Single SMS Segment (50% Cost Savings)"
                         : analysisResult.encoding === "UCS2"
-                        ? `Standard Unicode (UCS-2) • ${analysisResult.segments} ${analysisResult.segments === 1 ? "Segment" : "Segments"}`
-                        : `Standard GSM-7 Encoding • ${analysisResult.segments} ${analysisResult.segments === 1 ? "Segment" : "Segments"}`}
+                          ? `Standard Unicode (UCS-2) • ${analysisResult.segments} ${analysisResult.segments === 1 ? "Segment" : "Segments"}`
+                          : `Standard GSM-7 Encoding • ${analysisResult.segments} ${analysisResult.segments === 1 ? "Segment" : "Segments"}`}
                     </h4>
                     <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
                       {analysisResult.encoding === "GSM7_NLI" && analysisResult.segments === 1
                         ? `Accented ${analysisResult.language || "national language"} characters fit into a single ${analysisResult.septet_count || 155}-septet SMS using National Language Support instead of splitting into 2 UCS-2 messages.`
                         : analysisResult.encoding === "UCS2"
-                        ? "This text contains characters, accents, or emojis outside the GSM-7 alphabet, limiting each segment to 70 characters (or 67 for concatenated messages)."
-                        : "Standard alphabet message. Full 160 characters fit in a single SMS credit."}
+                          ? "This text contains characters, accents, or emojis outside the GSM-7 alphabet, limiting each segment to 70 characters (or 67 for concatenated messages)."
+                          : "Standard alphabet message. Full 160 characters fit in a single SMS credit."}
                     </p>
                   </div>
                   <StatusBadge

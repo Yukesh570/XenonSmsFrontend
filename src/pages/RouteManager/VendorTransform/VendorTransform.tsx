@@ -14,7 +14,7 @@ const VendorTransformPage: React.FC = () => {
   const navigate = useNavigate();
 
   const getInitialTab = (): VendorTransformTab => {
-    const params = new URLSearchParams(location.search);
+    const params = new URLSearchParams(window.location.search || location.search);
     const tab = params.get("tab");
     if (tab === "compatibility" || location.pathname.includes("compatibility")) return "compatibility";
     if (tab === "simulator" || location.pathname.includes("simulator")) return "simulator";
@@ -23,7 +23,15 @@ const VendorTransformPage: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<VendorTransformTab>(getInitialTab);
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search || location.search);
+    const cId = params.get("clientId") || params.get("client");
+    if (cId) {
+      const parsed = Number(cId);
+      return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    }
+    return null;
+  });
   const [clients, setClients] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
 
@@ -32,8 +40,8 @@ const VendorTransformPage: React.FC = () => {
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const cId = params.get("clientId");
+    const params = new URLSearchParams(window.location.search || location.search);
+    const cId = params.get("clientId") || params.get("client");
     if (cId) {
       const parsed = Number(cId);
       if (!isNaN(parsed) && parsed > 0) {
@@ -94,7 +102,6 @@ const VendorTransformPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-text-primary dark:text-white flex items-center gap-2">
-            <Shuffle className="text-primary" size={24} />
             Vendor Route Transformation & Compatibility
           </h1>
           <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
@@ -118,11 +125,10 @@ const VendorTransformPage: React.FC = () => {
         <div className="flex border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 pt-2 gap-2 sm:gap-6 bg-white dark:bg-gray-800 overflow-x-auto">
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "rules"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "rules"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("rules")}
           >
             <Shuffle size={16} />
@@ -131,11 +137,10 @@ const VendorTransformPage: React.FC = () => {
 
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "compatibility"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "compatibility"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("compatibility")}
           >
             <ShieldCheck size={16} />
@@ -144,11 +149,10 @@ const VendorTransformPage: React.FC = () => {
 
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "simulator"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "simulator"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("simulator")}
           >
             <Cpu size={16} />

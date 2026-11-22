@@ -66,10 +66,11 @@ export type VendorTransformAction =
   | "APPROVED_POOL_RANDOM"
   | "PREFIX_ADD"
   | "PREFIX_REMOVE"
+  | "PREFIX_REPLACE"
   | "NORMALIZE"
   | "REGEX_REPLACE";
 
-export type VendorTransformMatchType = "EXACT" | "REGEX" | "ANY";
+export type VendorTransformMatchType = "EXACT" | "CONTAINS" | "REGEX" | "ANY";
 
 export interface VendorTransformRule {
   id?: number;
@@ -87,6 +88,7 @@ export interface VendorTransformRule {
   targetEntity: VendorTransformTarget;
   matchType: VendorTransformMatchType;
   pattern?: string | null;
+  prefixValue?: string | null;
   action: VendorTransformAction;
   replacement?: string | null;
   truncateLength?: number | null;
@@ -134,6 +136,10 @@ export interface VendorTransformPreviewResponse {
   } | null;
   original_sender: string;
   final_sender: string;
+  original_destination?: string;
+  final_destination?: string;
+  original_text?: string;
+  final_text?: string;
   applied_rule_ids: number[];
   evaluated_candidates: CandidateEvaluationResultDto[];
   exclusions_summary: string[];

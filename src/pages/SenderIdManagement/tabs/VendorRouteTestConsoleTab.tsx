@@ -244,6 +244,45 @@ export const VendorRouteTestConsoleTab: React.FC<VendorRouteTestConsoleTabProps>
             </div>
           </div>
 
+          {/* Destination & Text Transformation Callout (if rewritten) */}
+          {((result.final_destination && result.original_destination && result.final_destination !== result.original_destination) ||
+            (result.final_text && result.original_text && result.final_text !== result.original_text)) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {result.final_destination && result.original_destination && result.final_destination !== result.original_destination && (
+                <div className="bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4">
+                  <span className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    Destination Address Rewritten
+                  </span>
+                  <div className="flex items-center gap-2 mt-2 font-mono text-xs">
+                    <span className="px-2 py-1 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                      {result.original_destination}
+                    </span>
+                    <ArrowRight size={14} className="text-amber-600 dark:text-amber-400" />
+                    <span className="px-2 py-1 bg-amber-100 dark:bg-amber-900/60 font-bold text-amber-900 dark:text-amber-200 rounded">
+                      {result.final_destination}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {result.final_text && result.original_text && result.final_text !== result.original_text && (
+                <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                  <span className="text-xs font-semibold text-blue-800 dark:text-blue-300">
+                    Message Content Rewritten
+                  </span>
+                  <div className="mt-2 space-y-1.5 text-xs">
+                    <div className="font-mono bg-white dark:bg-gray-800 p-2 rounded border border-gray-200 dark:border-gray-700 text-gray-500 line-through">
+                      {result.original_text}
+                    </div>
+                    <div className="font-mono bg-blue-100/70 dark:bg-blue-900/50 p-2 rounded text-blue-950 dark:text-blue-100 font-semibold">
+                      {result.final_text}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Candidate Evaluations Matrix Table */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">

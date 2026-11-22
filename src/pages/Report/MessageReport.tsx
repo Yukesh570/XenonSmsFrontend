@@ -426,7 +426,7 @@ const MessageReport: React.FC = () => {
         type: "text",
         render: (log: any) => (
           <span className="text-sm font-medium text-text-primary dark:text-white">
-            {log.destination}
+            {log.originalDestination || log.destination}
           </span>
         ),
       },

@@ -8,6 +8,10 @@ import {
   Sparkles,
   RotateCcw,
   Info,
+  ShieldCheck,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
@@ -22,7 +26,6 @@ import Modal from "../../../components/ui/Modal";
 import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
 import { DeleteModal } from "../../../components/modals/DeleteModal";
 import { CountryFlag } from "../../../components/ui/CountryFlag";
-import LoadingSpinner from "../../../components/ui/LoadingSpinner";
 import ToggleSwitch from "../../../components/ui/ToggleSwitch";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import { formatDateTime } from "../../../helper/dateFormatter";
@@ -56,6 +59,296 @@ interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
   tableLabel?: string;
 }
 
+export type ExtendedTextAction = TextAction | "MASK_SENSITIVE";
+
+export type MaskDataType = "OTP_6" | "OTP_4" | "CARD_16" | "ANY_NUMBERS";
+export type MaskFormat =
+  | "KEEP_FIRST_2"
+  | "KEEP_LAST_2"
+  | "KEEP_LAST_4"
+  | "ALL_ASTERISKS"
+  | "REDACTED";
+
+export interface MaskConfig {
+  dataType: MaskDataType;
+  format: MaskFormat;
+  contextKeyword: string;
+}
+
+export function generateMaskRule(config: MaskConfig): {
+  textPattern: string;
+  replacement: string;
+} {
+  const ctx = config.contextKeyword.trim();
+  const escapedCtx = ctx.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const prefixGroup = ctx ? `(${escapedCtx}\\s*(?:is|:)?\\s*)` : "";
+  const prefixRef = ctx ? "$1" : "";
+  const baseGroupNum = ctx ? 2 : 1;
+
+  if (config.dataType === "OTP_6") {
+    if (config.format === "KEEP_FIRST_2") {
+      return {
+        textPattern: `${prefixGroup}(\\d{2})\\d{4}`,
+        replacement: `${prefixRef}$${baseGroupNum}****`,
+      };
+    }
+    if (config.format === "KEEP_LAST_2") {
+      return {
+        textPattern: `${prefixGroup}\\d{4}(\\d{2})`,
+        replacement: `${prefixRef}****$${baseGroupNum}`,
+      };
+    }
+    if (config.format === "ALL_ASTERISKS") {
+      return {
+        textPattern: `${prefixGroup}\\d{6}`,
+        replacement: `${prefixRef}******`,
+      };
+    }
+    if (config.format === "REDACTED") {
+      return {
+        textPattern: `${prefixGroup}\\d{6}`,
+        replacement: `${prefixRef}[REDACTED]`,
+      };
+    }
+  }
+
+  if (config.dataType === "OTP_4") {
+    if (config.format === "KEEP_FIRST_2") {
+      return {
+        textPattern: `${prefixGroup}(\\d{2})\\d{2}`,
+        replacement: `${prefixRef}$${baseGroupNum}**`,
+      };
+    }
+    if (config.format === "KEEP_LAST_2") {
+      return {
+        textPattern: `${prefixGroup}\\d{2}(\\d{2})`,
+        replacement: `${prefixRef}**$${baseGroupNum}`,
+      };
+    }
+    if (config.format === "ALL_ASTERISKS") {
+      return {
+        textPattern: `${prefixGroup}\\d{4}`,
+        replacement: `${prefixRef}****`,
+      };
+    }
+    if (config.format === "REDACTED") {
+      return {
+        textPattern: `${prefixGroup}\\d{4}`,
+        replacement: `${prefixRef}[REDACTED]`,
+      };
+    }
+  }
+
+  if (config.dataType === "CARD_16") {
+    if (config.format === "KEEP_LAST_4") {
+      return {
+        textPattern: `${prefixGroup}\\d{12}(\\d{4})`,
+        replacement: `${prefixRef}************$${baseGroupNum}`,
+      };
+    }
+    if (config.format === "KEEP_FIRST_2") {
+      return {
+        textPattern: `${prefixGroup}(\\d{2})\\d{14}`,
+        replacement: `${prefixRef}$${baseGroupNum}**************`,
+      };
+    }
+    if (config.format === "ALL_ASTERISKS") {
+      return {
+        textPattern: `${prefixGroup}\\d{16}`,
+        replacement: `${prefixRef}****************`,
+      };
+    }
+    if (config.format === "REDACTED") {
+      return {
+        textPattern: `${prefixGroup}\\d{16}`,
+        replacement: `${prefixRef}[REDACTED]`,
+      };
+    }
+  }
+
+  if (config.dataType === "ANY_NUMBERS") {
+    if (config.format === "KEEP_FIRST_2") {
+      return {
+        textPattern: `${prefixGroup}(\\d{2})\\d{2,}`,
+        replacement: `${prefixRef}$${baseGroupNum}****`,
+      };
+    }
+    if (config.format === "KEEP_LAST_4") {
+      return {
+        textPattern: `${prefixGroup}\\d{2,}(\\d{4})`,
+        replacement: `${prefixRef}****$${baseGroupNum}`,
+      };
+    }
+    if (config.format === "REDACTED") {
+      return {
+        textPattern: `${prefixGroup}\\d{4,}`,
+        replacement: `${prefixRef}[REDACTED]`,
+      };
+    }
+    return {
+      textPattern: `${prefixGroup}\\d{4,}`,
+      replacement: `${prefixRef}****`,
+    };
+  }
+
+  return {
+    textPattern: `${prefixGroup}(\\d{2})\\d{4}`,
+    replacement: `${prefixRef}$${baseGroupNum}****`,
+  };
+}
+
+export function decodeMaskRule(rule: MessageFilterRule): {
+  isMask: boolean;
+  dataType?: MaskDataType;
+  format?: MaskFormat;
+  contextKeyword?: string;
+  summary?: string;
+} {
+  if (rule.action !== "REGEX_REPLACE" || !rule.textPattern || !rule.replacement) {
+    return { isMask: false };
+  }
+
+  const extractContext = (pattern: string) => {
+    const match = pattern.match(/^\(([^)]+?)\\s\*(?:\(\?:is\|:\)\?)\\s\*\)/);
+    return match ? match[1].replace(/\\/g, "") : "";
+  };
+
+  if (
+    rule.textPattern.endsWith("(\\d{2})\\d{4}") &&
+    (rule.replacement.endsWith("$1****") || rule.replacement.endsWith("$2****"))
+  ) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "OTP_6",
+      format: "KEEP_FIRST_2",
+      contextKeyword: context,
+      summary: `6-Digit OTP (49****)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (
+    rule.textPattern.endsWith("\\d{4}(\\d{2})") &&
+    (rule.replacement.endsWith("****$1") || rule.replacement.endsWith("****$2"))
+  ) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "OTP_6",
+      format: "KEEP_LAST_2",
+      contextKeyword: context,
+      summary: `6-Digit OTP (****12)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (rule.textPattern.endsWith("\\d{6}") && rule.replacement.endsWith("******")) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "OTP_6",
+      format: "ALL_ASTERISKS",
+      contextKeyword: context,
+      summary: `6-Digit OTP (******)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (rule.textPattern.endsWith("\\d{6}") && rule.replacement.endsWith("[REDACTED]")) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "OTP_6",
+      format: "REDACTED",
+      contextKeyword: context,
+      summary: `6-Digit OTP ([REDACTED])${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (
+    rule.textPattern.endsWith("(\\d{2})\\d{2}") &&
+    (rule.replacement.endsWith("$1**") || rule.replacement.endsWith("$2**"))
+  ) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "OTP_4",
+      format: "KEEP_FIRST_2",
+      contextKeyword: context,
+      summary: `4-Digit PIN (12**)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (
+    rule.textPattern.endsWith("\\d{12}(\\d{4})") &&
+    (rule.replacement.endsWith("$1") || rule.replacement.endsWith("$2"))
+  ) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "CARD_16",
+      format: "KEEP_LAST_4",
+      contextKeyword: context,
+      summary: `Card (****1234)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  if (
+    rule.textPattern.endsWith("(\\d{2})\\d{2,}") &&
+    (rule.replacement.endsWith("$1****") || rule.replacement.endsWith("$2****"))
+  ) {
+    const context = extractContext(rule.textPattern);
+    return {
+      isMask: true,
+      dataType: "ANY_NUMBERS",
+      format: "KEEP_FIRST_2",
+      contextKeyword: context,
+      summary: `Numbers (49****)${context ? ` [after "${context}"]` : ""}`,
+    };
+  }
+
+  return { isMask: false };
+}
+
+const getMaskPreview = (
+  dataType: MaskDataType,
+  format: MaskFormat,
+  contextKeyword: string
+) => {
+  const ctx = contextKeyword.trim() ? `${contextKeyword.trim()} ` : "";
+  let sampleVal = "492812";
+  let maskedVal = "49****";
+
+  if (dataType === "OTP_6") {
+    sampleVal = "492812";
+    if (format === "KEEP_FIRST_2") maskedVal = "49****";
+    else if (format === "KEEP_LAST_2") maskedVal = "****12";
+    else if (format === "ALL_ASTERISKS") maskedVal = "******";
+    else if (format === "REDACTED") maskedVal = "[REDACTED]";
+  } else if (dataType === "OTP_4") {
+    sampleVal = "4812";
+    if (format === "KEEP_FIRST_2") maskedVal = "48**";
+    else if (format === "KEEP_LAST_2") maskedVal = "**12";
+    else if (format === "ALL_ASTERISKS") maskedVal = "****";
+    else if (format === "REDACTED") maskedVal = "[REDACTED]";
+  } else if (dataType === "CARD_16") {
+    sampleVal = "4532890123456789";
+    if (format === "KEEP_LAST_4") maskedVal = "************6789";
+    else if (format === "KEEP_FIRST_2") maskedVal = "45**************";
+    else if (format === "ALL_ASTERISKS") maskedVal = "****************";
+    else if (format === "REDACTED") maskedVal = "[REDACTED]";
+  } else if (dataType === "ANY_NUMBERS") {
+    sampleVal = "893041";
+    if (format === "KEEP_FIRST_2") maskedVal = "89****";
+    else if (format === "KEEP_LAST_4") maskedVal = "**3041";
+    else if (format === "REDACTED") maskedVal = "[REDACTED]";
+    else maskedVal = "******";
+  }
+
+  const incoming = `Your verification is ${ctx}${sampleVal} `;
+  const transformed = `Your verification is${ctx}${maskedVal}`;
+
+  return { incoming, transformed };
+};
+
 interface MessageTextRulesTabProps {
   selectedClientId: number | null;
   setSelectedClientId: (id: number | null) => void;
@@ -65,6 +358,7 @@ interface MessageTextRulesTabProps {
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "country", "isActive"];
 const DEFAULT_TABLE_COLUMNS = [
+  "id",
   "priority",
   "name",
   "country",
@@ -96,7 +390,10 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       const saved = localStorage.getItem("message_text_rules_table_columns");
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!parsed.includes("id")) return ["id", ...parsed];
+          return parsed;
+        }
       }
     } catch (e) {
       console.error("Error reading saved table columns", e);
@@ -172,6 +469,7 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
+  const [showHint, setShowHint] = useState(true);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -186,11 +484,14 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
     country: number | null;
     textMatchType: "EXACT" | "CONTAINS" | "REGEX";
     textPattern: string;
-    action: TextAction;
+    action: ExtendedTextAction;
     replacement: string;
     replacementList: number | null;
     stopProcessing: boolean;
     isActive: boolean;
+    maskDataType: MaskDataType;
+    maskFormat: MaskFormat;
+    maskContextKeyword: string;
   }>({
     name: "",
     priority: 100,
@@ -202,6 +503,9 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
     replacementList: null,
     stopProcessing: false,
     isActive: true,
+    maskDataType: "OTP_6",
+    maskFormat: "KEEP_FIRST_2",
+    maskContextKeyword: "code is",
   });
 
   // Real-time Regex & Macro Validation
@@ -279,10 +583,12 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
     }
   }, [selectedClientId]);
 
-  // Debounced Regex Validation
+  // Debounced Regex Validation - strictly for REGEX mode
   useEffect(() => {
-    if (!formData.textPattern) {
+    // Only run regex validation if textMatchType is REGEX and pattern exists
+    if (formData.textMatchType !== "REGEX" || formData.action === "MASK_SENSITIVE" || !formData.textPattern.trim()) {
       setValidationResult(null);
+      setIsValidating(false);
       return;
     }
 
@@ -291,9 +597,9 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       try {
         const res = await validateMessageFilterRuleApi({
           targetEntity: "MESSAGE_TEXT",
-          textMatchType: formData.textMatchType,
-          textPattern: formData.textPattern,
-          action: formData.action,
+          textMatchType: "REGEX",
+          textPattern: formData.textPattern.trim(),
+          action: formData.action as TextAction,
           replacement: formData.replacement,
         });
 
@@ -304,12 +610,12 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       } catch (e: any) {
         setValidationResult({
           isValid: false,
-          error: e.response?.data?.error || "Validation failed",
+          error: e.response?.data?.error || "Regex pattern validation failed",
         });
       } finally {
         setIsValidating(false);
       }
-    }, 400);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [
@@ -349,14 +655,24 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
   ];
 
   const actionOptions: Option[] = [
-    { label: "String Replace", value: "STRING_REPLACE" },
-    { label: "Replace All", value: "REPLACE_ALL" },
-    { label: "Regex Replace", value: "REGEX_REPLACE" },
-    { label: "Append", value: "APPEND" },
-    { label: "Prepend", value: "PREPEND" },
-    { label: "List (Sequential)", value: "LIST_SEQUENTIAL" },
-    { label: "List (Random)", value: "LIST_RANDOM" },
+    { label: "String Replace (First Match)", value: "STRING_REPLACE" },
+    { label: "Replace All Matches", value: "REPLACE_ALL" },
+    { label: "Mask Sensitive Data (OTP, PIN, Cards)", value: "MASK_SENSITIVE" },
+    { label: "Append to End", value: "APPEND" },
+    { label: "Prepend to Beginning", value: "PREPEND" },
+    { label: "Replacement List (Sequential)", value: "LIST_SEQUENTIAL" },
+    { label: "Replacement List (Random)", value: "LIST_RANDOM" },
+    { label: "Advanced: Regex Replace ($1, $2)", value: "REGEX_REPLACE" },
   ];
+
+  const conflictingRule = useMemo(() => {
+    if (!formData.priority) return null;
+    return rules.find(
+      (r) =>
+        r.priority === Number(formData.priority) &&
+        r.id !== editingRuleId
+    );
+  }, [rules, formData.priority, editingRuleId]);
 
   const booleanOptions: Option[] = [
     { label: "Active", value: "true" },
@@ -366,14 +682,26 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
   // All Column Definitions
   const allColumns: ColumnConfig[] = [
     {
+      key: "id",
+      label: "ID",
+      tableLabel: "ID",
+      type: "number",
+      filterKey: "id",
+      render: (rule) => (
+        <span className="text-sm font-mono font-semibold text-primary">
+          #{rule.id}
+        </span>
+      ),
+    },
+    {
       key: "priority",
       label: "Priority",
       tableLabel: "Priority",
       type: "number",
       filterKey: "priority",
       render: (rule) => (
-        <span className="text-sm text-text-secondary dark:text-gray-300">
-          #{rule.priority}
+        <span className="text-sm text-text-secondary dark:text-gray-300 font-mono">
+          {rule.priority}
         </span>
       ),
     },
@@ -384,7 +712,7 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       type: "text",
       filterKey: "name__icontains",
       render: (rule) => (
-        <span className="text-sm text-text-primary dark:text-white">
+        <span className="text-sm font-medium text-text-primary dark:text-white">
           {rule.name}
         </span>
       ),
@@ -455,19 +783,33 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       type: "text",
       filterKey: "textMatchType",
       options: matchTypeOptions,
-      render: (rule) => (
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <StatusBadge status="SUBMITTED" customText={rule.textMatchType || "CONTAINS"} />
-          {rule.textPattern && (
-            <span
-              className="text-sm text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
-              title={rule.textPattern}
-            >
-              {rule.textPattern}
-            </span>
-          )}
-        </div>
-      ),
+      render: (rule) => {
+        const decodedMask = decodeMaskRule(rule);
+        if (decodedMask.isMask) {
+          return (
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <StatusBadge status="WARNING" customText="MASK_RULE" />
+              <span className="text-sm font-mono text-text-secondary dark:text-gray-300">
+                {decodedMask.summary || "Sensitive Data"}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <StatusBadge status="SUBMITTED" customText={rule.textMatchType || "CONTAINS"} />
+            {rule.textPattern && (
+              <span
+                className="text-sm text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
+                title={rule.textPattern}
+              >
+                {rule.textPattern}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "action",
@@ -476,19 +818,41 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       type: "text",
       filterKey: "action",
       options: actionOptions,
-      render: (rule) => (
-        <div className="flex items-center gap-1.5 whitespace-nowrap">
-          <StatusBadge status="SENT_TO_VENDOR" customText={rule.action} />
-          {rule.replacement && (
-            <span
-              className="text-sm text-text-secondary dark:text-gray-300 max-w-[150px] truncate"
-              title={rule.replacement}
-            >
-              &quot;{rule.replacement}&quot;
-            </span>
-          )}
-        </div>
-      ),
+      render: (rule) => {
+        const decodedMask = decodeMaskRule(rule);
+        if (decodedMask.isMask) {
+          return (
+            <div className="flex items-center gap-1.5 whitespace-nowrap">
+              <StatusBadge status="ACTIVE" customText="MASK" />
+              <span className="text-sm font-mono text-text-secondary dark:text-gray-300">
+                {decodedMask.format === "KEEP_FIRST_2"
+                  ? "Keep First 2 (**)"
+                  : decodedMask.format === "KEEP_LAST_2"
+                    ? "Keep Last 2 (**)"
+                    : decodedMask.format === "KEEP_LAST_4"
+                      ? "Keep Last 4 (****)"
+                      : decodedMask.format === "REDACTED"
+                        ? "[REDACTED]"
+                        : "Asterisks (******)"}
+              </span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-1.5 whitespace-nowrap">
+            <StatusBadge status="SENT_TO_VENDOR" customText={rule.action} />
+            {rule.replacement && (
+              <span
+                className="text-sm text-text-secondary dark:text-gray-300 max-w-[150px] truncate"
+                title={rule.replacement}
+              >
+                &quot;{rule.replacement}&quot;
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       key: "replacement",
@@ -741,28 +1105,143 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       replacementList: null,
       stopProcessing: false,
       isActive: true,
+      maskDataType: "OTP_6",
+      maskFormat: "KEEP_FIRST_2",
+      maskContextKeyword: "code is",
     });
     setValidationResult(null);
+    setShowHint(true);
     setShowModal(true);
   };
 
   const handleOpenEdit = (rule: MessageFilterRule) => {
     setEditingRuleId(rule.id || null);
-    setFormData({
-      name: rule.name,
-      priority: rule.priority,
-      country: rule.country,
-      textMatchType:
-        (rule.textMatchType as "EXACT" | "CONTAINS" | "REGEX") || "CONTAINS",
-      textPattern: rule.textPattern || "",
-      action: (rule.action as TextAction) || "STRING_REPLACE",
-      replacement: rule.replacement || "",
-      replacementList: rule.replacementList || null,
-      stopProcessing: rule.stopProcessing,
-      isActive: rule.isActive,
-    });
+    const decodedMask = decodeMaskRule(rule);
+
+    if (decodedMask.isMask) {
+      setFormData({
+        name: rule.name,
+        priority: rule.priority,
+        country: rule.country,
+        textMatchType: "REGEX",
+        textPattern: rule.textPattern || "",
+        action: "MASK_SENSITIVE",
+        replacement: rule.replacement || "",
+        replacementList: null,
+        stopProcessing: rule.stopProcessing,
+        isActive: rule.isActive,
+        maskDataType: decodedMask.dataType || "OTP_6",
+        maskFormat: decodedMask.format || "KEEP_FIRST_2",
+        maskContextKeyword: decodedMask.contextKeyword || "",
+      });
+    } else {
+      setFormData({
+        name: rule.name,
+        priority: rule.priority,
+        country: rule.country,
+        textMatchType:
+          (rule.textMatchType as "EXACT" | "CONTAINS" | "REGEX") || "CONTAINS",
+        textPattern: rule.textPattern || "",
+        action: (rule.action as ExtendedTextAction) || "STRING_REPLACE",
+        replacement: rule.replacement || "",
+        replacementList: rule.replacementList || null,
+        stopProcessing: rule.stopProcessing,
+        isActive: rule.isActive,
+        maskDataType: "OTP_6",
+        maskFormat: "KEEP_FIRST_2",
+        maskContextKeyword: "code is",
+      });
+    }
     setValidationResult(null);
+    setShowHint(false);
     setShowModal(true);
+  };
+
+  // Static reference preview for message text transformation actions
+  const getTransformationPreview = () => {
+    const action = formData.action || "STRING_REPLACE";
+
+    if (action === "STRING_REPLACE") {
+      return {
+        input: "Your verification code is 491234",
+        output: "Your secure OTP is 491234",
+        note: "String Replace (First Match)",
+        explanation:
+          'Replaces the first occurrence of the search text with the replacement text, leaving the remainder intact.',
+      };
+    }
+
+    if (action === "REPLACE_ALL") {
+      return {
+        input: "Call support or email support team",
+        output: "Call helpdesk or email helpdesk team",
+        note: "Replace All Matches",
+        explanation:
+          'Substitutes all matching occurrences of the target word or phrase throughout the entire message body.',
+      };
+    }
+
+    if (action === "MASK_SENSITIVE") {
+      return {
+        input: "Your OTP is 491234 for login",
+        output: "Your OTP is 49**** for login",
+        note: "Mask Sensitive Data",
+        explanation:
+          'Masks confidential numeric digits (OTPs, PINs, card numbers) according to carrier and privacy regulations.',
+      };
+    }
+
+    if (action === "APPEND") {
+      return {
+        input: "Your parcel #9823 has arrived.",
+        output: "Your parcel #9823 has arrived. Reply STOP to opt out.",
+        note: "Append to End",
+        explanation:
+          'Appends mandatory regulatory disclaimers, brand taglines, or opt-out notices to the end of the message.',
+      };
+    }
+
+    if (action === "PREPEND") {
+      return {
+        input: "Your appointment is at 3:00 PM.",
+        output: "[ALERT] Your appointment is at 3:00 PM.",
+        note: "Prepend to Beginning",
+        explanation:
+          'Prepends urgent alert prefixes, company tags, or brand headers to the beginning of the message text.',
+      };
+    }
+
+    if (action === "LIST_SEQUENTIAL") {
+      return {
+        input: "Claim your coupon: PROMO",
+        output: "Claim your coupon: DISC-001",
+        note: "Replacement List (Sequential)",
+        explanation:
+          'Rotates round-robin through predefined values in the selected replacement list sequentially across messages.',
+      };
+    }
+
+    if (action === "LIST_RANDOM") {
+      return {
+        input: "Call our representative today.",
+        output: "Call 1800-555-0199 today.",
+        note: "Replacement List (Random)",
+        explanation:
+          'Picks a random item from the selected replacement list to balance routing load across available values.',
+      };
+    }
+
+    if (action === "REGEX_REPLACE") {
+      return {
+        input: "Order #8921 status update",
+        output: "Tracking ref: 8921 status update",
+        note: "Regex Group Substitution",
+        explanation:
+          'Matches regex pattern (Order #(\\d+)) and substitutes captured groups ($1) into the replacement template.',
+      };
+    }
+
+    return null;
   };
 
   const handleInsertMacro = (macroText: string) => {
@@ -778,7 +1257,27 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       toast.error("Rule name is required");
       return;
     }
-    if (!formData.textPattern.trim()) {
+
+    let finalMatchType = formData.textMatchType;
+    let finalPattern = formData.textPattern.trim();
+    let finalAction: TextAction = (formData.action === "MASK_SENSITIVE" ? "REGEX_REPLACE" : formData.action) as TextAction;
+    let finalReplacement: string | null = formData.replacement.trim() || "";
+
+    if (formData.action === "MASK_SENSITIVE") {
+      finalMatchType = "REGEX";
+      finalAction = "REGEX_REPLACE";
+      const generated = generateMaskRule({
+        dataType: formData.maskDataType,
+        format: formData.maskFormat,
+        contextKeyword: formData.maskContextKeyword,
+      });
+      finalPattern = generated.textPattern;
+      finalReplacement = generated.replacement;
+    } else if (["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(formData.action)) {
+      finalReplacement = null;
+    }
+
+    if (!finalPattern) {
       toast.error("Search text/pattern is required");
       return;
     }
@@ -795,13 +1294,10 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
         name: formData.name.trim(),
         priority: Number(formData.priority),
         country: formData.country,
-        textMatchType: formData.textMatchType,
-        textPattern: formData.textPattern.trim(),
-        action: formData.action,
-        replacement:
-          ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(formData.action)
-            ? null
-            : formData.replacement.trim() || "",
+        textMatchType: finalMatchType,
+        textPattern: finalPattern,
+        action: finalAction,
+        replacement: finalReplacement,
         replacementList:
           ["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(formData.action)
             ? formData.replacementList
@@ -1062,38 +1558,45 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
                 Add Text Rule
               </Button>
             }
-            renderRow={(rule, index) => (
-              <tr
-                key={rule.id || index}
-                onContextMenu={(e) => handleContextMenu(e, rule)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors"
-              >
-                <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
-                  {(currentPage - 1) * rowsPerPage + index + 1}
-                </td>
-                {visibleTableFields.map((col) => {
-                  if (col.render) {
+            renderRow={(rule, index) => {
+              const targetRuleId = new URLSearchParams(window.location.search).get("ruleId");
+              const isTargetRule = targetRuleId && rule.id === Number(targetRuleId);
+              return (
+                <tr
+                  key={rule.id || index}
+                  onContextMenu={(e) => handleContextMenu(e, rule)}
+                  className={`border-b border-gray-100 dark:border-gray-700 cursor-context-menu transition-colors ${isTargetRule
+                      ? "bg-primary/10 dark:bg-primary/20 ring-1 ring-primary/40"
+                      : "hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                    }`}
+                >
+                  <td className="px-4 py-4 text-sm text-text-primary dark:text-white">
+                    {(currentPage - 1) * rowsPerPage + index + 1}
+                  </td>
+                  {visibleTableFields.map((col) => {
+                    if (col.render) {
+                      return (
+                        <td
+                          key={col.key}
+                          className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
+                        >
+                          {col.render(rule)}
+                        </td>
+                      );
+                    }
+                    const cellData = (rule as any)[col.key];
                     return (
                       <td
                         key={col.key}
                         className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
                       >
-                        {col.render(rule)}
+                        {cellData ?? "-"}
                       </td>
                     );
-                  }
-                  const cellData = (rule as any)[col.key];
-                  return (
-                    <td
-                      key={col.key}
-                      className="px-4 py-4 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap"
-                    >
-                      {cellData ?? "-"}
-                    </td>
-                  );
-                })}
-              </tr>
-            )}
+                  })}
+                </tr>
+              );
+            }}
           />
         </>
       )}
@@ -1122,15 +1625,25 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
               required
             />
 
-            <Input
-              label="Priority (Evaluation Order)"
-              type="number"
-              value={formData.priority}
-              onChange={(e) => setFormData({ ...formData, priority: Number(e.target.value) })}
-              min={1}
-              max={99999}
-              required
-            />
+            <div>
+              <Input
+                label="Priority (Evaluation Order)"
+                type="number"
+                value={formData.priority}
+                onChange={(e) => setFormData({ ...formData, priority: Number(e.target.value) })}
+                min={1}
+                max={99999}
+                required
+              />
+              {conflictingRule && (
+                <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium flex items-center gap-1">
+                  <span>⚠️</span>
+                  <span>
+                    Priority already in use by rule &quot;{conflictingRule.name}&quot; (ID #{conflictingRule.id}). Must be unique.
+                  </span>
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1166,41 +1679,57 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
             />
           </div>
 
-          {/* Pattern Input */}
-          <div>
-            <Input
-              label={formData.textMatchType === "REGEX" ? "Search Pattern (Regex)" : "Search Text"}
-              value={formData.textPattern}
-              onChange={(e) => setFormData({ ...formData, textPattern: e.target.value })}
-              placeholder={
-                formData.textMatchType === "REGEX"
-                  ? "(?:code|otp):?\\s*(\\d{4,6})"
-                  : "AcmeBank"
-              }
-              required
-            />
-          </div>
+          {/* Pattern Input - Only shown for standard string / regex replacement */}
+          {formData.action !== "MASK_SENSITIVE" && (
+            <div>
+              <Input
+                label={formData.textMatchType === "REGEX" ? "Search Pattern (Regex)" : "Search Text"}
+                value={formData.textPattern}
+                onChange={(e) => setFormData({ ...formData, textPattern: e.target.value })}
+                placeholder={
+                  formData.textMatchType === "REGEX"
+                    ? "(?:code|otp):?\\s*(\\d{4,6})"
+                    : "AcmeBank"
+                }
+                isLoading={isValidating && formData.textMatchType === "REGEX"}
+                required
+              />
+              {formData.textMatchType === "REGEX" && validationResult && !validationResult.isValid && (
+                <p className="text-[11px] text-red-500 mt-1 font-medium flex items-center gap-1">
+                  <AlertTriangle size={12} className="shrink-0" />
+                  <span>{validationResult.error}</span>
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Action & Replacement */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Action"
               value={formData.action}
-              onChange={(val) => setFormData({ ...formData, action: val as TextAction })}
-              options={[
-                { value: "STRING_REPLACE", label: "String Replace (First Match)" },
-                { value: "REPLACE_ALL", label: "Replace All Matches" },
-                { value: "REGEX_REPLACE", label: "Regex Replace (Supports $1, $2)" },
-                { value: "APPEND", label: "Append to End" },
-                { value: "PREPEND", label: "Prepend to Beginning" },
-                { value: "LIST_SEQUENTIAL", label: "Replacement List (Sequential)" },
-                { value: "LIST_RANDOM", label: "Replacement List (Random)" },
-              ]}
+              onChange={(val) => {
+                const nextAction = val as ExtendedTextAction;
+                let nextReplacementList = formData.replacementList;
+                if (nextAction === "LIST_SEQUENTIAL" || nextAction === "LIST_RANDOM") {
+                  const targetMode = nextAction === "LIST_SEQUENTIAL" ? "SEQUENTIAL" : "RANDOM";
+                  const currentSelected = replacementLists.find((l) => l.id === formData.replacementList);
+                  if (currentSelected && (currentSelected.selectionMode || "RANDOM").toUpperCase() !== targetMode) {
+                    nextReplacementList = null;
+                  }
+                }
+                setFormData({
+                  ...formData,
+                  action: nextAction,
+                  replacementList: nextReplacementList,
+                });
+              }}
+              options={actionOptions}
             />
 
             {["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(formData.action) ? (
               <Select
-                label="Text Replacement List"
+                label={`Text Replacement List (${formData.action === "LIST_SEQUENTIAL" ? "Sequential" : "Random"})`}
                 value={formData.replacementList ? String(formData.replacementList) : ""}
                 onChange={(val) =>
                   setFormData({
@@ -1208,11 +1737,40 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
                     replacementList: val ? Number(val) : null,
                   })
                 }
-                options={replacementLists.map((l) => ({
-                  value: String(l.id),
-                  label: `${l.name} (${l.selectionMode || "RANDOM"})`,
-                }))}
-                placeholder="Select Replacement List"
+                options={replacementLists
+                  .filter((l) => {
+                    const mode = (l.selectionMode || "RANDOM").toUpperCase();
+                    return formData.action === "LIST_SEQUENTIAL"
+                      ? mode === "SEQUENTIAL"
+                      : mode === "RANDOM";
+                  })
+                  .map((l) => ({
+                    value: String(l.id),
+                    label: l.name,
+                  }))}
+                placeholder={
+                  replacementLists.filter((l) => {
+                    const mode = (l.selectionMode || "RANDOM").toUpperCase();
+                    return formData.action === "LIST_SEQUENTIAL" ? mode === "SEQUENTIAL" : mode === "RANDOM";
+                  }).length > 0
+                    ? `Select ${formData.action === "LIST_SEQUENTIAL" ? "Sequential" : "Random"} List`
+                    : `No ${formData.action === "LIST_SEQUENTIAL" ? "Sequential" : "Random"} lists found`
+                }
+              />
+            ) : formData.action === "MASK_SENSITIVE" ? (
+              <Select
+                label="Masking Format"
+                value={formData.maskFormat}
+                onChange={(val) =>
+                  setFormData({ ...formData, maskFormat: val as MaskFormat })
+                }
+                options={[
+                  { value: "KEEP_FIRST_2", label: "Show first 2 digits, mask rest (49****)" },
+                  { value: "KEEP_LAST_2", label: "Show last 2 digits, mask rest (****12)" },
+                  { value: "KEEP_LAST_4", label: "Show last 4 digits, mask rest (****6789)" },
+                  { value: "ALL_ASTERISKS", label: "Mask entirely with asterisks (******)" },
+                  { value: "REDACTED", label: "Replace with [REDACTED]" },
+                ]}
               />
             ) : (
               <div>
@@ -1226,12 +1784,79 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
             )}
           </div>
 
+          {formData.action === "MASK_SENSITIVE" && (
+            <div className="p-4 bg-gray-50/80 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-4">
+              <div className="flex items-center gap-2 pb-1 border-b border-gray-200 dark:border-gray-700">
+                <ShieldCheck size={16} className="text-primary" />
+                <span className="text-xs font-semibold text-text-primary dark:text-white uppercase tracking-wider">
+                  Sensitive Data Target & Preview
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Data to Mask"
+                  value={formData.maskDataType}
+                  onChange={(val) =>
+                    setFormData({ ...formData, maskDataType: val as MaskDataType })
+                  }
+                  options={[
+                    { value: "OTP_6", label: "6-Digit OTP / Verification Code (e.g. 492812)" },
+                    { value: "OTP_4", label: "4-Digit PIN Code (e.g. 4812)" },
+                    { value: "CARD_16", label: "16-Digit Card / Account Number" },
+                    { value: "ANY_NUMBERS", label: "Any Number Sequence (4+ digits)" },
+                  ]}
+                />
+
+                <Input
+                  label="Preceding Trigger Phrase (Optional)"
+                  value={formData.maskContextKeyword}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      maskContextKeyword: e.target.value,
+                    })
+                  }
+                  placeholder="e.g. code is, OTP (or leave empty to mask anywhere)"
+                />
+              </div>
+
+              {/* Live Transformation Preview with Fixed Min-Height to prevent modal jitter */}
+              {(() => {
+                const preview = getMaskPreview(
+                  formData.maskDataType,
+                  formData.maskFormat,
+                  formData.maskContextKeyword
+                );
+                return (
+                  <div className="p-3 bg-white dark:bg-gray-800 rounded-lg border border-primary/20 dark:border-primary/30 space-y-2 text-xs min-h-[96px] box-border">
+                    <div className="flex items-center gap-1.5 font-semibold text-primary">
+                      <Sparkles size={13} />
+                      <span>Live Transformation Preview:</span>
+                    </div>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-text-primary dark:text-white">
+                      <div className="flex-1 p-2 bg-gray-50 dark:bg-gray-700/50 rounded font-mono text-[11px] min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-gray-400 block mb-0.5">Incoming SMS</span>
+                        <span className="truncate block" title={preview.incoming}>&quot;{preview.incoming}&quot;</span>
+                      </div>
+                      <ArrowRight size={14} className="text-gray-400 hidden sm:block shrink-0" />
+                      <div className="flex-1 p-2 bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 rounded font-mono text-[11px] border border-emerald-200 dark:border-emerald-800/40 min-w-0">
+                        <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block mb-0.5">Delivered to Carrier</span>
+                        <span className="truncate block" title={preview.transformed}>&quot;{preview.transformed}&quot;</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Macro Quick-Insert Helper Pills */}
-          {!["LIST_SEQUENTIAL", "LIST_RANDOM"].includes(formData.action) && (
+          {!["LIST_SEQUENTIAL", "LIST_RANDOM", "MASK_SENSITIVE"].includes(formData.action) && (
             <div className="bg-gray-50/80 dark:bg-gray-800/60 p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-text-primary dark:text-white">
                 <Sparkles size={14} className="text-primary" />
-                <span>Controlled Random Macro Quick-Insert:</span>
+                <span>Dynamic Random Tags Quick-Insert:</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {[
@@ -1254,23 +1879,79 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
             </div>
           )}
 
-          {/* Validation Feedback & Warnings */}
-          {isValidating && (
-            <div className="text-xs text-gray-400 flex items-center gap-1.5">
-              <LoadingSpinner size="sm" />
-              <span>Checking regex safety and macro expansion limits...</span>
-            </div>
-          )}
+          {/* Live Text Translation Preview with Toggle */}
+          {(() => {
+            const preview = getTransformationPreview();
+            if (!preview) return null;
 
-          {validationResult && !validationResult.isValid && (
-            <div className="p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 rounded-lg flex items-start gap-2.5 text-red-700 dark:text-red-400 text-xs">
-              <AlertTriangle size={15} className="shrink-0 mt-0.5 text-red-500" />
-              <div>
-                <strong className="block font-semibold">Validation Error / ReDoS Warning:</strong>
-                <span>{validationResult.error}</span>
+            if (!showHint) {
+              return (
+                <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50/60 dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700/60 rounded-lg text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5 text-[11px]">
+                    <Info size={12} className="text-primary/70" />
+                    Action Example: <span className="font-mono font-medium text-text-primary dark:text-gray-300">[{preview.note}]</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowHint(true)}
+                    className="text-[11px] font-medium text-primary hover:text-primary-dark dark:hover:text-primary-light flex items-center gap-1 px-2 py-0.5 rounded hover:bg-primary/10 transition-colors"
+                  >
+                    Show Example <ChevronDown size={12} />
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="p-3 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/80 rounded-xl space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+                    <Info size={13} className="text-primary" />
+                    How this rule transforms traffic:
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gray-200/60 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                      {preview.note}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowHint(false)}
+                      className="text-[11px] text-gray-400 hover:text-text-primary dark:hover:text-white flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+                      title="Hide example"
+                    >
+                      Hide <ChevronUp size={12} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div className="text-[9px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
+                      Client Submits (Incoming)
+                    </div>
+                    <div className="font-mono text-xs font-semibold text-gray-800 dark:text-gray-200 truncate whitespace-pre">
+                      {preview.input}
+                    </div>
+                  </div>
+
+                  <span className="text-gray-400 font-bold text-sm shrink-0">➔</span>
+
+                  <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800/50">
+                    <div className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
+                      Delivered to Vendor (Transformed)
+                    </div>
+                    <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate whitespace-pre">
+                      {preview.output}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+                  {preview.explanation}
+                </p>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Clean UI Switches */}
           <div className="space-y-3 pt-2">

@@ -343,7 +343,7 @@ const DetailedReport: React.FC = () => {
       filterKey: "destination__icontains",
       render: (log) => (
         <span className="text-sm font-medium text-text-primary dark:text-white">
-          {log.destination}
+          {log.originalDestination || (log as any).original_destination || log.destination}
         </span>
       ),
     },

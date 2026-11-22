@@ -64,6 +64,7 @@ interface MessageTextListsTabProps {
 
 const DEFAULT_SEARCH_COLUMNS = ["name", "selectionMode", "status"];
 const DEFAULT_TABLE_COLUMNS = [
+  "id",
   "name",
   "client",
   "selectionMode",
@@ -93,7 +94,9 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter((k) => k !== "actions");
+          const filtered = parsed.filter((k) => k !== "actions");
+          if (!filtered.includes("id")) return ["id", ...filtered];
+          return filtered;
         }
       }
     } catch (e) {
@@ -589,6 +592,18 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   // All Column Definitions
   const allColumns: ColumnConfig[] = [
     {
+      key: "id",
+      label: "ID",
+      tableLabel: "ID",
+      type: "number",
+      filterKey: "id",
+      render: (list) => (
+        <span className="text-sm font-mono font-semibold text-primary">
+          #{list.id}
+        </span>
+      ),
+    },
+    {
       key: "name",
       label: "List Name",
       tableLabel: "List Name",
@@ -640,11 +655,14 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       tableLabel: "Items",
       type: "number",
       isSearchable: false,
-      render: (list) => (
-        <span className="text-sm text-text-secondary dark:text-gray-300">
-          {list.itemCount ?? 0} item{(list.itemCount ?? 0) !== 1 ? "s" : ""}
-        </span>
-      ),
+      render: (list) => {
+        const count = list.items_count ?? list.itemCount ?? (list as any).itemsCount ?? 0;
+        return (
+          <span className="text-sm text-text-secondary dark:text-gray-300">
+            {count} item{count !== 1 ? "s" : ""}
+          </span>
+        );
+      },
     },
     {
       key: "status",
@@ -675,17 +693,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
         { label: "Disallowed", value: "false" },
       ],
       isSearchOnly: true,
-    },
-    {
-      key: "id",
-      label: "List ID",
-      tableLabel: "ID",
-      type: "number",
-      render: (list) => (
-        <span className="text-sm text-text-secondary dark:text-gray-300">
-          #{list.id}
-        </span>
-      ),
     },
     {
       key: "description",
@@ -809,8 +816,12 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 
     if (sortConfig) {
       result = [...result].sort((a: any, b: any) => {
-        const aVal = a[sortConfig.key] ?? "";
-        const bVal = b[sortConfig.key] ?? "";
+        let aVal = a[sortConfig.key] ?? "";
+        let bVal = b[sortConfig.key] ?? "";
+        if (sortConfig.key === "itemCount") {
+          aVal = a.items_count ?? a.itemCount ?? 0;
+          bVal = b.items_count ?? b.itemCount ?? 0;
+        }
         if (typeof aVal === "number" && typeof bVal === "number") {
           return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
         }

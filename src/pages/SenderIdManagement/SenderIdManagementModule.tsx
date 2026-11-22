@@ -47,7 +47,15 @@ const SenderIdManagementModule: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<SenderIdMainTab>(getInitialTab);
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get("clientId") || params.get("client");
+    if (cId) {
+      const parsed = Number(cId);
+      return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    }
+    return null;
+  });
   const [clients, setClients] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
 
@@ -59,7 +67,7 @@ const SenderIdManagementModule: React.FC = () => {
   // Handle URL Param ?clientId=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const cId = params.get("clientId");
+    const cId = params.get("clientId") || params.get("client");
     if (cId) {
       const parsed = Number(cId);
       if (!isNaN(parsed) && parsed > 0) {

@@ -52,7 +52,15 @@ const MessageFilterManagementModule: React.FC = () => {
   };
 
   const [activeTab, setActiveTab] = useState<MessageFilterTab>(getInitialTab);
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const cId = params.get("clientId") || params.get("client");
+    if (cId) {
+      const parsed = Number(cId);
+      return !isNaN(parsed) && parsed > 0 ? parsed : null;
+    }
+    return null;
+  });
   const [clients, setClients] = useState<any[]>([]);
   const [countries, setCountries] = useState<any[]>([]);
 
@@ -64,7 +72,7 @@ const MessageFilterManagementModule: React.FC = () => {
   // Handle URL Param ?clientId=...
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    const cId = params.get("clientId");
+    const cId = params.get("clientId") || params.get("client");
     if (cId) {
       const parsed = Number(cId);
       if (!isNaN(parsed) && parsed > 0) {
@@ -148,71 +156,66 @@ const MessageFilterManagementModule: React.FC = () => {
           {/* Destination Rules */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "destinationRules"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "destinationRules"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("destinationRules")}
           >
             <PhoneCall size={16} />
-            <span>Destination Rules (P4)</span>
+            <span>Destination Rules</span>
           </button>
 
           {/* Message Text Rules */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "messageTextRules"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "messageTextRules"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("messageTextRules")}
           >
             <FileText size={16} />
-            <span>Message Text Rules (P4)</span>
+            <span>Message Text Rules</span>
           </button>
 
           {/* Message Text Lists */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "messageTextLists"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "messageTextLists"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("messageTextLists")}
           >
             <List size={16} />
-            <span>Text Replacement Lists (P4)</span>
+            <span>Text Replacement Lists</span>
           </button>
 
           {/* Policy & Cache */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "policy"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "policy"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("policy")}
           >
             <Sliders size={16} />
-            <span>Filter Policy & Cache (P4)</span>
+            <span>Filter Policy & Cache</span>
           </button>
 
           {/* Phase 4 Content Simulator */}
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-              activeTab === "testConsole"
-                ? "border-primary text-primary"
-                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "testConsole"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
             onClick={() => handleTabChange("testConsole")}
           >
             <PlayCircle size={16} />
-            <span>P4 Content Simulator</span>
+            <span>Content Simulator</span>
           </button>
         </div>
       </div>

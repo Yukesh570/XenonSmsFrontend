@@ -303,10 +303,10 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                     <div className="flex items-center justify-between p-3.5 bg-gray-50/80 dark:bg-gray-700/30 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
                       <div className="space-y-0.5">
                         <span className="text-sm font-semibold text-text-primary dark:text-white">
-                          Allow Controlled Random Functions
+                          Dynamic Random Codes & Tokens
                         </span>
                         <p className="text-xs text-text-secondary dark:text-gray-400">
-                          Authorizes expansion of {"${RANDINT}"}, {"${RANDHEX}"}, and {"${RANDTEXT}"} macros.
+                          Automatically generates unique numbers, letters, or hex codes in message text (e.g. {"${RANDINT}"}, {"${RANDHEX}"} for unique tracking IDs and anti-spam variation).
                         </p>
                       </div>
                       <ToggleSwitch

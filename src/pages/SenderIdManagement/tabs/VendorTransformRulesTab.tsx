@@ -9,6 +9,8 @@ import {
   RotateCcw,
   Info,
   RefreshCw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
@@ -57,6 +59,7 @@ interface ColumnDef {
 }
 
 const DEFAULT_COLUMNS: ColumnDef[] = [
+  { key: "id", label: "ID", className: "px-4 py-3 font-mono text-xs w-16" },
   { key: "priority", label: "Priority", className: "px-4 py-3 font-mono text-xs w-16" },
   { key: "name", label: "Rule Name", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
   { key: "targetEntity", label: "Target", className: "px-4 py-3 w-28" },
@@ -90,6 +93,7 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
 
   // Rule Modal
   const [showModal, setShowModal] = useState(false);
+  const [showHint, setShowHint] = useState(true);
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
@@ -158,8 +162,21 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
   };
 
   useEffect(() => {
-    if (selectedClientId) {
-      loadClientData(selectedClientId);
+    let effectiveId = selectedClientId;
+    if (!effectiveId) {
+      const params = new URLSearchParams(window.location.search);
+      const cId = params.get("clientId") || params.get("client");
+      if (cId) {
+        const parsed = Number(cId);
+        if (!isNaN(parsed) && parsed > 0) {
+          effectiveId = parsed;
+          setSelectedClientId(parsed);
+        }
+      }
+    }
+
+    if (effectiveId) {
+      loadClientData(effectiveId);
     } else {
       setPolicy(null);
       setRules([]);
@@ -258,8 +275,15 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
       return;
     }
 
-    if (ruleFormData.action === "FIXED_REPLACE" && !ruleFormData.replacement?.trim()) {
-      toast.error("Please provide a replacement Sender ID");
+    if (
+      ["FIXED_REPLACE", "PREFIX_REPLACE"].includes(ruleFormData.action || "") &&
+      !ruleFormData.replacement?.trim()
+    ) {
+      toast.error(
+        ruleFormData.action === "PREFIX_REPLACE"
+          ? "Please provide a replacement prefix"
+          : "Please provide a replacement value"
+      );
       return;
     }
 
@@ -316,6 +340,7 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
       senderPool: rule.senderPool || null,
       replacementList: rule.replacementList || null,
     });
+    setShowHint(false);
     setShowModal(true);
     setContextMenuPos(null);
   };
@@ -334,6 +359,163 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
     } finally {
       setIsDeleting(false);
     }
+  };
+
+  // Static reference preview for vendor transformation actions
+  const getTransformationPreview = () => {
+    const target = ruleFormData.targetEntity || "SENDER_ID";
+    const action = ruleFormData.action || "FIXED_REPLACE";
+
+    // 1. DESTINATION
+    if (target === "DESTINATION") {
+      if (action === "PREFIX_REPLACE") {
+        return {
+          input: "0412345678",
+          output: "61412345678",
+          note: "Prefix Replace (0 ➔ 61)",
+          explanation: "Replaces leading domestic prefix '0' with international prefix '61' and preserves subscriber digits.",
+        };
+      }
+      if (action === "PREFIX_ADD") {
+        return {
+          input: "412345678",
+          output: "+44412345678",
+          note: "Prefix Addition (+44)",
+          explanation: "Prepends carrier country code or international exit digits to the destination number.",
+        };
+      }
+      if (action === "PREFIX_REMOVE") {
+        return {
+          input: "0447309692",
+          output: "447309692",
+          note: "Prefix Stripping (0)",
+          explanation: "Strips leading domestic trunk prefix '0' to standardize destination for vendor delivery.",
+        };
+      }
+      if (action === "FIXED_REPLACE") {
+        return {
+          input: "0412345678",
+          output: "61412345678",
+          note: "Fixed Destination Reroute",
+          explanation: "Reroutes all matching traffic to a single designated destination number.",
+        };
+      }
+      if (action === "NORMALIZE") {
+        return {
+          input: "0412345678",
+          output: "61412345678",
+          note: "E.164 Normalization",
+          explanation: "Standardizes domestic numbers into international E.164 format based on country dial code.",
+        };
+      }
+      if (action === "REGEX_REPLACE") {
+        return {
+          input: "0412345678",
+          output: "61412345678",
+          note: "Regex Group Substitution",
+          explanation: "Matches regex capture groups (^0(.*)$) and substitutes groups into replacement template (61$1).",
+        };
+      }
+      if (action === "NO_CHANGE") {
+        return {
+          input: "0412345678",
+          output: "0412345678",
+          note: "Pass-Through",
+          explanation: "Transmits destination phone numbers directly to vendor without modification.",
+        };
+      }
+    }
+
+    // 2. SENDER_ID
+    if (target === "SENDER_ID") {
+      if (action === "FIXED_REPLACE") {
+        return {
+          input: "MYBANK",
+          output: "XENON_OTP",
+          note: "Fixed Sender ID Replace",
+          explanation: "Replaces incoming Sender ID with an approved vendor Sender ID.",
+        };
+      }
+      if (action === "TRUNCATE") {
+        const maxLen = ruleFormData.truncateLength || 11;
+        return {
+          input: "GLOBALBANKINGCORP",
+          output: "GLOBALBANKINGCORP".slice(0, maxLen),
+          note: `Truncate to ${maxLen} Characters`,
+          explanation: `Clamps long alphanumeric Sender IDs to comply with standard ${maxLen}-character GSM carrier limits.`,
+        };
+      }
+      if (action === "STRIP") {
+        return {
+          input: "My-Bank #1!",
+          output: "MyBank1",
+          note: "Sanitize & Strip",
+          explanation: "Removes spaces and non-alphanumeric special characters to avoid carrier rejection.",
+        };
+      }
+      if (action === "APPROVED_POOL_SEQUENTIAL") {
+        return {
+          input: "ANY_SENDER",
+          output: "Pool Sender (Round-Robin)",
+          note: "Round-Robin Pool Rotation",
+          explanation: "Distributes traffic sequentially across numbers in the assigned Sender Pool to balance throughput.",
+        };
+      }
+      if (action === "APPROVED_POOL_RANDOM") {
+        return {
+          input: "ANY_SENDER",
+          output: "Pool Sender (Random)",
+          note: "Random Pool Rotation",
+          explanation: "Picks a pseudo-random Sender ID from the assigned pool for each outgoing message.",
+        };
+      }
+      if (action === "NO_CHANGE") {
+        return {
+          input: "ORIGINAL_SENDER",
+          output: "ORIGINAL_SENDER",
+          note: "Pass-Through",
+          explanation: "Transmits client's submitted Sender ID directly to vendor without modification.",
+        };
+      }
+    }
+
+    // 3. MESSAGE_TEXT
+    if (target === "MESSAGE_TEXT") {
+      if (action === "FIXED_REPLACE") {
+        return {
+          input: "Your verification code is 491234",
+          output: "Authentication Code: 491234.",
+          note: "Full Text Replacement",
+          explanation: "Replaces the entire message body with the configured template.",
+        };
+      }
+      if (action === "PREFIX_ADD") {
+        return {
+          input: "Your appointment is confirmed for Monday.",
+          output: "[Adv] Your appointment is confirmed for Monday.",
+          note: "Prepend Header / Disclaimer",
+          explanation: "Prepends a mandatory compliance header or disclaimer (e.g. [Adv]) to the beginning of the text.",
+        };
+      }
+      if (action === "REGEX_REPLACE") {
+        return {
+          input: "Your verification code is 491234",
+          output: "Your verification token is 491234",
+          note: "Word / Regex Substitution",
+          explanation: "Substitutes specific matched words or regex patterns, leaving the surrounding message intact.",
+        };
+      }
+      if (action === "NO_CHANGE") {
+        return {
+          input: "Your verification code is 491234",
+          output: "Your verification code is 491234",
+          note: "Pass-Through",
+          explanation: "Delivers the message body directly to vendor without modification.",
+        };
+      }
+    }
+
+    return null;
   };
 
   // Filter rules
@@ -396,11 +578,10 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
           <div className="flex border-b border-gray-200 dark:border-gray-700 px-4 sm:px-6 pt-2 gap-6 bg-white dark:bg-gray-800">
             <button
               type="button"
-              className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-                innerTab === "rules"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+              className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${innerTab === "rules"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
               onClick={() => setInnerTab("rules")}
             >
               <List size={15} />
@@ -408,11 +589,10 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
             </button>
             <button
               type="button"
-              className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
-                innerTab === "policy"
-                  ? "border-primary text-primary"
-                  : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+              className={`flex items-center gap-2 pb-3 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${innerTab === "policy"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
               onClick={() => setInnerTab("policy")}
             >
               <Settings size={15} />
@@ -477,6 +657,7 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                       status: "ACTIVE",
                       isActive: true,
                     });
+                    setShowHint(true);
                     setShowModal(true);
                   }}
                   leftIcon={<Plus size={16} />}
@@ -523,9 +704,10 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                                 setSelectedRowRule(rule);
                               }}
                             >
+                              <td className="px-4 py-3 font-mono text-xs font-semibold text-primary">#{rule.id}</td>
                               <td className="px-4 py-3 font-mono text-xs">{rule.priority}</td>
                               <td className="px-4 py-3 font-medium text-text-primary dark:text-white">
-                                {rule.name}
+                                <span className="block">{rule.name}</span>
                                 {rule.remarks && (
                                   <span className="block text-[11px] text-gray-400 font-normal">
                                     {rule.remarks}
@@ -534,19 +716,18 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                               </td>
                               <td className="px-4 py-3">
                                 <span
-                                  className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                    rule.targetEntity === "DESTINATION"
-                                      ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
-                                      : rule.targetEntity === "MESSAGE_TEXT"
+                                  className={`px-2 py-0.5 rounded text-xs font-semibold ${rule.targetEntity === "DESTINATION"
+                                    ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                                    : rule.targetEntity === "MESSAGE_TEXT"
                                       ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
                                       : "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
-                                  }`}
+                                    }`}
                                 >
                                   {rule.targetEntity === "DESTINATION"
                                     ? "Destination"
                                     : rule.targetEntity === "MESSAGE_TEXT"
-                                    ? "Message Text"
-                                    : "Sender ID"}
+                                      ? "Message Text"
+                                      : "Sender ID"}
                                 </span>
                               </td>
                               <td className="px-4 py-3">
@@ -580,10 +761,15 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                                 </span>
                               </td>
                               <td className="px-4 py-3 font-mono text-xs">
-                                {rule.action === "FIXED_REPLACE" && (
+                                {["FIXED_REPLACE", "PREFIX_ADD", "PREFIX_REMOVE", "PREFIX_REPLACE", "REGEX_REPLACE"].includes(rule.action) && (
                                   <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                                    {rule.replacement}
+                                    {rule.action === "PREFIX_REPLACE"
+                                      ? `${rule.pattern || rule.prefixValue || ""} → ${rule.replacement}`
+                                      : rule.replacement}
                                   </span>
+                                )}
+                                {rule.action === "NORMALIZE" && (
+                                  <span className="text-purple-600 dark:text-purple-400">E.164 Normalize</span>
                                 )}
                                 {rule.action === "TRUNCATE" && (
                                   <span className="text-amber-600 dark:text-amber-400">
@@ -605,11 +791,10 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                               </td>
                               <td className="px-4 py-3">
                                 <span
-                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                    rule.isActive && rule.status === "ACTIVE"
-                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-                                      : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                                  }`}
+                                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${rule.isActive && rule.status === "ACTIVE"
+                                    ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
+                                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                                    }`}
                                 >
                                   {rule.status}
                                 </span>
@@ -753,7 +938,7 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                       Redis Warm-Cache & Generation Status
                     </h3>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Generation: <span className="font-mono font-bold text-primary">{cacheStatus?.client?.generation || policy?.configGeneration || 1}</span> | 
+                      Generation: <span className="font-mono font-bold text-primary">{cacheStatus?.client?.generation || policy?.configGeneration || 1}</span> |
                       Cached: <span className="font-semibold">{cacheStatus?.client?.policy_cached ? "YES" : "NO"}</span>
                     </p>
                   </div>
@@ -861,9 +1046,10 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                 value={ruleFormData.matchType || "EXACT"}
                 onChange={(m) => setRuleFormData({ ...ruleFormData, matchType: m as VendorTransformMatchType })}
                 options={[
+                  { value: "CONTAINS", label: "CONTAINS (Sub-string match)" },
                   { value: "EXACT", label: "EXACT String" },
-                  { value: "REGEX", label: "REGEX Pattern" },
                   { value: "ANY", label: "ANY (Match Everything)" },
+                  { value: "REGEX", label: "REGEX Pattern (Advanced)" },
                 ]}
               />
             </div>
@@ -873,7 +1059,27 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                 Pattern {ruleFormData.matchType !== "ANY" && "*"}
               </label>
               <Input
-                placeholder={ruleFormData.matchType === "REGEX" ? "^YANGO.*$" : "YANGO"}
+                placeholder={
+                  ruleFormData.targetEntity === "SENDER_ID"
+                    ? ruleFormData.matchType === "REGEX"
+                      ? "^(BANK|OTP).*$"
+                      : ruleFormData.matchType === "CONTAINS"
+                        ? "BANK"
+                        : "MYBANK"
+                    : ruleFormData.targetEntity === "DESTINATION"
+                      ? ruleFormData.action === "PREFIX_REPLACE"
+                        ? "0"
+                        : ruleFormData.matchType === "REGEX"
+                          ? "^0(.*)$"
+                          : ruleFormData.matchType === "CONTAINS"
+                            ? "4473"
+                            : "0412345678"
+                      : ruleFormData.matchType === "REGEX"
+                        ? "code"
+                        : ruleFormData.matchType === "CONTAINS"
+                          ? "code"
+                          : "Your verification code is 491234"
+                }
                 value={ruleFormData.pattern || ""}
                 onChange={(e) => setRuleFormData({ ...ruleFormData, pattern: e.target.value })}
                 disabled={ruleFormData.matchType === "ANY"}
@@ -888,21 +1094,22 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                 options={
                   ruleFormData.targetEntity === "DESTINATION"
                     ? [
-                        { value: "PREFIX_ADD", label: "PREFIX_ADD (Add prefix digits e.g. 00 or +)" },
-                        { value: "PREFIX_REMOVE", label: "PREFIX_REMOVE (Strip prefix digits e.g. 0 or +)" },
-                        { value: "FIXED_REPLACE", label: "FIXED_REPLACE (Replace with specific number)" },
-                        { value: "NORMALIZE", label: "NORMALIZE (Standardize to E.164 digits)" },
-                        { value: "REGEX_REPLACE", label: "REGEX_REPLACE (Regex substitution)" },
-                        { value: "NO_CHANGE", label: "NO_CHANGE (Pass-through)" },
-                      ]
+                      { value: "PREFIX_REPLACE", label: "PREFIX_REPLACE (Replace prefix e.g. 0 → 61)" },
+                      { value: "PREFIX_ADD", label: "PREFIX_ADD (Add prefix digits e.g. 00 or +)" },
+                      { value: "PREFIX_REMOVE", label: "PREFIX_REMOVE (Strip prefix digits e.g. 0 or +)" },
+                      { value: "FIXED_REPLACE", label: "FIXED_REPLACE (Replace with specific number)" },
+                      { value: "NORMALIZE", label: "NORMALIZE (Standardize to E.164 digits)" },
+                      { value: "REGEX_REPLACE", label: "REGEX_REPLACE (Regex substitution)" },
+                      { value: "NO_CHANGE", label: "NO_CHANGE (Pass-through)" },
+                    ]
                     : ruleFormData.targetEntity === "MESSAGE_TEXT"
-                    ? [
+                      ? [
                         { value: "FIXED_REPLACE", label: "FIXED_REPLACE (Replace full text)" },
                         { value: "PREFIX_ADD", label: "PREFIX_ADD (Prepend text header)" },
                         { value: "REGEX_REPLACE", label: "REGEX_REPLACE (Regex text substitution)" },
                         { value: "NO_CHANGE", label: "NO_CHANGE (Pass-through)" },
                       ]
-                    : [
+                      : [
                         { value: "FIXED_REPLACE", label: "FIXED_REPLACE (Replace with approved Sender ID)" },
                         { value: "TRUNCATE", label: "TRUNCATE (Cut to max length)" },
                         { value: "STRIP", label: "STRIP (Remove non-alphanumeric/spaces)" },
@@ -914,26 +1121,34 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
               />
             </div>
 
-            {["FIXED_REPLACE", "PREFIX_ADD", "PREFIX_REMOVE", "REGEX_REPLACE"].includes(ruleFormData.action || "") && (
+            {["FIXED_REPLACE", "PREFIX_ADD", "PREFIX_REMOVE", "PREFIX_REPLACE", "REGEX_REPLACE"].includes(ruleFormData.action || "") && (
               <div className={ruleFormData.targetEntity === "MESSAGE_TEXT" ? "col-span-2" : ""}>
                 <label className="block text-xs font-semibold mb-1">
                   {ruleFormData.targetEntity === "DESTINATION"
                     ? ruleFormData.action === "PREFIX_ADD"
                       ? "Prefix to Add *"
                       : ruleFormData.action === "PREFIX_REMOVE"
-                      ? "Prefix to Remove *"
-                      : "Replacement Destination *"
+                        ? "Prefix to Remove *"
+                        : ruleFormData.action === "PREFIX_REPLACE"
+                          ? "Replacement Prefix *"
+                          : "Replacement Destination *"
                     : ruleFormData.targetEntity === "MESSAGE_TEXT"
-                    ? ruleFormData.action === "PREFIX_ADD"
-                      ? "Header Text to Prepend *"
-                      : "Replacement Text / Template *"
-                    : "Replacement Sender ID *"}
+                      ? ruleFormData.action === "PREFIX_ADD"
+                        ? "Header Text to Prepend *"
+                        : "Replacement Text / Template *"
+                      : "Replacement Sender ID *"}
                 </label>
                 {ruleFormData.targetEntity === "MESSAGE_TEXT" ? (
                   <textarea
                     rows={3}
-                    className="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-primary dark:text-white focus:outline-none focus:ring-1 focus:ring-primary"
-                    placeholder="Enter message text, disclaimer, or regex replacement..."
+                    className="w-full text-xs p-2.5 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-text-primary dark:text-white focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                    placeholder={
+                      ruleFormData.action === "PREFIX_ADD"
+                        ? "[Adv] "
+                        : ruleFormData.action === "REGEX_REPLACE"
+                          ? "token"
+                          : "Authentication Code: 491234."
+                    }
                     value={ruleFormData.replacement || ""}
                     onChange={(e) => setRuleFormData({ ...ruleFormData, replacement: e.target.value })}
                     required
@@ -943,15 +1158,17 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                     placeholder={
                       ruleFormData.targetEntity === "DESTINATION"
                         ? ruleFormData.action === "PREFIX_ADD"
-                          ? "e.g. 00 or +"
+                          ? "+44"
                           : ruleFormData.action === "PREFIX_REMOVE"
-                          ? "e.g. + or 0"
-                          : "e.g. 977980111111"
-                        : "e.g. 9801111111"
+                            ? "0"
+                            : ruleFormData.action === "PREFIX_REPLACE"
+                              ? "61"
+                              : "61412345678"
+                        : "XENON_OTP"
                     }
-                    value={ruleFormData.replacement || ""}
-                    onChange={(e) => setRuleFormData({ ...ruleFormData, replacement: e.target.value })}
-                    required
+                value={ruleFormData.replacement || ""}
+                onChange={(e) => setRuleFormData({ ...ruleFormData, replacement: e.target.value })}
+                required
                   />
                 )}
               </div>
@@ -1014,6 +1231,80 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                 onChange={(e) => setRuleFormData({ ...ruleFormData, remarks: e.target.value })}
               />
             </div>
+
+            {/* Live Transformation Preview with Toggle */}
+            {(() => {
+              const preview = getTransformationPreview();
+              if (!preview) return null;
+
+              if (!showHint) {
+                return (
+                  <div className="col-span-2 flex items-center justify-between px-3 py-1.5 bg-gray-50/60 dark:bg-gray-800/40 border border-dashed border-gray-200 dark:border-gray-700/60 rounded-lg text-xs">
+                    <span className="text-gray-500 dark:text-gray-400 flex items-center gap-1.5 text-[11px]">
+                      <Info size={12} className="text-primary/70" />
+                      Action Example: <span className="font-mono font-medium text-text-primary dark:text-gray-300">[{preview.note}]</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowHint(true)}
+                      className="text-[11px] font-medium text-primary hover:text-primary-dark dark:hover:text-primary-light flex items-center gap-1 px-2 py-0.5 rounded hover:bg-primary/10 transition-colors"
+                    >
+                      Show Example <ChevronDown size={12} />
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="col-span-2 p-3 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700/80 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-text-primary dark:text-white flex items-center gap-1.5">
+                      <Info size={13} className="text-primary" />
+                      How this rule transforms traffic:
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-gray-200/60 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                        {preview.note}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowHint(false)}
+                        className="text-[11px] text-gray-400 hover:text-text-primary dark:hover:text-white flex items-center gap-0.5 px-1.5 py-0.5 rounded hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+                        title="Hide example"
+                      >
+                        Hide <ChevronUp size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      <div className="text-[9px] uppercase font-bold text-gray-400 dark:text-gray-500 tracking-wider">
+                        Client Submits (Incoming)
+                      </div>
+                      <div className="font-mono text-xs font-semibold text-gray-800 dark:text-gray-200 truncate whitespace-pre">
+                        {preview.input}
+                      </div>
+                    </div>
+
+                    <span className="text-gray-400 font-bold text-sm shrink-0">➔</span>
+
+                    <div className="flex-1 px-2.5 py-1.5 rounded-lg bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800/50">
+                      <div className="text-[9px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider">
+                        Delivered to Vendor (Transformed)
+                      </div>
+                      <div className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400 truncate whitespace-pre">
+                        {preview.output}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+                    {preview.explanation}
+                  </p>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">

@@ -25,6 +25,7 @@ export type DestinationAction =
   | "REGEX_REPLACE"
   | "PREFIX_ADD"
   | "PREFIX_REMOVE"
+  | "PREFIX_REPLACE"
   | "NORMALIZE";
 
 export type TextAction =
@@ -90,6 +91,7 @@ export interface MessageTextReplacementList {
   selectionMode: "SEQUENTIAL" | "RANDOM";
   status: "ACTIVE" | "INACTIVE";
   itemCount?: number;
+  items_count?: number;
   createdAt?: string;
   updatedAt?: string;
 }

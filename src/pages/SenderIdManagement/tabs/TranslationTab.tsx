@@ -50,6 +50,7 @@ interface RuleColumnDef {
 }
 
 const DEFAULT_RULE_COLUMNS: RuleColumnDef[] = [
+  { key: "id", label: "ID", className: "px-4 py-3 font-mono text-xs w-16" },
   { key: "country", label: "Country", className: "px-4 py-3" },
   { key: "sourceSenderId", label: "Original", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
   { key: "action", label: "Action", className: "px-4 py-3" },
@@ -434,6 +435,13 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                     >
                       {ruleColumns.map((col) => {
+                        if (col.key === "id") {
+                          return (
+                            <td key={col.key} className={col.className}>
+                              <span className="font-mono text-xs font-semibold text-primary">#{rule.id}</span>
+                            </td>
+                          );
+                        }
                         if (col.key === "country") {
                           return (
                             <td key={col.key} className={col.className}>
@@ -461,7 +469,7 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                               className={`${col.className} cursor-pointer hover:underline text-primary font-medium`}
                               onClick={() => handleEditRule(rule)}
                             >
-                              {rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}
+                              <span>{rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}</span>
                             </td>
                           );
                         }
