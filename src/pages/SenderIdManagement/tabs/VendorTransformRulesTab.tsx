@@ -275,6 +275,17 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
       return;
     }
 
+    if (ruleFormData.matchType !== "ANY" && !ruleFormData.pattern?.trim()) {
+      toast.error(
+        ruleFormData.targetEntity === "MESSAGE_TEXT"
+          ? "Search text / pattern is required"
+          : ruleFormData.targetEntity === "DESTINATION"
+            ? "Destination pattern / prefix is required"
+            : "Sender ID pattern is required"
+      );
+      return;
+    }
+
     if (
       ["FIXED_REPLACE", "PREFIX_REPLACE"].includes(ruleFormData.action || "") &&
       !ruleFormData.replacement?.trim()
@@ -1083,6 +1094,7 @@ export const VendorTransformRulesTab: React.FC<VendorTransformRulesTabProps> = (
                 value={ruleFormData.pattern || ""}
                 onChange={(e) => setRuleFormData({ ...ruleFormData, pattern: e.target.value })}
                 disabled={ruleFormData.matchType === "ANY"}
+                required={ruleFormData.matchType !== "ANY"}
               />
             </div>
 

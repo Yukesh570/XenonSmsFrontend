@@ -284,6 +284,66 @@ export const rebuildVendorTransformCacheApi = async (data: {
   return res.data;
 };
 
+export interface VendorTransformTraceExclusion {
+  vendor_id?: number | null;
+  vendor_name?: string;
+  route_id?: number | null;
+  reason?: string;
+}
+
+export interface VendorTransformTraceDto {
+  id: number;
+  message?: number | null;
+  messageId: string;
+  selectedVendor?: number | null;
+  selectedVendor__profileName?: string | null;
+  selectedRoute?: number | null;
+  selectedRoute__name?: string | null;
+  client__id?: number | null;
+  client__name?: string | null;
+  policyGeneration: number;
+  appliedRuleIds: number[];
+  originalSender: string;
+  phase4Sender: string;
+  finalVendorSender: string;
+  originalDestination?: string | null;
+  finalVendorDestination?: string | null;
+  segmentsBefore: number;
+  segmentsAfter: number;
+  exclusionsSummary: VendorTransformTraceExclusion[];
+  reason?: string;
+  latencyUs: number;
+  createdAt: string;
+}
+
+export interface VendorTransformTracePageResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: VendorTransformTraceDto[];
+}
+
+export const getVendorTransformTracesApi = async (params?: {
+  page?: number;
+  page_size?: number;
+  vendor?: number;
+  client?: number;
+  messageId?: string;
+  sender?: string;
+  destination?: string;
+  hasExclusions?: boolean;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  ordering?: string;
+}): Promise<VendorTransformTracePageResponse> => {
+  const res = await api.get("/api/vendor-transform-traces/", { params });
+  if (Array.isArray(res.data)) {
+    return { count: res.data.length, next: null, previous: null, results: res.data };
+  }
+  return res.data;
+};
+
 // ---------------------------------------------------------------------------
 // Client Route Scoped Vendors API
 // ---------------------------------------------------------------------------

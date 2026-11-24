@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Home, Shuffle, Cpu, ShieldCheck } from "lucide-react";
+import { Home, Shuffle, Cpu, ShieldCheck, Activity } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { getClientsApi } from "../../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
 import { VendorTransformRulesTab } from "../../SenderIdManagement/tabs/VendorTransformRulesTab";
 import { VendorRouteTestConsoleTab } from "../../SenderIdManagement/tabs/VendorRouteTestConsoleTab";
 import { VendorCompatibilityTab } from "../../SenderIdManagement/tabs/VendorCompatibilityTab";
+import { VendorTransformTracesTab } from "../../SenderIdManagement/tabs/VendorTransformTracesTab";
 
-export type VendorTransformTab = "compatibility" | "rules" | "simulator";
+export type VendorTransformTab = "compatibility" | "rules" | "simulator" | "traces";
 
 const VendorTransformPage: React.FC = () => {
   const location = useLocation();
@@ -18,6 +19,7 @@ const VendorTransformPage: React.FC = () => {
     const tab = params.get("tab");
     if (tab === "compatibility" || location.pathname.includes("compatibility")) return "compatibility";
     if (tab === "simulator" || location.pathname.includes("simulator")) return "simulator";
+    if (tab === "traces" || location.pathname.includes("traces")) return "traces";
     if (tab === "rules") return "rules";
     return "rules";
   };
@@ -158,6 +160,18 @@ const VendorTransformPage: React.FC = () => {
             <Cpu size={16} />
             <span>Candidate Preflight Simulator</span>
           </button>
+
+          <button
+            type="button"
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "traces"
+              ? "border-primary text-primary"
+              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            onClick={() => handleTabChange("traces")}
+          >
+            <Activity size={16} />
+            <span>Transform Traces</span>
+          </button>
         </div>
       </div>
 
@@ -181,6 +195,13 @@ const VendorTransformPage: React.FC = () => {
           countries={countries}
           selectedClientId={selectedClientId}
           setSelectedClientId={handleClientChange}
+        />
+      )}
+
+      {activeTab === "traces" && (
+        <VendorTransformTracesTab
+          selectedClientId={selectedClientId}
+          clients={clients}
         />
       )}
     </div>

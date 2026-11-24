@@ -364,8 +364,6 @@ const DEFAULT_TABLE_COLUMNS = [
   "country",
   "textMatchType",
   "action",
-  "replacement",
-  "stopProcessing",
   "isActive",
 ];
 
@@ -391,8 +389,11 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          if (!parsed.includes("id")) return ["id", ...parsed];
-          return parsed;
+          const cleaned = parsed.filter(
+            (k: string) => k !== "replacement" && k !== "stopProcessing"
+          );
+          if (!cleaned.includes("id")) return ["id", ...cleaned];
+          return cleaned;
         }
       }
     } catch (e) {
@@ -855,32 +856,6 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
       },
     },
     {
-      key: "replacement",
-      label: "Macros / List",
-      tableLabel: "Macros / List",
-      type: "text",
-      filterKey: "replacement__icontains",
-      render: (rule) => {
-        const matchedList = replacementLists.find(
-          (l) => l.id === rule.replacementList
-        );
-        const hasRandomMacro =
-          rule.replacement &&
-          (rule.replacement.includes("${RANDINT") ||
-            rule.replacement.includes("${RANDHEX") ||
-            rule.replacement.includes("${RANDTEXT") ||
-            rule.replacement.includes("${RANDLETTERS"));
-
-        return matchedList ? (
-          <StatusBadge status="ACTIVE" customText={matchedList.name} />
-        ) : hasRandomMacro ? (
-          <StatusBadge status="PENDING" customText="Macro" />
-        ) : (
-          <span className="text-sm text-text-secondary dark:text-gray-400">Static</span>
-        );
-      },
-    },
-    {
       key: "isActive",
       label: "Status",
       tableLabel: "Status",
@@ -939,18 +914,6 @@ export const MessageTextRulesTab: React.FC<MessageTextRulesTabProps> = ({
         { label: "Inactive", value: "INACTIVE" },
       ],
       isSearchOnly: true,
-    },
-    {
-      key: "stopProcessing",
-      label: "Stop",
-      tableLabel: "Stop",
-      isSearchable: false,
-      render: (rule) => (
-        <StatusBadge
-          status={rule.stopProcessing ? "FAILED" : "QUEUED"}
-          customText={rule.stopProcessing ? "Stop" : "Next"}
-        />
-      ),
     },
     {
       key: "createdAt",

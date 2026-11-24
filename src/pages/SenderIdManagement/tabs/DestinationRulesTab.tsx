@@ -70,7 +70,6 @@ const DEFAULT_TABLE_COLUMNS = [
   "country",
   "destinationMatchType",
   "action",
-  "countryWarning",
   "On Match",
   "isActive",
 ];
@@ -96,8 +95,9 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          if (!parsed.includes("id")) return ["id", ...parsed];
-          return parsed;
+          const cleaned = parsed.filter((k: string) => k !== "countryWarning");
+          if (!cleaned.includes("id")) return ["id", ...cleaned];
+          return cleaned;
         }
       }
     } catch (e) {
@@ -640,24 +640,6 @@ export const DestinationRulesTab: React.FC<DestinationRulesTabProps> = ({
         { label: "Inactive", value: "INACTIVE" },
       ],
       isSearchOnly: true,
-    },
-    {
-      key: "countryWarning",
-      label: "Country Warning",
-      tableLabel: "Warning",
-      isSearchable: false,
-      render: (rule) => {
-        const isPotentialCountryCross = [
-          "PREFIX_ADD",
-          "FIXED_REPLACE",
-          "REGEX_REPLACE",
-        ].includes(rule.action);
-        return isPotentialCountryCross ? (
-          <StatusBadge status="PENDING" customText="Monitored" />
-        ) : (
-          <span className="text-sm text-text-secondary dark:text-gray-400">Safe</span>
-        );
-      },
     },
     {
       key: "createdAt",
