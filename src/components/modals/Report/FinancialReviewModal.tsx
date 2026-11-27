@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
 export interface TerminalFailureRow {
@@ -45,38 +47,10 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
             Overview & Status
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Stream ID
-              </label>
-              <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.stream_id}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Message ID
-              </label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.message_id || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Status
-              </label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.status || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Delivery Count at Terminal
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewLog.delivery_count_at_terminal}
-              </div>
-            </div>
+            <Input label="Stream ID" value={viewLog.stream_id || "-"} disabled />
+            <Input label="Message ID" value={viewLog.message_id || "-"} disabled />
+            <Input label="Status" value={viewLog.status || "-"} disabled className="capitalize" />
+            <Input label="Delivery Count at Terminal" value={String(viewLog.delivery_count_at_terminal ?? "-")} disabled />
           </div>
         </fieldset>
 
@@ -86,38 +60,10 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
             Identifiers & Timestamps
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Raw Client ID
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewLog.raw_client_id ?? "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Raw Vendor ID
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewLog.raw_vendor_id ?? "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Created At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {formatDateTime(viewLog.created_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Resolved At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewLog.resolved_at ? formatDateTime(viewLog.resolved_at) : "-"}
-              </div>
-            </div>
+            <Input label="Raw Client ID" value={String(viewLog.raw_client_id ?? "-")} disabled />
+            <Input label="Raw Vendor ID" value={String(viewLog.raw_vendor_id ?? "-")} disabled />
+            <Input label="Created At" value={formatDateTime(viewLog.created_at)} disabled />
+            <Input label="Resolved At" value={viewLog.resolved_at ? formatDateTime(viewLog.resolved_at) : "-"} disabled />
           </div>
         </fieldset>
 
@@ -126,9 +72,12 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Failure Reason
           </legend>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-            {viewLog.reason || <span className="text-gray-400 italic">No reason provided.</span>}
-          </div>
+          <TextArea
+            label=""
+            value={viewLog.reason || "No reason provided."}
+            disabled
+            rows={3}
+          />
         </fieldset>
 
         {/* Preserved Accept-Time Payload */}
@@ -136,9 +85,13 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Preserved Accept-Time Payload
           </legend>
-          <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words font-mono text-text-primary dark:text-gray-200 max-h-60">
-            {viewLog.payload ? JSON.stringify(viewLog.payload, null, 2) : <span className="text-gray-400 italic">No payload recorded.</span>}
-          </pre>
+          <TextArea
+            label=""
+            value={viewLog.payload ? JSON.stringify(viewLog.payload, null, 2) : "No payload recorded."}
+            disabled
+            rows={6}
+            className="font-mono text-xs"
+          />
         </fieldset>
 
         {/* Resolution Note if any */}
@@ -147,9 +100,12 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
             <legend className="text-sm font-semibold text-primary px-2">
               Resolution Note
             </legend>
-            <p className="text-sm text-text-primary dark:text-white whitespace-pre-wrap bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3">
-              {viewLog.resolution_note}
-            </p>
+            <TextArea
+              label=""
+              value={viewLog.resolution_note}
+              disabled
+              rows={3}
+            />
           </fieldset>
         )}
 
@@ -163,3 +119,5 @@ export const FinancialReviewModal: React.FC<FinancialReviewModalProps> = ({
     </Modal>
   );
 };
+
+export default FinancialReviewModal;

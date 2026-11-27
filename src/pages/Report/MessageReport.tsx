@@ -37,7 +37,7 @@ import {
 } from "../../helper/dateFormatter";
 import ContextMenu, { type ContextMenuItem } from "../../components/ui/ContextMenu";
 import { MessageReportModal } from "../../components/modals/Report/MessageReportModal";
-import { SubRouteTableModal } from "../../components/modals/RouteManager/SubRouteTableModal";
+import { SubRouteTableModal } from "../../components/modals/RouteManager/CustomRoute/SubRouteTableModal";
 import { StatusBadge } from "../../components/ui/StatusBadge";
 import { usePagePermissions } from "../../hooks/usePagePermissions";
 

@@ -1,10 +1,11 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
 import Select from "../../ui/Select";
 import TextArea from "../../ui/TextArea";
 import { formatDateTime } from "../../../helper/dateFormatter";
-import { Lock, UserCheck, User as UserIcon } from "lucide-react";
+import { UserCheck, User as UserIcon } from "lucide-react";
 import type {
   OperationalAlertRow,
   AssignableUser,
@@ -63,38 +64,10 @@ export const OperationalAlertModal: React.FC<OperationalAlertModalProps> = ({
             Incident Overview
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Severity
-              </label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewRow.severity || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Status
-              </label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewRow.status || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Category
-              </label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {CATEGORY_LABELS[viewRow.category] || viewRow.category}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Event Type
-              </label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewRow.event_type}
-              </div>
-            </div>
+            <Input label="Severity" value={viewRow.severity || "-"} disabled className="capitalize" />
+            <Input label="Status" value={viewRow.status || "-"} disabled className="capitalize" />
+            <Input label="Category" value={CATEGORY_LABELS[viewRow.category] || viewRow.category} disabled />
+            <Input label="Event Type" value={viewRow.event_type} disabled />
           </div>
         </fieldset>
 
@@ -104,35 +77,20 @@ export const OperationalAlertModal: React.FC<OperationalAlertModalProps> = ({
             Subject & Assignment
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Subject Reference
-              </label>
-              <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 break-all">
-                {viewRow.financial_review_restricted ? (
-                  <span className="inline-flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-                    <Lock size={13} /> Restricted -- contact an ADMIN or FINANCE user
-                  </span>
-                ) : (
-                  viewRow.subject_ref || "-"
-                )}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Assigned Ownership
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
-                {viewRow.assigned_to_username ? (
-                  <>
-                    <UserCheck size={14} className="text-primary shrink-0" />
-                    <span className="font-semibold">{viewRow.assigned_to_username}</span>
-                  </>
-                ) : (
-                  <span className="text-gray-400 italic">Unassigned</span>
-                )}
-              </div>
-            </div>
+            <Input
+              label="Subject Reference"
+              value={
+                viewRow.financial_review_restricted
+                  ? "Restricted -- contact an ADMIN or FINANCE user"
+                  : viewRow.subject_ref || "-"
+              }
+              disabled
+            />
+            <Input
+              label="Assigned Ownership"
+              value={viewRow.assigned_to_username ? viewRow.assigned_to_username : "Unassigned"}
+              disabled
+            />
           </div>
         </fieldset>
 
@@ -141,9 +99,13 @@ export const OperationalAlertModal: React.FC<OperationalAlertModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Incident Description / Message
           </legend>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono text-xs">
-            {viewRow.message || <span className="text-gray-400 italic">No message recorded.</span>}
-          </div>
+          <TextArea
+            label=""
+            value={viewRow.message || "No message recorded."}
+            disabled
+            rows={3}
+            className="font-mono text-xs"
+          />
         </fieldset>
 
         {/* Timestamps & Occurrences */}
@@ -152,38 +114,10 @@ export const OperationalAlertModal: React.FC<OperationalAlertModalProps> = ({
             Timestamps & Frequency
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                First Detected
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {formatDateTime(viewRow.first_detected_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Last Detected
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {formatDateTime(viewRow.last_detected_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Occurrences
-              </label>
-              <div className="text-sm font-semibold text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewRow.occurrence_count}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Resolved At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewRow.resolved_at ? formatDateTime(viewRow.resolved_at) : "-"}
-              </div>
-            </div>
+            <Input label="First Detected" value={formatDateTime(viewRow.first_detected_at)} disabled />
+            <Input label="Last Detected" value={formatDateTime(viewRow.last_detected_at)} disabled />
+            <Input label="Occurrences" value={String(viewRow.occurrence_count)} disabled />
+            <Input label="Resolved At" value={viewRow.resolved_at ? formatDateTime(viewRow.resolved_at) : "-"} disabled />
           </div>
         </fieldset>
 

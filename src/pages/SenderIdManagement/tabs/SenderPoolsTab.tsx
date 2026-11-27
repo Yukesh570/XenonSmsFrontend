@@ -6,6 +6,8 @@ import Input from "../../../components/ui/Input";
 import Select from "../../../components/ui/Select";
 import DataTable from "../../../components/ui/DataTable";
 import ModalDataTable from "../../../components/ui/ModalDataTable";
+import FilterCard from "../../../components/ui/FilterCard";
+import AdvancedFilter, { type FilterColumn } from "../../../components/ui/AdvancedFilter";
 import Modal from "../../../components/ui/Modal";
 import { DeleteModal } from "../../../components/modals/DeleteModal";
 import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
@@ -22,8 +24,24 @@ import {
   type SenderPoolItem,
 } from "../../../api/authorizationApi/senderPoolApi";
 
-const TABLE_HEADERS = ["ID", "Name", "Mode", "Status"];
-const TABLE_COL_KEYS = ["id", "name", "selectionMode", "status"];
+interface Option {
+  label: string;
+  value: string;
+}
+
+interface ColumnConfig extends Omit<FilterColumn, "type" | "key" | "label"> {
+  key: string;
+  label: string;
+  tableLabel?: string;
+  type?: "text" | "number" | "boolean" | "date";
+  render?: (pool: SenderPool) => React.ReactNode;
+  options?: Option[];
+  isSearchOnly?: boolean;
+  isSearchable?: boolean;
+}
+
+const DEFAULT_SEARCH_COLUMNS = ["name", "selectionMode", "status"];
+const DEFAULT_TABLE_COLUMNS = ["id", "name", "selectionMode", "items", "status"];
 
 export const SenderPoolsTab: React.FC = () => {
   const [pools, setPools] = useState<SenderPool[]>([]);
@@ -33,8 +51,53 @@ export const SenderPoolsTab: React.FC = () => {
   const [isLoadingPools, setIsLoadingPools] = useState(false);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
 
-  // --- Main Table Sorting ---
+  // --- Pagination & Sorting ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  // --- Column Persistence ---
+  const [tableColumns, setTableColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("sender_pools_table_columns");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter((k) => k !== "actions");
+          if (!filtered.includes("id")) return ["id", ...filtered];
+          return filtered;
+        }
+      }
+    } catch (e) {
+      console.error("Error reading saved table columns", e);
+    }
+    return DEFAULT_TABLE_COLUMNS;
+  });
+
+  const [searchColumns, setSearchColumns] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("sender_pools_search_columns");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.error("Error reading saved search columns", e);
+    }
+    return DEFAULT_SEARCH_COLUMNS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("sender_pools_table_columns", JSON.stringify(tableColumns));
+  }, [tableColumns]);
+
+  useEffect(() => {
+    localStorage.setItem("sender_pools_search_columns", JSON.stringify(searchColumns));
+  }, [searchColumns]);
+
+  // --- Filter Values ---
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({});
+  const [appliedFilters, setAppliedFilters] = useState<Record<string, string>>({});
 
   // --- Context Menu State ---
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -111,73 +174,30 @@ export const SenderPoolsTab: React.FC = () => {
     }
   };
 
-  const handleSort = (columnIndex: number) => {
-    const colKey = TABLE_COL_KEYS[columnIndex];
-    if (!colKey) return;
-    setSortConfig((prev) => {
-      if (prev?.key === colKey) {
-        if (prev.direction === "asc") return { key: colKey, direction: "desc" };
-        return null;
-      }
-      return { key: colKey, direction: "asc" };
-    });
+  const handleOpenAddPool = () => {
+    setEditingPoolId(null);
+    setNewPool({ name: "", selectionMode: "RANDOM", status: "ACTIVE" });
+    setShowPoolForm(true);
   };
 
-  const sortedPools = useMemo(() => {
-    if (!sortConfig) return pools;
-    return [...pools].sort((a: any, b: any) => {
-      const aVal = a[sortConfig.key] ?? "";
-      const bVal = b[sortConfig.key] ?? "";
-      if (typeof aVal === "number" && typeof bVal === "number") {
-        return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
-      }
-      return sortConfig.direction === "asc"
-        ? String(aVal).localeCompare(String(bVal))
-        : String(bVal).localeCompare(String(aVal));
+  const handleOpenEditPool = (pool: SenderPool) => {
+    setEditingPoolId(pool.id!);
+    setNewPool({
+      name: pool.name,
+      selectionMode: pool.selectionMode,
+      status: pool.status,
     });
-  }, [pools, sortConfig]);
-
-  const handleContextMenu = (e: React.MouseEvent, pool: SenderPool) => {
-    e.preventDefault();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
-    setSelectedRowPool(pool);
+    setShowPoolForm(true);
   };
 
-  const poolContextMenuItems: ContextMenuItem[] = selectedRowPool
-    ? [
-        {
-          label: "Manage Pool Numbers",
-          icon: <List size={16} />,
-          onClick: () => {
-            setSelectedPool(selectedRowPool);
-            setShowItemsModal(true);
-          },
-        },
-        {
-          label: "Edit Pool",
-          icon: <Edit size={16} />,
-          onClick: () => {
-            setEditingPoolId(selectedRowPool.id!);
-            setNewPool({
-              name: selectedRowPool.name,
-              selectionMode: selectedRowPool.selectionMode,
-              status: selectedRowPool.status,
-            });
-            setShowPoolForm(true);
-          },
-        },
-        {
-          label: "Delete Pool",
-          icon: <Trash size={16} />,
-          variant: "danger",
-          onClick: () => setDeletePoolId(selectedRowPool.id!),
-        },
-      ]
-    : [];
+  const handleOpenManageItems = (pool: SenderPool) => {
+    setSelectedPool(pool);
+    setShowItemsModal(true);
+  };
 
   const handleSavePool = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPool.name) {
+    if (!newPool.name?.trim()) {
       toast.error("Pool name is required");
       return;
     }
@@ -219,19 +239,219 @@ export const SenderPoolsTab: React.FC = () => {
     }
   };
 
-  // --- Pool Items Logic ---
-  const ITEM_HEADERS = ["ID", "Sender ID", "Weight", "Status"];
-  const ITEM_COL_KEYS = ["id", "senderId", "weight", "status"];
+  // --- Filtering & Sorting ---
+  const handleFilterChange = (key: string, value: string) => {
+    setFilterValues((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSearch = () => {
+    setAppliedFilters({ ...filterValues });
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setFilterValues({});
+    setAppliedFilters({});
+    setCurrentPage(1);
+  };
+
+  const allColumns: ColumnConfig[] = [
+    {
+      key: "id",
+      label: "ID",
+      tableLabel: "ID",
+      type: "number",
+      isSearchable: false,
+      render: (pool) => (
+        <span
+          className="font-mono text-sm font-semibold text-primary cursor-pointer hover:underline"
+          onClick={() => handleOpenEditPool(pool)}
+        >
+          #{pool.id}
+        </span>
+      ),
+    },
+    {
+      key: "name",
+      label: "Pool Name",
+      tableLabel: "Name",
+      type: "text",
+      render: (pool) => (
+        <span
+          className="text-sm font-semibold text-primary cursor-pointer hover:underline"
+          onClick={() => handleOpenEditPool(pool)}
+          title="Click to edit pool"
+        >
+          {pool.name}
+        </span>
+      ),
+    },
+    {
+      key: "selectionMode",
+      label: "Selection Mode",
+      tableLabel: "Mode",
+      type: "text",
+      options: [
+        { label: "Random Rotation", value: "RANDOM" },
+        { label: "Sequential", value: "SEQUENTIAL" },
+      ],
+      render: (pool) => (
+        <StatusBadge status="SUBMITTED" customText={pool.selectionMode} />
+      ),
+    },
+    {
+      key: "items",
+      label: "Numbers",
+      tableLabel: "Numbers",
+      type: "text",
+      isSearchable: false,
+      render: (pool) => (
+        <span
+          className="text-sm font-medium text-primary hover:underline cursor-pointer"
+          onClick={() => handleOpenManageItems(pool)}
+          title="Manage numbers for this pool"
+        >
+          Manage Numbers
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      label: "Status",
+      tableLabel: "Status",
+      type: "boolean",
+      options: [
+        { label: "Active", value: "ACTIVE" },
+        { label: "Inactive", value: "INACTIVE" },
+      ],
+      render: (pool) => <StatusBadge status={pool.status} />,
+    },
+  ];
+
+  const searchableColumns = allColumns.filter((col) => col.isSearchable !== false);
+  const visibleSearchFields = searchableColumns.filter((col) =>
+    searchColumns.includes(col.key)
+  );
+
+  const visibleTableFields = tableColumns
+    .map((key) => allColumns.find((col) => col.key === key))
+    .filter((col): col is ColumnConfig => Boolean(col));
+
+  const tableHeaders = [
+    "S.N.",
+    ...visibleTableFields.map((col) => col.tableLabel || col.label),
+  ];
+
+  const handleSort = (columnIndex: number) => {
+    const colIndex = columnIndex - 1; // offset for S.N.
+    if (colIndex >= 0 && colIndex < visibleTableFields.length) {
+      const col = visibleTableFields[colIndex];
+      setCurrentPage(1);
+      setSortConfig((prev) => {
+        if (prev?.key === col.key) {
+          if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+          return null;
+        }
+        return { key: col.key, direction: "asc" };
+      });
+    }
+  };
+
+  const filteredAndSortedPools = useMemo(() => {
+    let result = pools.filter((p) => {
+      for (const colKey of Object.keys(appliedFilters)) {
+        const val = appliedFilters[colKey]?.trim().toLowerCase();
+        if (!val) continue;
+
+        if (colKey === "selectionMode") {
+          if (p.selectionMode?.toLowerCase() !== val) return false;
+        } else if (colKey === "status") {
+          if (p.status?.toLowerCase() !== val) return false;
+        } else if (colKey === "name") {
+          if (!p.name?.toLowerCase().includes(val)) return false;
+        } else {
+          const itemVal = String((p as any)[colKey] || "").toLowerCase();
+          if (!itemVal.includes(val)) return false;
+        }
+      }
+      return true;
+    });
+
+    if (sortConfig) {
+      result = [...result].sort((a: any, b: any) => {
+        const aVal = a[sortConfig.key] ?? "";
+        const bVal = b[sortConfig.key] ?? "";
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortConfig.direction === "asc" ? aVal - bVal : bVal - aVal;
+        }
+        return sortConfig.direction === "asc"
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      });
+    }
+
+    return result;
+  }, [pools, appliedFilters, sortConfig]);
+
+  // Context Menu handlers
+  const handleContextMenu = (e: React.MouseEvent, pool: SenderPool) => {
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+    setSelectedRowPool(pool);
+  };
+
+  const poolContextMenuItems: ContextMenuItem[] = selectedRowPool
+    ? [
+        {
+          label: "Manage Pool Numbers",
+          icon: <List size={16} />,
+          onClick: () => handleOpenManageItems(selectedRowPool),
+        },
+        {
+          label: "Edit Sender Pool",
+          icon: <Edit size={16} />,
+          onClick: () => handleOpenEditPool(selectedRowPool),
+        },
+        {
+          label: "Delete Sender Pool",
+          icon: <Trash size={16} />,
+          variant: "danger",
+          onClick: () => setDeletePoolId(selectedRowPool.id!),
+        },
+      ]
+    : [];
+
+  // --- Items Logic ---
+  interface ModalItemColDef {
+    key: string;
+    label: string;
+  }
+  const DEFAULT_ITEM_COLS: ModalItemColDef[] = [
+    { key: "sn", label: "S.N." },
+    { key: "senderId", label: "Sender ID / MSISDN" },
+    { key: "weight", label: "Weight" },
+    { key: "status", label: "Status" },
+  ];
+  const [itemColumns, setItemColumns] = useState<ModalItemColDef[]>(DEFAULT_ITEM_COLS);
 
   const handleItemSort = (columnIndex: number) => {
-    const colKey = ITEM_COL_KEYS[columnIndex];
-    if (!colKey) return;
+    const col = itemColumns[columnIndex];
+    if (!col || col.key === "sn") return;
     setItemSortConfig((prev) => {
-      if (prev?.key === colKey) {
-        if (prev.direction === "asc") return { key: colKey, direction: "desc" };
+      if (prev?.key === col.key) {
+        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
         return null;
       }
-      return { key: colKey, direction: "asc" };
+      return { key: col.key, direction: "asc" };
+    });
+  };
+
+  const handleReorderItemColumns = (fromIdx: number, toIdx: number) => {
+    setItemColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
     });
   };
 
@@ -268,8 +488,8 @@ export const SenderPoolsTab: React.FC = () => {
 
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedPool?.id || !newItem.senderId) {
-      toast.error("Sender ID number is required");
+    if (!selectedPool?.id || !newItem.senderId?.trim()) {
+      toast.error("Sender ID is required");
       return;
     }
     setIsSubmittingItem(true);
@@ -277,15 +497,14 @@ export const SenderPoolsTab: React.FC = () => {
       await createSenderPoolItemApi({
         ...(newItem as SenderPoolItem),
         senderPool: selectedPool.id,
-        sequenceNo: newItem.sequenceNo || items.length + 1,
       });
-      toast.success("Sender ID added to pool successfully");
+      toast.success("Number added to pool successfully");
       setShowItemForm(false);
       setNewItem({ senderId: "", weight: 1, status: "ACTIVE" });
       loadItems(selectedPool.id);
     } catch (e: any) {
       console.error(e);
-      toast.error(e.response?.data?.error || "Failed to add sender ID to pool");
+      toast.error(e.response?.data?.error || "Failed to add number to pool");
     } finally {
       setIsSubmittingItem(false);
     }
@@ -296,13 +515,13 @@ export const SenderPoolsTab: React.FC = () => {
     setIsDeletingItem(true);
     try {
       await deleteSenderPoolItemApi(deleteItem.id);
-      toast.success("Pool item deleted successfully");
+      toast.success("Number removed from pool successfully");
       setDeleteItem(null);
       setSelectedRowItem(null);
       loadItems(selectedPool.id);
     } catch (e) {
       console.error(e);
-      toast.error("Failed to delete pool item");
+      toast.error("Failed to delete number from pool");
     } finally {
       setIsDeletingItem(false);
     }
@@ -310,52 +529,150 @@ export const SenderPoolsTab: React.FC = () => {
 
   return (
     <div className="w-full space-y-4" onClick={() => setContextMenuPos(null)}>
+      {/* Top Toolbar with AdvancedFilter and Add Pool */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          <div className="relative z-30">
+            <AdvancedFilter
+              columns={allColumns as any}
+              selectedColumns={tableColumns}
+              defaultColumns={DEFAULT_TABLE_COLUMNS}
+              onFilter={(cols: string[]) => setTableColumns(cols)}
+              onClear={() => setTableColumns(DEFAULT_TABLE_COLUMNS)}
+              buttonLabel="Columns"
+              enableReorder={true}
+            />
+          </div>
+          <div className="relative z-20">
+            <AdvancedFilter
+              columns={searchableColumns as any}
+              selectedColumns={searchColumns}
+              defaultColumns={DEFAULT_SEARCH_COLUMNS}
+              onFilter={(newCols: string[]) => {
+                setSearchColumns(newCols);
+                setFilterValues((prev) => {
+                  const next = { ...prev };
+                  Object.keys(next).forEach((k) => {
+                    if (!newCols.includes(k)) delete next[k];
+                  });
+                  return next;
+                });
+              }}
+              onClear={() => setSearchColumns(DEFAULT_SEARCH_COLUMNS)}
+              isLoading={isLoadingPools}
+              buttonLabel="Search Fields"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 self-end sm:self-auto">
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleOpenAddPool}
+            leftIcon={<Plus size={16} />}
+          >
+            Add Sender Pool
+          </Button>
+        </div>
+      </div>
+
+      {/* Dynamic FilterCard */}
+      {visibleSearchFields.length > 0 && (
+        <FilterCard onSearch={handleSearch} onClear={handleClearFilters}>
+          {visibleSearchFields.map((col) => {
+            if (col.options) {
+              return (
+                <Select
+                  key={col.key}
+                  label={col.label}
+                  value={filterValues[col.key] || ""}
+                  onChange={(val) => handleFilterChange(col.key, val)}
+                  options={col.options}
+                  placeholder={`Select ${col.label}`}
+                  allowCustomValue={true}
+                />
+              );
+            }
+            return (
+              <Input
+                key={col.key}
+                type={col.type === "number" ? "number" : "text"}
+                label={col.label}
+                value={filterValues[col.key] || ""}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  handleFilterChange(col.key, e.target.value)
+                }
+                placeholder={`Search ${col.label}`}
+              />
+            );
+          })}
+        </FilterCard>
+      )}
+
+      {/* Main Table Card */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-6">
         <DataTable
           density="compact"
-          data={sortedPools}
+          storageKey="sender_pools_main_table"
+          headers={tableHeaders}
+          data={filteredAndSortedPools}
+          totalItems={filteredAndSortedPools.length}
+          currentPage={currentPage}
+          rowsPerPage={rowsPerPage}
+          onPageChange={setCurrentPage}
+          onRowsPerPageChange={setRowsPerPage}
           isLoading={isLoadingPools}
-          headers={TABLE_HEADERS}
           onSort={handleSort}
-          sortColumnIndex={sortConfig ? TABLE_COL_KEYS.indexOf(sortConfig.key) : undefined}
-          sortDirection={sortConfig ? sortConfig.direction : undefined}
-          headerActions={
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                setEditingPoolId(null);
-                setNewPool({ name: "", selectionMode: "RANDOM", status: "ACTIVE" });
-                setShowPoolForm(true);
-              }}
-              leftIcon={<Plus size={15} />}
-            >
-              Add Sender Pool
-            </Button>
+          sortColumnIndex={
+            sortConfig
+              ? visibleTableFields.findIndex((c) => c.key === sortConfig.key) + 1
+              : null
           }
-          renderRow={(pool: SenderPool, index: number) => (
-            <tr
-              key={pool.id || index}
-              onContextMenu={(e) => handleContextMenu(e, pool)}
-              className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
-            >
-              <td className="px-4 py-3 font-mono text-text-secondary dark:text-gray-400 text-xs">
-                {pool.id}
-              </td>
-              <td className="px-4 py-3 font-semibold text-text-primary dark:text-white">
-                {pool.name}
-              </td>
-              <td className="px-4 py-3">
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20">
-                  {pool.selectionMode}
-                </span>
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={pool.status} />
-              </td>
-            </tr>
-          )}
+          sortDirection={sortConfig?.direction || null}
+          onReorderColumns={(fromIdx, toIdx) => {
+            const adjustedFrom = fromIdx - 1;
+            const adjustedTo = toIdx - 1;
+            if (
+              adjustedFrom >= 0 &&
+              adjustedTo >= 0 &&
+              adjustedFrom < visibleTableFields.length &&
+              adjustedTo < visibleTableFields.length
+            ) {
+              const newFields = [...visibleTableFields];
+              const [moved] = newFields.splice(adjustedFrom, 1);
+              newFields.splice(adjustedTo, 0, moved);
+              setTableColumns(newFields.map((f) => f.key));
+            }
+          }}
+          renderRow={(pool: SenderPool, index: number) => {
+            const rowNumber = (currentPage - 1) * rowsPerPage + index + 1;
+            return (
+              <tr
+                key={pool.id || index}
+                onContextMenu={(e) => handleContextMenu(e, pool)}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
+              >
+                <td className="px-4 py-3.5 text-sm text-text-primary dark:text-white">
+                  {rowNumber}
+                </td>
+                {visibleTableFields.map((col) => {
+                  if (col.render) {
+                    return (
+                      <td key={col.key} className="px-4 py-3.5 text-sm whitespace-nowrap">
+                        {col.render(pool)}
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                      {(pool as any)[col.key] ?? "-"}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          }}
         />
       </div>
 
@@ -381,7 +698,7 @@ export const SenderPoolsTab: React.FC = () => {
             label="Pool Name"
             value={newPool.name || ""}
             onChange={(e) => setNewPool({ ...newPool, name: e.target.value })}
-            placeholder="e.g. US_LONGCODES_POOL"
+            placeholder="e.g. MARKETING_ROTATION_POOL"
             required
           />
 
@@ -392,7 +709,6 @@ export const SenderPoolsTab: React.FC = () => {
             options={[
               { value: "RANDOM", label: "Random Rotation" },
               { value: "SEQUENTIAL", label: "Sequential (Round Robin)" },
-              { value: "WEIGHTED", label: "Weighted Ratio" },
             ]}
           />
 
@@ -433,7 +749,7 @@ export const SenderPoolsTab: React.FC = () => {
         }}
         onConfirm={handleDeletePool}
         title="Delete Sender Pool"
-        message="Are you sure you want to delete this pool? Translation rules using this pool will fail."
+        message="Are you sure you want to delete this sender pool? Translation rules using this pool will fail."
         isDeleting={isDeletingPool}
       />
 
@@ -455,12 +771,15 @@ export const SenderPoolsTab: React.FC = () => {
         <div className="space-y-4" onClick={() => setItemContextMenuPos(null)}>
           <ModalDataTable
             density="compact"
+            storageKey="sender_pool_items_modal_table"
             data={sortedItems}
             isLoading={isLoadingItems}
-            headers={ITEM_HEADERS}
+            headers={itemColumns.map((c) => c.label)}
             onSort={handleItemSort}
-            sortColumnIndex={itemSortConfig ? ITEM_COL_KEYS.indexOf(itemSortConfig.key) : undefined}
+            sortColumnIndex={itemSortConfig ? itemColumns.findIndex((c) => c.key === itemSortConfig.key) : undefined}
             sortDirection={itemSortConfig ? itemSortConfig.direction : undefined}
+            onReorderColumns={handleReorderItemColumns}
+            resizableColumns={true}
             headerActions={
               <Button
                 type="button"
@@ -478,18 +797,37 @@ export const SenderPoolsTab: React.FC = () => {
                 onContextMenu={(e) => handleItemContextMenu(e, item)}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
               >
-                <td className="px-4 py-3 font-mono text-text-secondary dark:text-gray-400 text-xs">
-                  {item.id}
-                </td>
-                <td className="px-4 py-3 font-semibold text-text-primary dark:text-white font-mono">
-                  {item.senderId}
-                </td>
-                <td className="px-4 py-3 text-text-secondary dark:text-gray-300">
-                  {item.weight ?? 1}
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={item.status} />
-                </td>
+                {itemColumns.map((col) => {
+                  if (col.key === "sn") {
+                    return (
+                      <td key={col.key} className="px-4 py-3.5 text-center text-sm font-medium text-text-secondary dark:text-gray-400">
+                        {index + 1}
+                      </td>
+                    );
+                  }
+                  if (col.key === "senderId") {
+                    return (
+                      <td key={col.key} className="px-4 py-3.5 text-sm font-semibold font-mono text-primary">
+                        {item.senderId}
+                      </td>
+                    );
+                  }
+                  if (col.key === "weight") {
+                    return (
+                      <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-secondary dark:text-gray-300">
+                        {item.weight ?? 1}
+                      </td>
+                    );
+                  }
+                  if (col.key === "status") {
+                    return (
+                      <td key={col.key} className="px-4 py-3.5 text-sm">
+                        <StatusBadge status={item.status} />
+                      </td>
+                    );
+                  }
+                  return null;
+                })}
               </tr>
             )}
           />

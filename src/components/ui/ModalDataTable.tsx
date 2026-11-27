@@ -616,9 +616,25 @@ export function ModalDataTable<T extends Record<string, any> = any>({
 
   const totalRequestedWidth = defaultTotalWidth;
 
+  const isCompactFixedCol = (header: string) => {
+    const norm = (header || "").trim().toUpperCase();
+    return (
+      norm === "ID" ||
+      norm === "ID." ||
+      norm === "#" ||
+      norm === "SEQ" ||
+      norm === "SEQ #" ||
+      norm === "SEQ#"
+    );
+  };
+
   const getEffectiveColWidth = (header: string, index: number): number => {
     if (hasSnColumn && index === 0) {
       return SN_COL_WIDTH;
+    }
+
+    if (isCompactFixedCol(header)) {
+      return 70;
     }
 
     if (containerWidth && totalRequestedWidth < containerWidth) {
@@ -626,21 +642,21 @@ export function ModalDataTable<T extends Record<string, any> = any>({
       const availableSpace = containerWidth - snWidth;
 
       const unresizedNonSnCols = headers.filter(
-        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h]
+        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h] && !isCompactFixedCol(h)
       );
 
-      const isExplicitlyResized = Boolean(columnWidths[header]);
+      const isFixedOrResized = Boolean(columnWidths[header]) || isCompactFixedCol(header);
 
       if (unresizedNonSnCols.length > 0) {
-        if (isExplicitlyResized) {
+        if (isFixedOrResized) {
           return getColWidth(header, index);
         }
-        const explicitlyResizedSum = headers.reduce((sum, h, i) => {
+        const fixedOrResizedSum = headers.reduce((sum, h, i) => {
           if (hasSnColumn && i === 0) return sum;
-          if (columnWidths[h]) return sum + getColWidth(h, i);
+          if (columnWidths[h] || isCompactFixedCol(h)) return sum + getColWidth(h, i);
           return sum;
         }, 0);
-        const spaceForUnresized = Math.max(0, availableSpace - explicitlyResizedSum);
+        const spaceForUnresized = Math.max(0, availableSpace - fixedOrResizedSum);
         const unresizedDefaultSum = unresizedNonSnCols.reduce((sum, h) => {
           const idx = headers.indexOf(h);
           return sum + getHeaderWordMinWidth(h, idx, hasSnColumn);
@@ -862,15 +878,16 @@ export function ModalDataTable<T extends Record<string, any> = any>({
           <colgroup>
             {headers.map((h, i) => {
               const isSn = Boolean(hasSnColumn && i === 0);
+              const isCompact = isCompactFixedCol(h);
               const w = getEffectiveColWidth(h, i);
               return (
                 <col
                   key={i}
-                  width={isSn ? SN_COL_WIDTH : w}
+                  width={isSn ? SN_COL_WIDTH : isCompact ? 70 : w}
                   style={{
-                    width: isSn ? `${SN_COL_WIDTH}px` : `${w}px`,
-                    minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
-                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
+                    width: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "70px" : `${w}px`,
+                    minWidth: `${isSn ? SN_COL_WIDTH : isCompact ? 55 : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
+                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "75px" : undefined,
                   }}
                 />
               );
@@ -886,6 +903,7 @@ export function ModalDataTable<T extends Record<string, any> = any>({
             <tr>
               {headers.map((header, i) => {
                 const isSn = Boolean(hasSnColumn && i === 0);
+                const isCompact = isCompactFixedCol(header);
                 const isDraggable = Boolean(onReorderColumns && !isSn);
                 const isBeingDragged = draggedHeaderIdx === i;
                 const isDragOver = dragOverHeaderIdx === i;
@@ -919,11 +937,11 @@ export function ModalDataTable<T extends Record<string, any> = any>({
                     }}
                     onDragEnd={handleDragEnd}
                     style={{
-                      width: isSn ? `${SN_COL_WIDTH}px` : `${colWidth}px`,
-                      minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
-                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
+                      width: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "70px" : `${colWidth}px`,
+                      minWidth: `${isSn ? SN_COL_WIDTH : isCompact ? 55 : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
+                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "75px" : undefined,
                     }}
-                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1" : isCompact ? "w-16 min-w-[55px] max-w-[75px] px-2" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-r last:border-r-0 border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
                       isSorted
                         ? "text-primary dark:text-primary bg-primary/[0.04] dark:bg-primary/[0.08]"
                         : "text-text-secondary dark:text-gray-400 bg-gray-50 dark:bg-gray-900"

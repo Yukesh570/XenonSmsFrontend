@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
-import Modal from "../../ui/Modal";
-import Button from "../../ui/Button";
-import Input from "../../ui/Input";
-import { CountryFlag } from "../../ui/CountryFlag";
-import Select from "../../ui/Select";
-import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
+import Modal from "../../../ui/Modal";
+import Button from "../../../ui/Button";
+import Input from "../../../ui/Input";
+import { CountryFlag } from "../../../ui/CountryFlag";
+import Select from "../../../ui/Select";
+import { RatesHoverDropdown } from "../../../ui/RatesHoverDropdown";
 import { getMncMarginInfo } from "./SubRouteTableModal";
 import {
   MultiSelectDropdown,
   type MultiSelectOption,
-} from "../../ui/MultiSelectDropdown";
+} from "../../../ui/MultiSelectDropdown";
 import {
   createCustomRouteApi,
   updateCustomRouteApi,
@@ -18,16 +18,16 @@ import {
   createRouteGroupApi,
   getCustomRoutesApi,
   type CustomRouteData,
-} from "../../../api/routeManagerApi/customRouteApi";
-import { getClientsApi } from "../../../api/clientApi/clientApi";
-import { findCustomerRateApi } from "../../../api/rateApi/customerRateApi";
-import { findVendorRateApi } from "../../../api/rateApi/vendorRateApi";
-import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
-import { getVendorsApi } from "../../../api/connectivityApi/vendorApi";
+} from "../../../../api/routeManagerApi/customRouteApi";
+import { getClientsApi } from "../../../../api/clientApi/clientApi";
+import { findCustomerRateApi } from "../../../../api/rateApi/customerRateApi";
+import { findVendorRateApi } from "../../../../api/rateApi/vendorRateApi";
+import { getCountriesApi } from "../../../../api/settingApi/countryApi/countryApi";
+import { getVendorsApi } from "../../../../api/connectivityApi/vendorApi";
 import {
   getOperatorNetworkCodelookupApi,
   getOperatorNetworkCodesApi,
-} from "../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
+} from "../../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
 
 interface CustomRouteModalProps {
   isOpen: boolean;

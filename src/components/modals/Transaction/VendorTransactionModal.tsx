@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import { type VendorTransactionData } from "../../../api/transactionApi/transactionApi";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
@@ -21,69 +23,29 @@ export const VendorTransactionModal: React.FC<VendorTransactionModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose} title="Vendor Transaction Details" className="max-w-3xl">
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Transaction ID</label>
-            <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.id || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Message ID</label>
-            <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.message_id || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Transaction Type</label>
-            <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.transactionType || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Name</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.vendorProfileName || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Status</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.status || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Charge Policy</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.chargePolicy || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Currency</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.currencyCode || "-"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Segments</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.segments || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Rate Per Segment {viewData.currencyCode ? `(${viewData.currencyCode})` : ""}</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.ratePerSegment || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1"> Exchange Rate to Base  {viewData.baseCurrencyCode ? `(${viewData.baseCurrencyCode})` : ""}</label>
-            <div className="text-sm font-semibold text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.exchangeRateToBase || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Amount {viewData.currencyCode ? `(${viewData.currencyCode})` : ""}</label>
-            <div className="text-sm font-semibold text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.amount || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Base Amount {viewData.baseCurrencyCode ? `(${viewData.baseCurrencyCode})` : ""}</label>
-            <div className="text-sm font-semibold text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.baseAmount || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Balance Spent {viewData.currencyCode ? `(${viewData.currencyCode})` : ""}</label>
-            <div className="text-sm font-semibold text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.balanceSpent || "0"}</div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Created At</label>
-            <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewData.createdAt ? formatDateTime(viewData.createdAt) : "-"}</div>
-          </div>
+          <Input label="Transaction ID" value={viewData.id || "-"} disabled />
+          <Input label="Message ID" value={viewData.message_id || "-"} disabled />
+          <Input label="Transaction Type" value={viewData.transactionType || "-"} disabled className="capitalize" />
+          <Input label="Vendor Name" value={viewData.vendorProfileName || "-"} disabled />
+          <Input label="Status" value={viewData.status || "-"} disabled />
+          <Input label="Charge Policy" value={viewData.chargePolicy || "-"} disabled />
+          <Input label="Currency" value={viewData.currencyCode || "-"} disabled />
+          <Input label="Segments" value={String(viewData.segments || "0")} disabled />
+          <Input label={`Rate Per Segment ${viewData.currencyCode ? `(${viewData.currencyCode})` : ""}`} value={String(viewData.ratePerSegment || "0")} disabled />
+          <Input label={`Exchange Rate to Base ${viewData.baseCurrencyCode ? `(${viewData.baseCurrencyCode})` : ""}`} value={String(viewData.exchangeRateToBase || "0")} disabled />
+          <Input label={`Amount ${viewData.currencyCode ? `(${viewData.currencyCode})` : ""}`} value={String(viewData.amount || "0")} disabled />
+          <Input label={`Base Amount ${viewData.baseCurrencyCode ? `(${viewData.baseCurrencyCode})` : ""}`} value={String(viewData.baseAmount || "0")} disabled />
+          <Input label={`Balance Spent ${viewData.currencyCode ? `(${viewData.currencyCode})` : ""}`} value={String(viewData.balanceSpent || "0")} disabled />
+          <Input label="Created At" value={viewData.createdAt ? formatDateTime(viewData.createdAt) : "-"} disabled />
         </div>
 
         <div className="mt-4">
-          <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Description</label>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-            {viewData.description || <span className="text-gray-400 italic">No description available.</span>}
-          </div>
+          <TextArea
+            label="Description"
+            value={viewData.description || "No description available."}
+            disabled
+            rows={3}
+          />
         </div>
 
         <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-700">

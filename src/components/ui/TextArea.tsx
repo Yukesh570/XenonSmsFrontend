@@ -2,11 +2,11 @@ import React, { useRef } from "react";
 import type { TextareaHTMLAttributes } from "react";
 
 interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: string;
+  label?: string;
 }
 
-const TextArea: React.FC<TextAreaProps> = ({ label, id, disabled, required, ...props }) => {
-  const textAreaId = id || label.replace(/\s+/g, "-").toLowerCase();
+const TextArea: React.FC<TextAreaProps> = ({ label, id, disabled, required, className, ...props }) => {
+  const textAreaId = id || (label ? label.replace(/\s+/g, "-").toLowerCase() : props.name || "textarea");
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
@@ -17,13 +17,15 @@ const TextArea: React.FC<TextAreaProps> = ({ label, id, disabled, required, ...p
 
   return (
     <div className="flex flex-col w-full">
-      <label
-        htmlFor={textAreaId}
-        className="mb-1.5 text-xs font-medium text-text-secondary dark:text-gray-400"
-      >
-        {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
-      </label>
+      {label && (
+        <label
+          htmlFor={textAreaId}
+          className="mb-1.5 text-xs font-medium text-text-secondary dark:text-gray-400"
+        >
+          {label}
+          {required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+      )}
       <textarea
         {...props}
         ref={textAreaRef}
@@ -37,7 +39,7 @@ const TextArea: React.FC<TextAreaProps> = ({ label, id, disabled, required, ...p
           disabled
             ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed dark:bg-gray-800 dark:border-gray-700 dark:text-gray-500"
             : "bg-white border-gray-200 text-text-primary dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:placeholder-gray-500"
-        }`}
+        } ${className || ""}`}
       />
     </div>
   );

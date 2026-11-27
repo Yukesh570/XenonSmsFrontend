@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import type { SmsMessagePartData } from "../../../api/reportApi/smsMessagePartApi";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
@@ -32,17 +34,10 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             Segment Identity & Status
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Segment ID</label>
-              <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.id || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Message ID</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.message || "-"}</div>
-            </div>
+            <Input label="Segment ID" value={viewLog.id || "-"} disabled />
+            <Input label="Message ID" value={viewLog.message || "-"} disabled />
             <div className="lg:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Destination</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.parent_message_destination || "-"}</div>
+              <Input label="Destination" value={viewLog.parent_message_destination || "-"} disabled />
             </div>
           </div>
         </fieldset>
@@ -53,22 +48,10 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             Transmission & Metrics
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Submit Status</label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.submit_status || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Part / Total</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.part_no} / {viewLog.part_total}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Submit Attempts</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.submit_attempts || "0"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">ESM Class</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.esm_class !== undefined ? viewLog.esm_class : "-"}</div>
-            </div>
+            <Input label="Submit Status" value={viewLog.submit_status || "-"} disabled className="capitalize" />
+            <Input label="Part / Total" value={`${viewLog.part_no ?? "-"} / ${viewLog.part_total ?? "-"}`} disabled />
+            <Input label="Submit Attempts" value={String(viewLog.submit_attempts ?? "0")} disabled />
+            <Input label="ESM Class" value={viewLog.esm_class !== undefined && viewLog.esm_class !== null ? String(viewLog.esm_class) : "-"} disabled />
           </div>
         </fieldset>
 
@@ -79,17 +62,10 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="lg:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Msg ID</label>
-              <div className="text-sm font-mono text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendor_msg_id || "-"}</div>
+              <Input label="Vendor Msg ID" value={viewLog.vendor_msg_id || "-"} disabled />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">UDH Ref</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.udh_ref !== undefined ? viewLog.udh_ref : "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Submit Status</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.vendor_submit_status !== null ? viewLog.vendor_submit_status : "-"}</div>
-            </div>
+            <Input label="UDH Ref" value={viewLog.udh_ref !== undefined && viewLog.udh_ref !== null ? String(viewLog.udh_ref) : "-"} disabled />
+            <Input label="Vendor Submit Status" value={viewLog.vendor_submit_status !== null && viewLog.vendor_submit_status !== undefined ? String(viewLog.vendor_submit_status) : "-"} disabled />
           </div>
         </fieldset>
 
@@ -99,26 +75,19 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             DLR Push & Suppression
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client DLR Pushed</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.clientDlrPushed ? "Yes" : "No"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client DLR Suppressed</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.clientDlrSuppressed ? "Yes" : "No"}</div>
-            </div>
+            <Input label="Client DLR Pushed" value={viewLog.clientDlrPushed ? "Yes" : "No"} disabled />
+            <Input label="Client DLR Suppressed" value={viewLog.clientDlrSuppressed ? "Yes" : "No"} disabled />
             <div className="lg:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Client DLR Suppressed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.clientDlrSuppressedAt)}</div>
+              <Input label="Client DLR Suppressed At" value={formatDateTime(viewLog.clientDlrSuppressedAt)} disabled />
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-              Client DLR Suppression Reason
-            </label>
-            <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[60px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-              {viewLog.clientDlrSuppressionReason || <span className="text-gray-400 italic">No suppression reason available.</span>}
-            </div>
+            <TextArea
+              label="Client DLR Suppression Reason"
+              value={viewLog.clientDlrSuppressionReason || "No suppression reason available."}
+              disabled
+              rows={2}
+            />
           </div>
         </fieldset>
 
@@ -128,33 +97,14 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             Timestamps
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Submitted At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.submitted_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Sent At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.sent_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Delivered At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.delivered_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Failed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.failed_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Created At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.created_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Updated At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.updated_at)}</div>
-            </div>
+            <Input label="Submitted At" value={formatDateTime(viewLog.submitted_at)} disabled />
+            <Input label="Sent At" value={formatDateTime(viewLog.sent_at)} disabled />
+            <Input label="Delivered At" value={formatDateTime(viewLog.delivered_at)} disabled />
+            <Input label="Failed At" value={formatDateTime(viewLog.failed_at)} disabled />
+            <Input label="Created At" value={formatDateTime(viewLog.created_at)} disabled />
+            <Input label="Updated At" value={formatDateTime(viewLog.updated_at)} disabled />
             <div className="lg:col-span-2">
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Last Submit At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.last_submit_at)}</div>
+              <Input label="Last Submit At" value={formatDateTime(viewLog.last_submit_at)} disabled />
             </div>
           </div>
         </fieldset>
@@ -165,30 +115,25 @@ export const SmsMessagePartModal: React.FC<SmsMessagePartModalProps> = ({
             Content & Failure Information
           </legend>
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Failure Reason
-              </label>
-              <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-                {viewLog.failure_reason || <span className="text-gray-400 italic">No failure reason available.</span>}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Text
-              </label>
-              <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-                {viewLog.text ? viewLog.text.replace(/<[^>]*>/g, "") : <span className="text-gray-400 italic">No text decoded.</span>}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                UDH Hex
-              </label>
-              <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[60px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                {viewLog.udh_hex || <span className="text-gray-400 italic">None</span>}
-              </div>
-            </div>
+            <TextArea
+              label="Failure Reason"
+              value={viewLog.failure_reason || "No failure reason available."}
+              disabled
+              rows={2}
+            />
+            <TextArea
+              label="Text"
+              value={viewLog.text ? viewLog.text.replace(/<[^>]*>/g, "") : "No text decoded."}
+              disabled
+              rows={3}
+            />
+            <TextArea
+              label="UDH Hex"
+              value={viewLog.udh_hex || "None"}
+              disabled
+              rows={2}
+              className="font-mono text-xs"
+            />
           </div>
         </fieldset>
 

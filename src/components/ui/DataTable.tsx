@@ -509,9 +509,25 @@ export function DataTable<T extends { id?: number | string }>({
 
   const totalRequestedWidth = defaultTotalWidth;
 
+  const isCompactFixedCol = (header: string) => {
+    const norm = (header || "").trim().toUpperCase();
+    return (
+      norm === "ID" ||
+      norm === "ID." ||
+      norm === "#" ||
+      norm === "SEQ" ||
+      norm === "SEQ #" ||
+      norm === "SEQ#"
+    );
+  };
+
   const getEffectiveColWidth = (header: string, index: number): number => {
     if (hasSnColumn && index === 0) {
       return SN_COL_WIDTH;
+    }
+
+    if (isCompactFixedCol(header)) {
+      return 70;
     }
 
     if (containerWidth && totalRequestedWidth < containerWidth) {
@@ -519,21 +535,21 @@ export function DataTable<T extends { id?: number | string }>({
       const availableSpace = containerWidth - snWidth;
 
       const unresizedNonSnCols = headers.filter(
-        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h]
+        (h, i) => (!hasSnColumn || i > 0) && !columnWidths[h] && !isCompactFixedCol(h)
       );
 
-      const isExplicitlyResized = Boolean(columnWidths[header]);
+      const isFixedOrResized = Boolean(columnWidths[header]) || isCompactFixedCol(header);
 
       if (unresizedNonSnCols.length > 0) {
-        if (isExplicitlyResized) {
+        if (isFixedOrResized) {
           return getColWidth(header, index);
         }
-        const explicitlyResizedSum = headers.reduce((sum, h, i) => {
+        const fixedOrResizedSum = headers.reduce((sum, h, i) => {
           if (hasSnColumn && i === 0) return sum;
-          if (columnWidths[h]) return sum + getColWidth(h, i);
+          if (columnWidths[h] || isCompactFixedCol(h)) return sum + getColWidth(h, i);
           return sum;
         }, 0);
-        const spaceForUnresized = Math.max(0, availableSpace - explicitlyResizedSum);
+        const spaceForUnresized = Math.max(0, availableSpace - fixedOrResizedSum);
         const unresizedDefaultSum = unresizedNonSnCols.reduce((sum, h) => {
           const idx = headers.indexOf(h);
           return sum + getHeaderWordMinWidth(h, idx, hasSnColumn);
@@ -771,15 +787,16 @@ export function DataTable<T extends { id?: number | string }>({
           <colgroup>
             {headers.map((h, i) => {
               const isSn = Boolean(hasSnColumn && i === 0);
+              const isCompact = isCompactFixedCol(h);
               const w = getEffectiveColWidth(h, i);
               return (
                 <col
                   key={i}
-                  width={isSn ? SN_COL_WIDTH : w}
+                  width={isSn ? SN_COL_WIDTH : isCompact ? 70 : w}
                   style={{
-                    width: isSn ? `${SN_COL_WIDTH}px` : `${w}px`,
-                    minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
-                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
+                    width: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "70px" : `${w}px`,
+                    minWidth: `${isSn ? SN_COL_WIDTH : isCompact ? 55 : getHeaderFirstWordMinWidth(h, i, hasSnColumn)}px`,
+                    maxWidth: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "75px" : undefined,
                   }}
                 />
               );
@@ -805,6 +822,7 @@ export function DataTable<T extends { id?: number | string }>({
                 const isBeingResized = resizingHeaderIdx === i;
 
                 const isSn = Boolean(hasSnColumn && i === 0);
+                const isCompact = isCompactFixedCol(header);
 
                 return (
                   <th
@@ -831,12 +849,12 @@ export function DataTable<T extends { id?: number | string }>({
                     }}
                     onDragEnd={handleDragEnd}
                     style={{
-                      width: isSn ? `${SN_COL_WIDTH}px` : `${colWidth}px`,
-                      minWidth: `${isSn ? SN_COL_WIDTH : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
-                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : undefined,
+                      width: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "70px" : `${colWidth}px`,
+                      minWidth: `${isSn ? SN_COL_WIDTH : isCompact ? 55 : getHeaderFirstWordMinWidth(header, i, hasSnColumn)}px`,
+                      maxWidth: isSn ? `${SN_COL_WIDTH}px` : isCompact ? "75px" : undefined,
                     }}
-                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 border-r" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
-                      !colWidth && !isSn ? "min-w-[80px]" : ""
+                    className={`group ${isSn ? "w-12 min-w-[48px] max-w-[48px] !px-1 border-r" : isCompact ? "w-16 min-w-[55px] max-w-[75px] px-2" : "px-3"} py-2.5 text-center text-xs font-medium uppercase tracking-wider border-b border-gray-200 dark:border-gray-700 whitespace-nowrap transition-all select-none relative ${
+                      !colWidth && !isSn && !isCompact ? "min-w-[80px]" : ""
                     } ${
                       isSorted
                         ? "text-primary dark:text-primary bg-primary/[0.03] dark:bg-primary/[0.06]"

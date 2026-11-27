@@ -261,7 +261,11 @@ const ReliabilityEvidenceCenter: React.FC = () => {
     switch (colKey) {
       case "stream_id":
         return (
-          <td key={colKey} className="px-4 py-3 text-sm font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          <td
+            key={colKey}
+            className="px-4 py-3 text-sm font-mono font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+            onClick={() => setViewRow(item)}
+          >
             {item.stream_id}
           </td>
         );
@@ -283,7 +287,11 @@ const ReliabilityEvidenceCenter: React.FC = () => {
           /* undecodable payload */
         }
         return (
-          <td key={colKey} className="px-4 py-3 text-sm font-medium text-text-primary dark:text-white whitespace-nowrap">
+          <td
+            key={colKey}
+            className="px-4 py-3 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+            onClick={() => setViewRow(item)}
+          >
             {item.vendor_name || item.vendor_profile_name || item.connection_id || item.vendor_id || parsedData?.vendor_id || "-"}
           </td>
         );
@@ -298,7 +306,11 @@ const ReliabilityEvidenceCenter: React.FC = () => {
         );
       case "segment":
         return (
-          <td key={colKey} className="px-4 py-3 text-sm text-text-secondary dark:text-gray-300">
+          <td
+            key={colKey}
+            className="px-4 py-3 text-sm font-semibold text-primary cursor-pointer hover:underline"
+            onClick={() => setViewRow(item)}
+          >
             {item.segment_id ?? "-"}
           </td>
         );
@@ -479,6 +491,7 @@ const ReliabilityEvidenceCenter: React.FC = () => {
           <tr
             key={item.id || item.stream_id || index}
             onContextMenu={(e) => handleContextMenu(e, item)}
+            onDoubleClick={() => setViewRow(item)}
             className="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 transition-colors cursor-context-menu"
           >
             <td className="px-4 py-3 text-sm text-text-primary dark:text-white">

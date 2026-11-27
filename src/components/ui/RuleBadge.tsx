@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import { FastTooltip } from "./FastTooltip";
-import { getMessageFilterRulesApi } from "../../api/authorizationApi/messageFilterApi";
-import { getVendorTransformRulesApi } from "../../api/authorizationApi/vendorTransformApi";
+import { getMessageFilterRulesApi } from "../../api/messageFilterApi/messageFilterApi";
+import { getVendorTransformRulesApi } from "../../api/routeManagerApi/vendorTransformApi";
 
 interface RuleMeta {
   name: string;
@@ -71,7 +70,7 @@ export const RuleBadge: React.FC<RuleBadgeProps> = ({
   id,
   type,
   labelPrefix,
-  size = "sm",
+  size: _size,
   className = "",
   clientId,
 }) => {
@@ -131,20 +130,6 @@ export const RuleBadge: React.FC<RuleBadgeProps> = ({
     ? `Rule #${cleanId}: "${ruleMeta.name}" • Click to open rule`
     : `${displayPrefix || "Rule"} #${cleanId} • Click to open in management`;
 
-  const colorClasses =
-    type === "destination"
-      ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:border-blue-400 dark:hover:border-blue-600 hover:bg-blue-100/60 dark:hover:bg-blue-900/50"
-      : type === "text"
-      ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 hover:bg-amber-100/60 dark:hover:bg-amber-900/50"
-      : type === "sender"
-      ? "bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 hover:border-purple-400 dark:hover:border-purple-600 hover:bg-purple-100/60 dark:hover:bg-purple-900/50"
-      : "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-100/60 dark:hover:bg-indigo-900/50";
-
-  const sizeClasses =
-    size === "xs"
-      ? "px-1.5 py-0.5 text-[10px]"
-      : "px-2 py-0.5 text-[11px]";
-
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     const effectiveClientId =
@@ -172,14 +157,10 @@ export const RuleBadge: React.FC<RuleBadgeProps> = ({
       <button
         type="button"
         onClick={handleClick}
-        className={`inline-flex items-center gap-1 rounded font-medium border transition-all cursor-pointer group shadow-2xs ${colorClasses} ${sizeClasses} ${className}`}
+        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 dark:bg-primary/20 dark:text-purple-300 dark:border-primary/40 transition-colors cursor-pointer ${className}`}
         title={tooltipContent}
       >
         <span>{displayText}</span>
-        <ExternalLink
-          size={size === "xs" ? 10 : 11}
-          className="opacity-40 group-hover:opacity-100 transition-opacity"
-        />
       </button>
     </FastTooltip>
   );

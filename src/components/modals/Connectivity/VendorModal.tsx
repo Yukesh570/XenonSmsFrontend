@@ -814,7 +814,7 @@ export const VendorModal: React.FC<VendorModalProps> = ({
         </fieldset> */}
 
         {editingVendor && (
-          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 bg-gray-50/50 dark:bg-gray-800/30">
+          <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4">
             <legend className="text-sm font-semibold text-primary px-2">
               Live Connection Status
             </legend>
@@ -822,18 +822,13 @@ export const VendorModal: React.FC<VendorModalProps> = ({
               <Input
                 label="Live Bind Status"
                 name="bindStatus"
-                value={formData.bindStatus}
+                value={formData.bindStatus || "OFFLINE"}
                 disabled={true}
-                className={`font-semibold ${
-                  formData.bindStatus === "ONLINE"
-                    ? "text-green-600 dark:text-green-400"
-                    : "text-red-500 dark:text-red-400"
-                }`}
               />
               <Input
                 label="Active Sessions / Allowed"
                 name="session"
-                value={`${formData.active_session_count} / ${formData.max_allowed_sessions || 0}`}
+                value={`${formData.active_session_count ?? 0} / ${formData.max_allowed_sessions || 0}`}
                 disabled={true}
               />
             </div>

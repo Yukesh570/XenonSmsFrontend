@@ -19,7 +19,7 @@ import {
   previewMessageFilterRuleApi,
   type PreviewResponse,
   type PreviewTraceEntry,
-} from "../../../api/authorizationApi/messageFilterApi";
+} from "../../../api/messageFilterApi/messageFilterApi";
 
 interface TestConsoleTabProps {
   selectedClientId: number | null;

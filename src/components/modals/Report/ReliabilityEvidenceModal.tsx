@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import { formatDateTime } from "../../../helper/dateFormatter";
 import type { EvidenceSource } from "../../../api/reportApi/r4MonitoringApi";
 
@@ -76,62 +78,37 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
             Evidence Overview & Source
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Source Type
-              </label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {SOURCE_LABELS[source] || source}
-              </div>
-            </div>
+            <Input label="Source Type" value={SOURCE_LABELS[source] || source} disabled />
 
             {isDeadLetter ? (
               <>
                 <div className="lg:col-span-2">
-                  <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                    Stream ID
-                  </label>
-                  <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                    {viewRow.stream_id}
-                  </div>
+                  <Input label="Stream ID" value={viewRow.stream_id || "-"} disabled />
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                    Vendor
-                  </label>
-                  <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                    {viewRow.vendor_name || viewRow.payload?.vendor_id || "-"}
-                  </div>
-                </div>
+                <Input
+                  label="Vendor"
+                  value={String(viewRow.vendor_name || viewRow.payload?.vendor_id || "-")}
+                  disabled
+                />
               </>
             ) : (
               <>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                    ID
-                  </label>
-                  <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                    {viewRow.id ?? "-"}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                    Status / Outcome
-                  </label>
-                  <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                    {viewRow.outcome || viewRow.status || (isDlrConflict ? viewRow.winner_status : undefined) || "-"}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                    {isProtocolConflict || isDlrConflict ? "Segment ID" : "Vendor"}
-                  </label>
-                  <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                    {isProtocolConflict || isDlrConflict
-                      ? (viewRow.segment_id ?? "-")
-                      : (viewRow.vendor_name || viewRow.vendor_profile_name || viewRow.connection_id || viewRow.vendor_id || "-")}
-                  </div>
-                </div>
+                <Input label="ID" value={String(viewRow.id ?? "-")} disabled />
+                <Input
+                  label="Status / Outcome"
+                  value={viewRow.outcome || viewRow.status || (isDlrConflict ? viewRow.winner_status : undefined) || "-"}
+                  disabled
+                  className="capitalize"
+                />
+                <Input
+                  label={isProtocolConflict || isDlrConflict ? "Segment ID" : "Vendor"}
+                  value={
+                    isProtocolConflict || isDlrConflict
+                      ? String(viewRow.segment_id ?? "-")
+                      : String(viewRow.vendor_name || viewRow.vendor_profile_name || viewRow.connection_id || viewRow.vendor_id || "-")
+                  }
+                  disabled
+                />
               </>
             )}
           </div>
@@ -144,52 +121,37 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
               Conflict Correlation
             </legend>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Vendor Message ID
-                </label>
-                <div className="text-sm font-mono text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                  {viewRow.vendor_msg_id || "-"}
-                </div>
-              </div>
+              <Input label="Vendor Message ID" value={viewRow.vendor_msg_id || "-"} disabled />
               {isProtocolConflict && (
                 <>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                      Existing ({viewRow.existingSource})
-                    </label>
-                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                      {viewRow.existingStatus || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                      Incoming ({viewRow.incomingSource})
-                    </label>
-                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                      {viewRow.incomingStatus || "-"}
-                    </div>
-                  </div>
+                  <Input
+                    label={`Existing (${viewRow.existingSource || ""})`}
+                    value={viewRow.existingStatus || "-"}
+                    disabled
+                    className="capitalize"
+                  />
+                  <Input
+                    label={`Incoming (${viewRow.incomingSource || ""})`}
+                    value={viewRow.incomingStatus || "-"}
+                    disabled
+                    className="capitalize"
+                  />
                 </>
               )}
               {isDlrConflict && (
                 <>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                      Winner Status
-                    </label>
-                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                      {viewRow.winner_status || "-"}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                      Loser Status
-                    </label>
-                    <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                      {viewRow.loser_status || "-"}
-                    </div>
-                  </div>
+                  <Input
+                    label="Winner Status"
+                    value={viewRow.winner_status || "-"}
+                    disabled
+                    className="capitalize"
+                  />
+                  <Input
+                    label="Loser Status"
+                    value={viewRow.loser_status || "-"}
+                    disabled
+                    className="capitalize"
+                  />
                 </>
               )}
             </div>
@@ -202,36 +164,29 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
             Timestamps & Execution
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                {isDeadLetter ? "Dead-Lettered At" : isProtocolConflict ? "Detected At" : "Created At"}
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {isDeadLetter && viewRow.payload?.dead_lettered_at
+            <Input
+              label={isDeadLetter ? "Dead-Lettered At" : isProtocolConflict ? "Detected At" : "Created At"}
+              value={
+                isDeadLetter && viewRow.payload?.dead_lettered_at
                   ? formatDateTime(new Date(Number(viewRow.payload.dead_lettered_at)).toISOString())
                   : viewRow.detectedAt
                   ? formatDateTime(viewRow.detectedAt)
                   : viewRow.created_at
                   ? formatDateTime(viewRow.created_at)
-                  : "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Resolved At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewRow.resolved_at ? formatDateTime(viewRow.resolved_at) : "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Retry Count
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">
-                {viewRow.retry_count ?? "-"}
-              </div>
-            </div>
+                  : "-"
+              }
+              disabled
+            />
+            <Input
+              label="Resolved At"
+              value={viewRow.resolved_at ? formatDateTime(viewRow.resolved_at) : "-"}
+              disabled
+            />
+            <Input
+              label="Retry Count"
+              value={String(viewRow.retry_count ?? "-")}
+              disabled
+            />
           </div>
         </fieldset>
 
@@ -241,9 +196,12 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
             <legend className="text-sm font-semibold text-primary px-2">
               Dead-Letter Reason
             </legend>
-            <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-              {viewRow.payload.reason}
-            </div>
+            <TextArea
+              label=""
+              value={viewRow.payload.reason}
+              disabled
+              rows={3}
+            />
           </fieldset>
         )}
 
@@ -252,9 +210,13 @@ export const ReliabilityEvidenceModal: React.FC<ReliabilityEvidenceModalProps> =
           <legend className="text-sm font-semibold text-primary px-2">
             Raw Evidence Record
           </legend>
-          <pre className="text-xs bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-words font-mono text-text-primary dark:text-gray-200 max-h-60">
-            {JSON.stringify(viewRow, null, 2)}
-          </pre>
+          <TextArea
+            label=""
+            value={JSON.stringify(viewRow, null, 2)}
+            disabled
+            rows={8}
+            className="font-mono text-xs"
+          />
         </fieldset>
 
         {/* Footer Actions */}

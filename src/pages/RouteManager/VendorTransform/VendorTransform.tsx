@@ -3,10 +3,10 @@ import { Home, Shuffle, Cpu, ShieldCheck, Activity } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { getClientsApi } from "../../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
-import { VendorTransformRulesTab } from "../../SenderIdManagement/tabs/VendorTransformRulesTab";
-import { VendorRouteTestConsoleTab } from "../../SenderIdManagement/tabs/VendorRouteTestConsoleTab";
-import { VendorCompatibilityTab } from "../../SenderIdManagement/tabs/VendorCompatibilityTab";
-import { VendorTransformTracesTab } from "../../SenderIdManagement/tabs/VendorTransformTracesTab";
+import { VendorTransformRulesTab } from "./tabs/VendorTransformRulesTab";
+import { VendorRouteTestConsoleTab } from "./tabs/VendorRouteTestConsoleTab";
+import { VendorCompatibilityTab } from "./tabs/VendorCompatibilityTab";
+import { VendorTransformTracesTab } from "./tabs/VendorTransformTracesTab";
 
 export type VendorTransformTab = "compatibility" | "rules" | "simulator" | "traces";
 
@@ -99,18 +99,18 @@ const VendorTransformPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="w-full pb-8 space-y-4">
+    <div className="container mx-auto pb-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary dark:text-white flex items-center gap-2">
-            Vendor Route Transformation & Compatibility
+          <h1 className="text-2xl font-semibold text-text-primary dark:text-white">
+            Vendor Transformation
           </h1>
-          <p className="text-xs text-text-secondary dark:text-gray-400 mt-0.5">
-            Phase 5 downstream vendor format adaptations, carrier compatibility constraints, sequential cursor protection, and real-time candidate route preflight simulations.
+          <p className="text-xs text-text-secondary dark:text-gray-400 mt-1">
+            Configure vendor format adaptations, carrier compatibility constraints, and real-time route preflight simulations.
           </p>
         </div>
-        <div className="flex items-center space-x-2 text-sm text-text-secondary">
+        <div className="flex items-center space-x-2 text-sm text-text-secondary shrink-0">
           <Home size={16} className="text-gray-400" />
           <NavLink to="/dashboard" className="text-gray-400 hover:text-primary">
             Home
@@ -123,50 +123,54 @@ const VendorTransformPage: React.FC = () => {
       </div>
 
       {/* Main Tabs */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden mb-6">
         <div className="flex border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 pt-2 gap-2 sm:gap-6 bg-white dark:bg-gray-800 overflow-x-auto">
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "rules"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "rules"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("rules")}
           >
             <Shuffle size={16} />
-            <span>Vendor / Route Rules</span>
+            <span>Vendor Rules</span>
           </button>
 
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "compatibility"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "compatibility"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("compatibility")}
           >
             <ShieldCheck size={16} />
-            <span>Vendor Compatibility Profiles</span>
+            <span>Compatibility Profiles</span>
           </button>
 
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "simulator"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "simulator"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("simulator")}
           >
             <Cpu size={16} />
-            <span>Candidate Preflight Simulator</span>
+            <span>Route Simulator</span>
           </button>
 
           <button
             type="button"
-            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${activeTab === "traces"
-              ? "border-primary text-primary"
-              : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
-              }`}
+            className={`flex items-center gap-2 pb-3 px-2 text-sm font-semibold transition-all border-b-2 -mb-px whitespace-nowrap ${
+              activeTab === "traces"
+                ? "border-primary text-primary"
+                : "border-transparent text-text-secondary hover:text-text-primary dark:text-gray-400 dark:hover:text-gray-200"
+            }`}
             onClick={() => handleTabChange("traces")}
           >
             <Activity size={16} />
@@ -209,4 +213,3 @@ const VendorTransformPage: React.FC = () => {
 };
 
 export default VendorTransformPage;
-

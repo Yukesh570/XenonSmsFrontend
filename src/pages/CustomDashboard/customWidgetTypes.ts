@@ -114,7 +114,6 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
   {
     id: "tab-throughput-tps",
     name: "Throughput & TPS",
-    description: "Live and windowed TPS monitoring, peak throughput, and capacity utilization",
     widgets: [
       {
         id: "w-tps-overview-kpi",
@@ -158,7 +157,6 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
   {
     id: "tab-vendor-watch",
     name: "Vendor Quality Watchlist",
-    description: "Custom monitor tracking low-performing vendor routes with DLR < 90%",
     widgets: [
       {
         id: "w-vendor-below-90",
@@ -210,7 +208,6 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
   {
     id: "tab-client-margin",
     name: "Client Profitability & Margin",
-    description: "Custom breakdown of clients, profit margins, and traffic volumes",
     widgets: [
       {
         id: "w-client-margin-table",
@@ -256,7 +253,6 @@ export const DEFAULT_WORKSPACE_TABS: WorkspaceTab[] = [
   {
     id: "tab-troubleshooting",
     name: "Failures & Troubleshooting",
-    description: "Deep dive into SMS failure reasons and destination failure spikes",
     widgets: [
       {
         id: "w-failures-donut",

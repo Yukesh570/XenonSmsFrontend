@@ -1,7 +1,8 @@
 import React from "react";
-import { Layers } from "lucide-react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import RuleBadge from "../../ui/RuleBadge";
 import { type MessageLogData } from "../../../api/reportApi/messageReportApi";
 import { formatDateTime } from "../../../helper/dateFormatter";
@@ -76,38 +77,10 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
             Message Identity & Status
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Message ID
-              </label>
-              <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.message_id || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Destination
-              </label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {rawDestination}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Status
-              </label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.status || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Sender ID
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {rawSender}
-              </div>
-            </div>
+            <Input label="Message ID" value={viewLog.message_id || "-"} disabled />
+            <Input label="Destination" value={rawDestination} disabled />
+            <Input label="Status" value={viewLog.status || "-"} disabled className="capitalize" />
+            <Input label="Sender ID" value={rawSender} disabled />
           </div>
         </fieldset>
 
@@ -117,30 +90,9 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
             Client & Account
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Client
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.clientName || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                SMPP
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.smppName || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                System ID
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.systemId || "-"}
-              </div>
-            </div>
+            <Input label="Client" value={viewLog.clientName || "-"} disabled />
+            <Input label="SMPP" value={viewLog.smppName || "-"} disabled />
+            <Input label="System ID" value={viewLog.systemId || "-"} disabled />
           </div>
         </fieldset>
 
@@ -150,32 +102,17 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
             Vendor & Routing
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Vendor
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.vendorName || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Country
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.countryName || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                MCCMNC
-              </label>
-              <div className="text-sm font-mono text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.mcc && viewLog.mnc
+            <Input label="Vendor" value={viewLog.vendorName || "-"} disabled />
+            <Input label="Country" value={viewLog.countryName || "-"} disabled />
+            <Input
+              label="MCCMNC"
+              value={
+                viewLog.mcc && viewLog.mnc
                   ? `${String(viewLog.mcc).padStart(3, "0")}${String(viewLog.mnc).padStart(3, "0")}`
-                  : viewLog.mcc || viewLog.mnc || "-"}
-              </div>
-            </div>
+                  : viewLog.mcc || viewLog.mnc || "-"
+              }
+              disabled
+            />
           </div>
         </fieldset>
 
@@ -185,175 +122,107 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
             Transmission & Timestamps
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Encoding
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.encoding || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Segment
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.segmentNumber || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Character Count
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.characterCount || "-"}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Failure Reason
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">
-                {viewLog.failure_reason || "-"}
-              </div>
-            </div>
+            <Input label="Encoding" value={viewLog.encoding || "-"} disabled />
+            <Input label="Segment" value={String(viewLog.segmentNumber || "-")} disabled />
+            <Input label="Character Count" value={String(viewLog.characterCount || "-")} disabled />
+            <Input label="Failure Reason" value={viewLog.failure_reason || "-"} disabled />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Created At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                {formatDateTime(viewLog.createdAt)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Queued At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                {formatDateTime(viewLog.queued_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Submitted At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                {formatDateTime(viewLog.submitted_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Delivered At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                {formatDateTime(viewLog.delivered_at)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Failed At
-              </label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 whitespace-nowrap">
-                {formatDateTime(viewLog.failed_at)}
-              </div>
-            </div>
+            <Input label="Created At" value={formatDateTime(viewLog.createdAt)} disabled />
+            <Input label="Queued At" value={formatDateTime(viewLog.queued_at)} disabled />
+            <Input label="Submitted At" value={formatDateTime(viewLog.submitted_at)} disabled />
+            <Input label="Delivered At" value={formatDateTime(viewLog.delivered_at)} disabled />
+            <Input label="Failed At" value={formatDateTime(viewLog.failed_at)} disabled />
           </div>
         </fieldset>
 
-        {/* 3-Layer Transformation Lifecycle (Ingress -> Effective -> Vendor Wire) */}
-        <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800 shadow-sm">
-          <div className="bg-gray-50 dark:bg-gray-700/50 px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Layers size={16} className="text-primary" />
-              <span className="text-xs font-bold uppercase tracking-wider text-text-primary dark:text-white">
-                Payload Transformation Lifecycle (3 Layers)
-              </span>
-            </div>
-          </div>
+        {/* Transformation Lifecycle */}
+        <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <legend className="text-sm font-semibold text-primary px-2">
+            Transformation Lifecycle
+          </legend>
 
-          <div className="overflow-x-auto">
+          <div className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
             <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 text-[11px] uppercase text-text-secondary dark:text-gray-400 font-semibold">
-                  <th className="px-4 py-2 w-32">Entity</th>
-                  <th className="px-4 py-2">1. Ingress (Raw Client)</th>
-                  <th className="px-4 py-2">2. Effective</th>
-                  <th className="px-4 py-2">3. Vendor Wire</th>
+              <thead className="bg-gray-50 dark:bg-gray-800/60 border-b border-gray-200 dark:border-gray-700">
+                <tr className="text-xs font-semibold text-text-secondary dark:text-gray-400">
+                  <th className="px-4 py-2.5 w-32">Entity</th>
+                  <th className="px-4 py-2.5">Ingress (Client)</th>
+                  <th className="px-4 py-2.5">Effective</th>
+                  <th className="px-4 py-2.5">Vendor Wire</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-700 font-mono">
+              <tbody className="divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900/40 text-text-primary dark:text-gray-200">
                 {/* SENDER ID */}
                 <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
+                  <td className="px-4 py-2.5 font-medium text-text-secondary dark:text-gray-400">
                     Sender ID
                   </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
+                  <td className="px-4 py-2.5">
                     {rawSender}
                   </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
+                  <td className="px-4 py-2.5 font-medium">
                     {effectiveSender}
                     {viewLog.senderTranslationRuleId ? (
-                      <span className="ml-1.5 inline-flex items-center">
-                        <RuleBadge id={viewLog.senderTranslationRuleId} type="sender" labelPrefix="Rule" size="xs" />
+                      <span className="ml-2 inline-flex items-center">
+                        <RuleBadge id={viewLog.senderTranslationRuleId} type="sender" labelPrefix="Rule" />
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <td className="px-4 py-2.5">
                     {vendorSender}
                   </td>
                 </tr>
 
                 {/* DESTINATION */}
                 <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
+                  <td className="px-4 py-2.5 font-medium text-text-secondary dark:text-gray-400">
                     Destination
                   </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
+                  <td className="px-4 py-2.5">
                     {rawDestination}
                   </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
+                  <td className="px-4 py-2.5 font-medium">
                     {effectiveDestination}
                     {destRules.length > 0 && (
-                      <span className="ml-1.5 inline-flex items-center gap-1">
+                      <span className="ml-2 inline-flex items-center gap-1">
                         {destRules.map((rid) => (
-                          <RuleBadge key={rid} id={rid} type="destination" labelPrefix="Rule" size="xs" />
+                          <RuleBadge key={rid} id={rid} type="destination" labelPrefix="Rule" />
                         ))}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <td className="px-4 py-2.5">
                     {vendorDestination}
                   </td>
                 </tr>
 
                 {/* SEGMENTS */}
                 <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
+                  <td className="px-4 py-2.5 font-medium text-text-secondary dark:text-gray-400">
                     Segments
                   </td>
-                  <td className="px-4 py-2.5 text-text-primary dark:text-white">
+                  <td className="px-4 py-2.5">
                     {rawSegments}
                   </td>
-                  <td className="px-4 py-2.5 text-primary font-semibold">
+                  <td className="px-4 py-2.5 font-medium">
                     {effectiveSegments}
                   </td>
-                  <td className="px-4 py-2.5 text-indigo-600 dark:text-indigo-400 font-semibold">
+                  <td className="px-4 py-2.5">
                     {vendorSegments}
                   </td>
                 </tr>
 
                 {/* APPLIED RULES */}
                 <tr>
-                  <td className="px-4 py-2.5 font-sans font-medium text-text-secondary dark:text-gray-400">
+                  <td className="px-4 py-2.5 font-medium text-text-secondary dark:text-gray-400">
                     Applied Rules
                   </td>
-                  <td className="px-4 py-2.5 text-text-secondary dark:text-gray-400 font-sans text-[11px]">
-                    — <span className="text-[10px] text-gray-400 dark:text-gray-500">(Raw Client)</span>
+                  <td className="px-4 py-2.5 text-text-secondary dark:text-gray-400">
+                    —
                   </td>
-                  <td className="px-4 py-2.5 font-sans">
+                  <td className="px-4 py-2.5">
                     {hasEffectiveRules ? (
                       <div className="flex flex-wrap items-center gap-1.5">
                         {destRules.map((rid) => (
@@ -367,12 +236,12 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                        None (Unmodified)
+                      <span className="text-gray-400 dark:text-gray-500">
+                        None
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 font-sans">
+                  <td className="px-4 py-2.5">
                     {hasVendorRules ? (
                       <div className="flex flex-wrap items-center gap-1.5">
                         {vendorRules.map((rid) => (
@@ -380,8 +249,8 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
                         ))}
                       </div>
                     ) : (
-                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
-                        None (Pass-Through)
+                      <span className="text-gray-400 dark:text-gray-500">
+                        None
                       </span>
                     )}
                   </td>
@@ -389,53 +258,41 @@ export const MessageReportModal: React.FC<MessageReportModalProps> = ({
               </tbody>
             </table>
           </div>
-        </div>
+        </fieldset>
 
-        {/* Message Text Area */}
+        {/* Message Content */}
         <fieldset className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <legend className="text-sm font-semibold text-primary px-2">
-            Message Text
+            Message Content
           </legend>
           {hasTextTransform ? (
-            <div className="space-y-3">
-              {rawText && rawText !== (effectiveText || viewLog.text) && (
-                <div>
-                  <label className="block text-xs font-semibold text-text-secondary dark:text-gray-400 mb-1">
-                    1. Ingress Text (Client Raw)
-                  </label>
-                  <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                    {rawText}
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-primary mb-1 flex items-center gap-1.5">
-                  2. Effective Text (Phase 4 Ingress Filter)
-                  {textRules.map((rid) => (
-                    <RuleBadge key={rid} id={rid} type="text" labelPrefix="Rule" size="xs" />
-                  ))}
-                </label>
-                <div className="w-full bg-blue-50/30 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/50 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                  {effectiveText || viewLog.text}
-                </div>
-              </div>
-
-              {vendorText && vendorText !== (effectiveText || viewLog.text) && (
-                <div>
-                  <label className="block text-xs font-semibold text-indigo-600 dark:text-indigo-400 mb-1">
-                    3. Final Vendor Wire Text (Phase 5 Egress Adapt)
-                  </label>
-                  <div className="w-full bg-indigo-50/30 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-900/50 rounded-lg p-3 text-xs text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                    {vendorText}
-                  </div>
-                </div>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <TextArea
+                label="Ingress Text (Client)"
+                value={rawText}
+                disabled
+                rows={4}
+              />
+              <TextArea
+                label="Effective Text"
+                value={effectiveText || viewLog.text || ""}
+                disabled
+                rows={4}
+              />
+              <TextArea
+                label="Vendor Wire Text"
+                value={vendorText || effectiveText || viewLog.text || ""}
+                disabled
+                rows={4}
+              />
             </div>
           ) : (
-            <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[100px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-              {viewLog.text || <span className="text-gray-400 italic">No message text available.</span>}
-            </div>
+            <TextArea
+              label="Message Text"
+              value={viewLog.text || "No message text available."}
+              disabled
+              rows={4}
+            />
           )}
         </fieldset>
 

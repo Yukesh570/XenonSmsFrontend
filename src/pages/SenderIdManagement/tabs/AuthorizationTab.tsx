@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Shield,
@@ -50,6 +50,35 @@ interface AuthorizationTabProps {
   countries: any[];
 }
 
+interface TableColDef {
+  key: string;
+  label: string;
+}
+
+const DEFAULT_RULE_COLS: TableColDef[] = [
+  { key: "sn", label: "S.N." },
+  { key: "senderId", label: "Sender ID" },
+  { key: "action", label: "Action" },
+  { key: "country", label: "Country" },
+  { key: "status", label: "Status" },
+];
+
+const DEFAULT_AUDIT_COLS: TableColDef[] = [
+  { key: "sn", label: "S.N." },
+  { key: "createdAt", label: "Date" },
+  { key: "systemId", label: "System ID" },
+  { key: "clientIp", label: "IP Address" },
+  { key: "sessionId", label: "Session ID" },
+  { key: "senderId", label: "Sender ID" },
+  { key: "destination", label: "Destination" },
+  { key: "country", label: "Country" },
+  { key: "reasonCode", label: "Reason" },
+  { key: "policyMode", label: "Mode" },
+  { key: "decision", label: "Decision" },
+  { key: "matchedRule", label: "Matched Rule" },
+  { key: "smppStatus", label: "SMPP Code" },
+];
+
 export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
   selectedClientId,
   setSelectedClientId,
@@ -63,7 +92,15 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
   const [policyLoading, setPolicyLoading] = useState(false);
   const [isSavingPolicy, setIsSavingPolicy] = useState(false);
 
-  const isPolicyActive = Boolean(policy?.isActive && policy?.mode !== "DISABLED");
+  const isPolicyActive = Boolean(
+    policy &&
+    policy.mode !== "DISABLED" &&
+    (policy.isActive !== undefined
+      ? policy.isActive
+      : (policy as any).is_active !== undefined
+      ? (policy as any).is_active
+      : true)
+  );
   const currentMode: "WHITELIST_ONLY" | "BLACKLIST_ONLY" =
     policy?.mode === "BLACKLIST_ONLY" ? "BLACKLIST_ONLY" : "WHITELIST_ONLY";
 
@@ -77,6 +114,48 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
   const [rulesPage, setRulesPage] = useState(1);
   const [rulesRowsPerPage, setRulesRowsPerPage] = useState(10);
   const [rulesTotal, setRulesTotal] = useState(0);
+
+  // Rules Advanced Table State (Sort & Reorder)
+  const [rulesColumns, setRulesColumns] = useState<TableColDef[]>(DEFAULT_RULE_COLS);
+  const [rulesSortConfig, setRulesSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  const handleRulesSort = (columnIndex: number) => {
+    const col = rulesColumns[columnIndex];
+    if (!col || col.key === "sn") return;
+    setRulesSortConfig((prev) => {
+      if (prev?.key === col.key) {
+        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+        return null;
+      }
+      return { key: col.key, direction: "asc" };
+    });
+  };
+
+  const handleReorderRulesColumns = (fromIdx: number, toIdx: number) => {
+    setRulesColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const sortedRules = useMemo(() => {
+    if (!rulesSortConfig) return rules;
+    return [...rules].sort((a, b) => {
+      let aVal = (a as any)[rulesSortConfig.key];
+      let bVal = (b as any)[rulesSortConfig.key];
+      if (rulesSortConfig.key === "country") {
+        aVal = countries.find((c) => c.value === a.country?.toString())?.label || a.country || "";
+        bVal = countries.find((c) => c.value === b.country?.toString())?.label || b.country || "";
+      }
+      if (aVal === bVal) return 0;
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      const cmp = aVal < bVal ? -1 : 1;
+      return rulesSortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  }, [rules, rulesSortConfig, countries]);
 
   // --- Delete Rule State ---
   const [deleteRuleTarget, setDeleteRuleTarget] = useState<SenderIdRuleData | null>(null);
@@ -118,6 +197,48 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
   const [auditRowsPerPage, setAuditRowsPerPage] = useState(10);
   const [auditTotal, setAuditTotal] = useState(0);
 
+  // Audit Advanced Table State (Sort & Reorder)
+  const [auditColumns, setAuditColumns] = useState<TableColDef[]>(DEFAULT_AUDIT_COLS);
+  const [auditSortConfig, setAuditSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  const handleAuditSort = (columnIndex: number) => {
+    const col = auditColumns[columnIndex];
+    if (!col || col.key === "sn") return;
+    setAuditSortConfig((prev) => {
+      if (prev?.key === col.key) {
+        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+        return null;
+      }
+      return { key: col.key, direction: "asc" };
+    });
+  };
+
+  const handleReorderAuditColumns = (fromIdx: number, toIdx: number) => {
+    setAuditColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const sortedAudits = useMemo(() => {
+    if (!auditSortConfig) return audits;
+    return [...audits].sort((a, b) => {
+      let aVal = (a as any)[auditSortConfig.key];
+      let bVal = (b as any)[auditSortConfig.key];
+      if (auditSortConfig.key === "country") {
+        aVal = countries.find((c) => c.value === a.country?.toString())?.label || a.country || "";
+        bVal = countries.find((c) => c.value === b.country?.toString())?.label || b.country || "";
+      }
+      if (aVal === bVal) return 0;
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      const cmp = aVal < bVal ? -1 : 1;
+      return auditSortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  }, [audits, auditSortConfig, countries]);
+
   // When Client changes, refresh active tab data
   useEffect(() => {
     if (selectedClientId) {
@@ -146,12 +267,27 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
 
   // --- Helpers ---
   const normalizePolicy = (data: any): SenderIdPolicyData | null => {
-    if (Array.isArray(data)) return data.length > 0 ? data[0] : null;
-    if (data && typeof data === "object") {
-      if (Array.isArray(data.results)) return data.results.length > 0 ? data.results[0] : null;
-      if (data.id) return data;
+    let item: any = null;
+    if (Array.isArray(data)) item = data.length > 0 ? data[0] : null;
+    else if (data && typeof data === "object") {
+      if (Array.isArray(data.results)) item = data.results.length > 0 ? data.results[0] : null;
+      else if (data.id || data.mode || data.is_active !== undefined || data.isActive !== undefined) item = data;
     }
-    return null;
+    if (!item) return null;
+    const active =
+      item.isActive !== undefined
+        ? Boolean(item.isActive)
+        : item.is_active !== undefined
+        ? Boolean(item.is_active)
+        : item.mode !== "DISABLED";
+    return {
+      ...item,
+      id: item.id,
+      client: item.client,
+      mode: item.mode || "WHITELIST_ONLY",
+      isActive: active,
+      is_active: active,
+    };
   };
 
   // --- API Fetchers ---
@@ -198,41 +334,61 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
   const handlePolicyToggle = async () => {
     if (!selectedClientId) return;
     const nextActive = !isPolicyActive;
+    const targetMode = nextActive
+      ? (policy?.mode && policy.mode !== "DISABLED" ? policy.mode : currentMode)
+      : "DISABLED";
+
     setIsSavingPolicy(true);
     try {
+      const payload: any = {
+        isActive: nextActive,
+        is_active: nextActive,
+        mode: targetMode,
+      };
+
       if (policy?.id) {
-        const payload: Partial<SenderIdPolicyData> = {
-          isActive: nextActive,
-        };
-        if (nextActive && (policy.mode === "DISABLED" || !policy.mode)) {
-          payload.mode = currentMode;
-        }
         const updated = await updateSenderPolicyApi(selectedClientId, policy.id, payload);
-        setPolicy(normalizePolicy(updated) || updated);
+        const normalized = normalizePolicy(updated);
+        setPolicy(
+          normalized
+            ? { ...normalized, isActive: nextActive, is_active: nextActive, mode: targetMode }
+            : ({ ...(policy || {}), id: policy?.id, client: selectedClientId, ...payload } as any)
+        );
       } else {
         try {
-          const created = await createSenderPolicyApi(selectedClientId, {
+          const createPayload = {
             client: selectedClientId,
-            mode: currentMode,
-            isActive: nextActive,
-          });
-          setPolicy(normalizePolicy(created) || created);
+            ...payload,
+          };
+          const created = await createSenderPolicyApi(selectedClientId, createPayload);
+          const normalized = normalizePolicy(created);
+          setPolicy(
+            normalized
+              ? { ...normalized, isActive: nextActive, is_active: nextActive, mode: targetMode }
+              : ({ id: (created as any)?.id, client: selectedClientId, ...payload } as any)
+          );
         } catch (createErr: any) {
           // If already exists, fetch existing policy and update via PATCH (edit API)
           const existing = await getSenderPolicyApi(selectedClientId);
           const found = normalizePolicy(existing);
           if (found?.id) {
-            const updated = await updateSenderPolicyApi(selectedClientId, found.id, {
-              isActive: nextActive,
-              mode: nextActive && (found.mode === "DISABLED" || !found.mode) ? currentMode : found.mode,
-            });
-            setPolicy(normalizePolicy(updated) || updated);
+            const updated = await updateSenderPolicyApi(selectedClientId, found.id, payload);
+            const normalized = normalizePolicy(updated);
+            setPolicy(
+              normalized
+                ? { ...normalized, isActive: nextActive, is_active: nextActive, mode: targetMode }
+                : ({ ...found, ...payload } as any)
+            );
           } else {
             throw createErr;
           }
         }
       }
-      toast.success(`Authorization policy ${nextActive ? "enabled" : "disabled"}`);
+      if (nextActive) {
+        toast.success("Authorization policy enabled");
+      } else {
+        toast.error("Authorization policy disabled");
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err?.response?.data?.client?.[0] || err?.response?.data?.detail || "Failed to update policy status");
@@ -245,27 +401,44 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
     if (!selectedClientId || newMode === currentMode) return;
     setIsSavingPolicy(true);
     try {
+      const payload: any = {
+        mode: newMode,
+        isActive: true,
+        is_active: true,
+      };
+
       if (policy?.id) {
-        const updated = await updateSenderPolicyApi(selectedClientId, policy.id, {
-          mode: newMode,
-        });
-        setPolicy(normalizePolicy(updated) || updated);
+        const updated = await updateSenderPolicyApi(selectedClientId, policy.id, payload);
+        const normalized = normalizePolicy(updated);
+        setPolicy(
+          normalized
+            ? { ...normalized, mode: newMode, isActive: true, is_active: true }
+            : ({ ...(policy || {}), mode: newMode, isActive: true, is_active: true } as any)
+        );
       } else {
         try {
-          const created = await createSenderPolicyApi(selectedClientId, {
+          const createPayload = {
             client: selectedClientId,
-            mode: newMode,
-            isActive: isPolicyActive,
-          });
-          setPolicy(normalizePolicy(created) || created);
+            ...payload,
+          };
+          const created = await createSenderPolicyApi(selectedClientId, createPayload);
+          const normalized = normalizePolicy(created);
+          setPolicy(
+            normalized
+              ? { ...normalized, mode: newMode, isActive: true, is_active: true }
+              : ({ id: (created as any)?.id, client: selectedClientId, ...payload } as any)
+          );
         } catch (createErr: any) {
           const existing = await getSenderPolicyApi(selectedClientId);
           const found = normalizePolicy(existing);
           if (found?.id) {
-            const updated = await updateSenderPolicyApi(selectedClientId, found.id, {
-              mode: newMode,
-            });
-            setPolicy(normalizePolicy(updated) || updated);
+            const updated = await updateSenderPolicyApi(selectedClientId, found.id, payload);
+            const normalized = normalizePolicy(updated);
+            setPolicy(
+              normalized
+                ? { ...normalized, mode: newMode, isActive: true, is_active: true }
+                : ({ ...found, mode: newMode, isActive: true, is_active: true } as any)
+            );
           } else {
             throw createErr;
           }
@@ -469,11 +642,11 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
           <div className="p-4 sm:p-6">
             {/* POLICY TAB */}
             {activeTab === "policy" && (
-              <div className="max-w-2xl space-y-4">
+              <div className="w-full space-y-4">
                 {policyLoading ? (
                   <LoadingSpinner size="sm" text="Loading policy..." className="py-8" />
                 ) : (
-                  <div className="p-4 sm:p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60 space-y-5">
+                  <div className="p-5 sm:p-6 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm space-y-5">
                     {/* Master Switch */}
                     <div className="flex justify-between items-center gap-4">
                       <div>
@@ -504,7 +677,7 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
 
                     {/* Evaluation Mode Choice - Shown when policy is active */}
                     {isPolicyActive && (
-                      <div className="pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                      <div className="pt-5 border-t border-gray-200 dark:border-gray-700 space-y-3">
                         <div>
                           <label className="text-xs sm:text-sm font-semibold text-text-primary dark:text-white">
                             Evaluation Mode
@@ -514,10 +687,10 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
                           </p>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div
                             onClick={() => !isSavingPolicy && handleModeChange("WHITELIST_ONLY")}
-                            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                            className={`p-4 rounded-xl border cursor-pointer transition-all ${
                               currentMode === "WHITELIST_ONLY"
                                 ? "border-primary bg-primary/5 dark:bg-primary/10 ring-1 ring-primary shadow-sm"
                                 : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800"
@@ -543,7 +716,7 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
 
                           <div
                             onClick={() => !isSavingPolicy && handleModeChange("BLACKLIST_ONLY")}
-                            className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
+                            className={`p-4 rounded-xl border cursor-pointer transition-all ${
                               currentMode === "BLACKLIST_ONLY"
                                 ? "border-primary bg-primary/5 dark:bg-primary/10 ring-1 ring-primary shadow-sm"
                                 : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 bg-white dark:bg-gray-800"
@@ -581,13 +754,21 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
                   density="compact"
                   serverSide
                   storageKey="sender_id_rules_page_table"
-                  data={rules}
+                  data={sortedRules}
                   totalItems={rulesTotal}
                   currentPage={rulesPage}
                   rowsPerPage={rulesRowsPerPage}
                   onPageChange={setRulesPage}
                   onRowsPerPageChange={setRulesRowsPerPage}
                   isLoading={rulesLoading}
+                  headers={rulesColumns.map((c) => c.label)}
+                  onSort={handleRulesSort}
+                  sortColumnIndex={
+                    rulesSortConfig ? rulesColumns.findIndex((c) => c.key === rulesSortConfig.key) : null
+                  }
+                  sortDirection={rulesSortConfig?.direction || null}
+                  onReorderColumns={handleReorderRulesColumns}
+                  resizableColumns={true}
                   headerActions={
                     <Button
                       type="button"
@@ -602,55 +783,85 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
                       Add Rule
                     </Button>
                   }
-                  headers={["Sender ID", "Action", "Country", "Status"]}
-                  renderRow={(rule: SenderIdRuleData, index: number) => (
-                    <tr
-                      key={rule.id || index}
-                      onContextMenu={(e) => handleContextMenu(e, rule)}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
-                    >
-                      <td
-                        className="px-4 py-3 font-semibold text-primary cursor-pointer hover:underline"
-                        onClick={() => {
-                          setEditingRule(rule);
-                          setIsRuleFormOpen(true);
-                        }}
+                  renderRow={(rule: SenderIdRuleData, index: number) => {
+                    const rowNumber = (rulesPage - 1) * rulesRowsPerPage + index + 1;
+                    return (
+                      <tr
+                        key={rule.id || index}
+                        onContextMenu={(e) => handleContextMenu(e, rule)}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                       >
-                        {rule.senderId}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge
-                          status={rule.action === "ALLOW" ? "ACTIVE" : "FAILED"}
-                          customText={rule.action}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        {rule.country ? (
-                          <div className="flex items-center gap-2">
-                            {countries.find((c) => c.value === rule.country?.toString())?.iso2 && (
-                              <CountryFlag
-                                iso2={countries.find((c) => c.value === rule.country?.toString())!.iso2!}
-                                width={16}
-                                height={12}
-                              />
-                            )}
-                            <span className="text-text-primary dark:text-white font-medium">
-                              {countries.find((c) => c.value === rule.country?.toString())?.label ||
-                                rule.country}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-text-secondary dark:text-gray-400">Global</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge
-                          status={rule.isActive ? "ACTIVE" : "OFFLINE"}
-                          customText={rule.isActive ? "Active" : "Inactive"}
-                        />
-                      </td>
-                    </tr>
-                  )}
+                        {rulesColumns.map((col) => {
+                          if (col.key === "sn") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-primary dark:text-white">
+                                {rowNumber}
+                              </td>
+                            );
+                          }
+                          if (col.key === "senderId") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                <span
+                                  className="font-semibold text-primary cursor-pointer hover:underline"
+                                  onClick={() => {
+                                    setEditingRule(rule);
+                                    setIsRuleFormOpen(true);
+                                  }}
+                                >
+                                  {rule.senderId}
+                                </span>
+                              </td>
+                            );
+                          }
+                          if (col.key === "action") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                <StatusBadge
+                                  status={rule.action === "ALLOW" ? "ACTIVE" : "FAILED"}
+                                  customText={rule.action}
+                                />
+                              </td>
+                            );
+                          }
+                          if (col.key === "country") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                                {rule.country ? (
+                                  <div className="flex items-center gap-2">
+                                    {countries.find((c) => c.value === rule.country?.toString())?.iso2 && (
+                                      <CountryFlag
+                                        iso2={countries.find((c) => c.value === rule.country?.toString())!.iso2!}
+                                        width={16}
+                                        height={12}
+                                      />
+                                    )}
+                                    <span>
+                                      {countries.find((c) => c.value === rule.country?.toString())?.label ||
+                                        rule.country}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-text-secondary dark:text-gray-400">Global</span>
+                                )}
+                              </td>
+                            );
+                          }
+                          if (col.key === "status") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                <StatusBadge
+                                  status={rule.isActive ? "ACTIVE" : "OFFLINE"}
+                                  customText={rule.isActive ? "Active" : "Inactive"}
+                                />
+                              </td>
+                            );
+                          }
+                          return null;
+                        })}
+                      </tr>
+                    );
+                  }}
                 />
 
                 {/* Context Menu for Rules */}
@@ -690,12 +901,12 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
 
             {/* TEST TAB */}
             {activeTab === "test" && (
-              <div className="space-y-4 max-w-2xl">
+              <div className="space-y-4 w-full">
                 <form
                   onSubmit={handleTestPolicy}
-                  className="space-y-4 bg-gray-50/70 dark:bg-gray-900/60 p-5 rounded-xl border border-gray-200 dark:border-gray-700"
+                  className="space-y-4 bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Sender ID"
                       value={testSenderId}
@@ -803,97 +1014,161 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
                   density="compact"
                   serverSide
                   storageKey="sender_id_audit_page_table"
-                  data={audits}
+                  data={sortedAudits}
                   totalItems={auditTotal}
                   currentPage={auditPage}
                   rowsPerPage={auditRowsPerPage}
                   onPageChange={setAuditPage}
                   onRowsPerPageChange={setAuditRowsPerPage}
                   isLoading={auditLoading}
-                  headers={[
-                    "Date",
-                    "System ID",
-                    "IP Address",
-                    "Session ID",
-                    "Sender ID",
-                    "Destination",
-                    "Country",
-                    "Reason",
-                    "Mode",
-                    "Decision",
-                    "Matched Rule",
-                    "SMPP Code",
-                  ]}
-                  renderRow={(audit: SenderIdAuditData, index: number) => (
-                    <tr
-                      key={audit.id || index}
-                      onContextMenu={(e) => handleAuditContextMenu(e, audit)}
-                      className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-xs transition-colors cursor-context-menu"
-                    >
-                      <td className="px-3 py-2 text-text-secondary dark:text-gray-300 whitespace-nowrap">
-                        {audit.createdAt ? formatDateTime(audit.createdAt) : "-"}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-text-primary dark:text-white">
-                        {audit.systemId || "-"}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
-                        {audit.clientIp || "-"}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
-                        {audit.sessionId || "-"}
-                      </td>
-                      <td className="px-3 py-2 font-semibold text-rose-600 dark:text-rose-400">
-                        {audit.senderId}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-text-primary dark:text-white">
-                        {audit.destination}
-                      </td>
-                      <td className="px-3 py-2">
-                        {audit.country ? (
-                          <div className="flex items-center gap-1.5 whitespace-nowrap">
-                            {countries.find((c) => c.value === audit.country?.toString())?.iso2 && (
-                              <CountryFlag
-                                iso2={
-                                  countries.find(
-                                    (c) => c.value === audit.country?.toString()
-                                  )!.iso2!
-                                }
-                                width={14}
-                                height={10}
-                              />
-                            )}
-                            <span className="text-text-primary dark:text-white font-medium">
-                              {countries.find((c) => c.value === audit.country?.toString())
-                                ?.label || audit.country}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-text-secondary dark:text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-text-secondary dark:text-gray-300 font-mono">
-                        {audit.reasonCode}
-                      </td>
-                      <td className="px-3 py-2 text-text-secondary dark:text-gray-300">
-                        {audit.policyMode}
-                      </td>
-                      <td className="px-3 py-2">
-                        <StatusBadge
-                          status={audit.decision === "ALLOWED" ? "ACTIVE" : "FAILED"}
-                          customText={audit.decision}
-                        />
-                      </td>
-                      <td
-                        className="px-3 py-2 text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
-                        title={audit.matched_rule_description || String(audit.matchedRule || "")}
+                  headers={auditColumns.map((c) => c.label)}
+                  onSort={handleAuditSort}
+                  sortColumnIndex={
+                    auditSortConfig ? auditColumns.findIndex((c) => c.key === auditSortConfig.key) : null
+                  }
+                  sortDirection={auditSortConfig?.direction || null}
+                  onReorderColumns={handleReorderAuditColumns}
+                  resizableColumns={true}
+                  renderRow={(audit: SenderIdAuditData, index: number) => {
+                    const rowNumber = (auditPage - 1) * auditRowsPerPage + index + 1;
+                    return (
+                      <tr
+                        key={audit.id || index}
+                        onContextMenu={(e) => handleAuditContextMenu(e, audit)}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                       >
-                        {audit.matched_rule_description || audit.matchedRule || "-"}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-text-secondary dark:text-gray-300">
-                        {audit.smppStatus}
-                      </td>
-                    </tr>
-                  )}
+                        {auditColumns.map((col) => {
+                          if (col.key === "sn") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-primary dark:text-white">
+                                {rowNumber}
+                              </td>
+                            );
+                          }
+                          if (col.key === "createdAt") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
+                                {audit.createdAt ? formatDateTime(audit.createdAt) : "-"}
+                              </td>
+                            );
+                          }
+                          if (col.key === "systemId") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-primary dark:text-white">
+                                {audit.systemId || "-"}
+                              </td>
+                            );
+                          }
+                          if (col.key === "clientIp") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-secondary dark:text-gray-300">
+                                {audit.clientIp || "-"}
+                              </td>
+                            );
+                          }
+                          if (col.key === "sessionId") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-secondary dark:text-gray-300">
+                                {audit.sessionId || "-"}
+                              </td>
+                            );
+                          }
+                          if (col.key === "senderId") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                <span
+                                  className="font-semibold text-primary cursor-pointer hover:underline"
+                                  onClick={() => {
+                                    setSelectedRowAudit(audit);
+                                    setIsAuditDetailOpen(true);
+                                  }}
+                                >
+                                  {audit.senderId}
+                                </span>
+                              </td>
+                            );
+                          }
+                          if (col.key === "destination") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-primary dark:text-white">
+                                {audit.destination}
+                              </td>
+                            );
+                          }
+                          if (col.key === "country") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                {audit.country ? (
+                                  <div className="flex items-center gap-1.5 whitespace-nowrap">
+                                    {countries.find((c) => c.value === audit.country?.toString())?.iso2 && (
+                                      <CountryFlag
+                                        iso2={
+                                          countries.find(
+                                            (c) => c.value === audit.country?.toString()
+                                          )!.iso2!
+                                        }
+                                        width={14}
+                                        height={10}
+                                      />
+                                    )}
+                                    <span className="text-text-secondary dark:text-gray-300">
+                                      {countries.find((c) => c.value === audit.country?.toString())
+                                        ?.label || audit.country}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="text-text-secondary dark:text-gray-400">-</span>
+                                )}
+                              </td>
+                            );
+                          }
+                          if (col.key === "reasonCode") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 font-mono">
+                                {audit.reasonCode}
+                              </td>
+                            );
+                          }
+                          if (col.key === "policyMode") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300">
+                                {audit.policyMode}
+                              </td>
+                            );
+                          }
+                          if (col.key === "decision") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm">
+                                <StatusBadge
+                                  status={audit.decision === "ALLOWED" ? "ACTIVE" : "FAILED"}
+                                  customText={audit.decision}
+                                />
+                              </td>
+                            );
+                          }
+                          if (col.key === "matchedRule") {
+                            return (
+                              <td
+                                key={col.key}
+                                className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 max-w-[140px] truncate"
+                                title={audit.matched_rule_description || String(audit.matchedRule || "")}
+                              >
+                                {audit.matched_rule_description || audit.matchedRule || "-"}
+                              </td>
+                            );
+                          }
+                          if (col.key === "smppStatus") {
+                            return (
+                              <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-secondary dark:text-gray-300">
+                                {audit.smppStatus}
+                              </td>
+                            );
+                          }
+                          return null;
+                        })}
+                      </tr>
+                    );
+                  }}
                 />
 
                 {/* Context Menu for Audits */}
@@ -1018,74 +1293,47 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
       >
         {selectedRowRule && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
-              <div>
-                <div className="text-xs text-text-secondary dark:text-gray-400">Sender ID</div>
-                <div className="text-lg font-bold text-text-primary dark:text-white">
-                  {selectedRowRule.senderId}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <StatusBadge
-                  status={selectedRowRule.action === "ALLOW" ? "ACTIVE" : "FAILED"}
-                  customText={selectedRowRule.action}
-                />
-                <StatusBadge
-                  status={selectedRowRule.isActive ? "ACTIVE" : "OFFLINE"}
-                  customText={selectedRowRule.isActive ? "Active" : "Inactive"}
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Sender ID"
+                value={selectedRowRule.senderId || "-"}
+                disabled
+              />
+              <Input
+                label="Action"
+                value={selectedRowRule.action || "-"}
+                disabled
+              />
+              <Input
+                label="Status"
+                value={selectedRowRule.isActive ? "Active" : "Inactive"}
+                disabled
+              />
+              <Input
+                label="Country"
+                value={
+                  countries.find((c) => c.value === selectedRowRule.country?.toString())?.label ||
+                  (selectedRowRule.country ? String(selectedRowRule.country) : "Global (All Countries)")
+                }
+                disabled
+              />
+              <Input
+                label="Valid From"
+                value={selectedRowRule.validFrom ? formatDateTime(selectedRowRule.validFrom) : "-"}
+                disabled
+              />
+              <Input
+                label="Valid To"
+                value={selectedRowRule.validTo ? formatDateTime(selectedRowRule.validTo) : "-"}
+                disabled
+              />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Country
-                </div>
-                <div className="flex items-center gap-2">
-                  {countries.find((c) => c.value === selectedRowRule.country?.toString())?.iso2 && (
-                    <CountryFlag
-                      iso2={
-                        countries.find((c) => c.value === selectedRowRule.country?.toString())!.iso2!
-                      }
-                      width={16}
-                      height={12}
-                    />
-                  )}
-                  <span className="text-text-primary dark:text-white font-medium">
-                    {countries.find((c) => c.value === selectedRowRule.country?.toString())?.label ||
-                      (selectedRowRule.country ? String(selectedRowRule.country) : "Global (All Countries)")}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Remarks
-                </div>
-                <div className="text-text-primary dark:text-white">
-                  {selectedRowRule.remarks || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Valid From
-                </div>
-                <div className="text-text-primary dark:text-white">
-                  {selectedRowRule.validFrom ? formatDateTime(selectedRowRule.validFrom) : "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Valid To
-                </div>
-                <div className="text-text-primary dark:text-white">
-                  {selectedRowRule.validTo ? formatDateTime(selectedRowRule.validTo) : "-"}
-                </div>
-              </div>
-            </div>
+            <Input
+              label="Remarks"
+              value={selectedRowRule.remarks || "-"}
+              disabled
+            />
 
             <div className="flex justify-end gap-3 pt-3 border-t border-gray-200 dark:border-gray-700">
               <Button
@@ -1128,122 +1376,73 @@ export const AuthorizationTab: React.FC<AuthorizationTabProps> = ({
       >
         {selectedRowAudit && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3.5 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-3">
-                <StatusBadge
-                  status={selectedRowAudit.decision === "ALLOWED" ? "ACTIVE" : "FAILED"}
-                  customText={selectedRowAudit.decision}
-                />
-                <div>
-                  <div className="text-xs text-text-secondary dark:text-gray-400">Sender ID</div>
-                  <div className="text-base font-bold text-rose-600 dark:text-rose-400">
-                    {selectedRowAudit.senderId}
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-xs text-text-secondary dark:text-gray-400">Timestamp</div>
-                <div className="text-xs font-medium text-text-primary dark:text-white">
-                  {selectedRowAudit.createdAt ? formatDateTime(selectedRowAudit.createdAt) : "-"}
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Destination MSISDN
-                </div>
-                <div className="font-mono text-text-primary dark:text-white">
-                  {selectedRowAudit.destination || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Country
-                </div>
-                <div className="flex items-center gap-2">
-                  {countries.find((c) => c.value === selectedRowAudit.country?.toString())?.iso2 && (
-                    <CountryFlag
-                      iso2={
-                        countries.find((c) => c.value === selectedRowAudit.country?.toString())!.iso2!
-                      }
-                      width={16}
-                      height={12}
-                    />
-                  )}
-                  <span className="text-text-primary dark:text-white font-medium">
-                    {countries.find((c) => c.value === selectedRowAudit.country?.toString())?.label ||
-                      selectedRowAudit.country ||
-                      "-"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Reason Code
-                </div>
-                <div className="font-mono font-medium text-text-primary dark:text-white">
-                  {selectedRowAudit.reasonCode || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Policy Mode
-                </div>
-                <div className="text-text-primary dark:text-white">
-                  {selectedRowAudit.policyMode || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  SMPP Status / Code
-                </div>
-                <div className="font-mono text-text-primary dark:text-white">
-                  {selectedRowAudit.smppStatus ?? "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  System ID
-                </div>
-                <div className="font-mono text-text-primary dark:text-white">
-                  {selectedRowAudit.systemId || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Client IP
-                </div>
-                <div className="font-mono text-text-primary dark:text-white">
-                  {selectedRowAudit.clientIp || "-"}
-                </div>
-              </div>
-
-              <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-                <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                  Session ID
-                </div>
-                <div className="font-mono text-xs text-text-primary dark:text-white break-all">
-                  {selectedRowAudit.sessionId || "-"}
-                </div>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-lg bg-gray-50/70 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-700/60">
-              <div className="text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Matched Rule
-              </div>
-              <div className="text-sm text-text-primary dark:text-white font-mono break-all">
-                {selectedRowAudit.matched_rule_description ||
-                  (selectedRowAudit.matchedRule ? `Rule #${selectedRowAudit.matchedRule}` : "None")}
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label="Sender ID"
+                value={selectedRowAudit.senderId || "-"}
+                disabled
+              />
+              <Input
+                label="Decision"
+                value={selectedRowAudit.decision || "-"}
+                disabled
+              />
+              <Input
+                label="Timestamp"
+                value={selectedRowAudit.createdAt ? formatDateTime(selectedRowAudit.createdAt) : "-"}
+                disabled
+              />
+              <Input
+                label="Destination MSISDN"
+                value={selectedRowAudit.destination || "-"}
+                disabled
+              />
+              <Input
+                label="Country"
+                value={
+                  countries.find((c) => c.value === selectedRowAudit.country?.toString())?.label ||
+                  (selectedRowAudit.country ? String(selectedRowAudit.country) : "-")
+                }
+                disabled
+              />
+              <Input
+                label="Reason Code"
+                value={selectedRowAudit.reasonCode || "-"}
+                disabled
+              />
+              <Input
+                label="Policy Mode"
+                value={selectedRowAudit.policyMode || "-"}
+                disabled
+              />
+              <Input
+                label="SMPP Status / Code"
+                value={String(selectedRowAudit.smppStatus ?? "-")}
+                disabled
+              />
+              <Input
+                label="System ID"
+                value={selectedRowAudit.systemId || "-"}
+                disabled
+              />
+              <Input
+                label="Client IP"
+                value={selectedRowAudit.clientIp || "-"}
+                disabled
+              />
+              <Input
+                label="Session ID"
+                value={selectedRowAudit.sessionId || "-"}
+                disabled
+              />
+              <Input
+                label="Matched Rule"
+                value={
+                  selectedRowAudit.matched_rule_description ||
+                  (selectedRowAudit.matchedRule ? `Rule #${selectedRowAudit.matchedRule}` : "None")
+                }
+                disabled
+              />
             </div>
 
             <div className="flex justify-end pt-3 border-t border-gray-200 dark:border-gray-700">

@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import type { MessageAttemptData } from "../../../api/reportApi/messageAttemptApi";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
@@ -31,22 +33,10 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
             Attempt Overview & Status
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Attempt ID</label>
-              <div className="text-sm font-mono text-primary bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.id || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Message ID</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.message || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Status</label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.status || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Attempt Number</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.attempt_number || "-"}</div>
-            </div>
+            <Input label="Attempt ID" value={viewLog.id || "-"} disabled />
+            <Input label="Message ID" value={viewLog.message || "-"} disabled />
+            <Input label="Status" value={viewLog.status || "-"} disabled className="capitalize" />
+            <Input label="Attempt Number" value={String(viewLog.attempt_number ?? "-")} disabled />
           </div>
         </fieldset>
 
@@ -56,18 +46,9 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
             Provider & Routing Details
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Provider</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.provider || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Message ID</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendorMessageId || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Segment ID</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{viewLog.segment || "-"}</div>
-            </div>
+            <Input label="Provider" value={viewLog.provider || "-"} disabled />
+            <Input label="Vendor Message ID" value={viewLog.vendorMessageId || "-"} disabled />
+            <Input label="Segment ID" value={viewLog.segment || "-"} disabled />
           </div>
         </fieldset>
 
@@ -77,14 +58,8 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
             Timestamps
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Started At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.started_at)}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Completed At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700">{formatDateTime(viewLog.completed_at)}</div>
-            </div>
+            <Input label="Started At" value={formatDateTime(viewLog.started_at)} disabled />
+            <Input label="Completed At" value={formatDateTime(viewLog.completed_at)} disabled />
           </div>
         </fieldset>
 
@@ -93,9 +68,12 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Error Details
           </legend>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-            {viewLog.error_message || <span className="text-gray-400 italic">No error message available.</span>}
-          </div>
+          <TextArea
+            label=""
+            value={viewLog.error_message || "No error message available."}
+            disabled
+            rows={3}
+          />
         </fieldset>
 
         {/* Payloads */}
@@ -104,22 +82,20 @@ export const MessageAttemptModal: React.FC<MessageAttemptModalProps> = ({
             Payloads
           </legend>
           <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Request Payload
-              </label>
-              <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                {viewLog.request_payload ? JSON.stringify(viewLog.request_payload, null, 2) : <span className="text-gray-400 italic">No payload available.</span>}
-              </div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">
-                Response Payload
-              </label>
-              <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-                {viewLog.response_payload ? JSON.stringify(viewLog.response_payload, null, 2) : <span className="text-gray-400 italic">No payload available.</span>}
-              </div>
-            </div>
+            <TextArea
+              label="Request Payload"
+              value={viewLog.request_payload ? JSON.stringify(viewLog.request_payload, null, 2) : "No payload available."}
+              disabled
+              rows={5}
+              className="font-mono text-xs"
+            />
+            <TextArea
+              label="Response Payload"
+              value={viewLog.response_payload ? JSON.stringify(viewLog.response_payload, null, 2) : "No payload available."}
+              disabled
+              rows={5}
+              className="font-mono text-xs"
+            />
           </div>
         </fieldset>
 

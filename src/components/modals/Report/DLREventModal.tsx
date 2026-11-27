@@ -1,6 +1,8 @@
 import React from "react";
 import Modal from "../../ui/Modal";
 import Button from "../../ui/Button";
+import Input from "../../ui/Input";
+import TextArea from "../../ui/TextArea";
 import type { DLREventData } from "../../../api/reportApi/dlrEventApi";
 import { formatDateTime } from "../../../helper/dateFormatter";
 
@@ -31,22 +33,10 @@ export const DLREventModal: React.FC<DLREventModalProps> = ({
             Event Overview & Status
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Message ID</label>
-              <div className="text-sm font-medium text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.client_msg_id || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Segment ID</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.segment || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Vendor Message ID</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.vendorMessageId || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Event Type</label>
-              <div className="text-sm font-medium capitalize text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.event_type || "-"}</div>
-            </div>
+            <Input label="Message ID" value={viewLog.client_msg_id || "-"} disabled />
+            <Input label="Segment ID" value={viewLog.segment || "-"} disabled />
+            <Input label="Vendor Message ID" value={viewLog.vendorMessageId || "-"} disabled />
+            <Input label="Event Type" value={viewLog.event_type || "-"} disabled className="capitalize" />
           </div>
         </fieldset>
 
@@ -56,18 +46,9 @@ export const DLREventModal: React.FC<DLREventModalProps> = ({
             Segment & Timestamp Details
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Segment Number</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.segment_number || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Status Code</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{viewLog.status_code || "-"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary dark:text-gray-400 mb-1">Received At</label>
-              <div className="text-sm text-text-primary dark:text-white bg-gray-50 dark:bg-gray-800/50 p-2 rounded border border-gray-100 dark:border-gray-700 truncate">{formatDateTime(viewLog.received_at)}</div>
-            </div>
+            <Input label="Segment Number" value={viewLog.segment_number || "-"} disabled />
+            <Input label="Status Code" value={viewLog.status_code || "-"} disabled />
+            <Input label="Received At" value={formatDateTime(viewLog.received_at)} disabled />
           </div>
         </fieldset>
 
@@ -76,9 +57,12 @@ export const DLREventModal: React.FC<DLREventModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Status Description
           </legend>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words">
-            {viewLog.status_description || <span className="text-gray-400 italic">No description available.</span>}
-          </div>
+          <TextArea
+            label=""
+            value={viewLog.status_description || "No description available."}
+            disabled
+            rows={3}
+          />
         </fieldset>
 
         {/* Raw Payload */}
@@ -86,9 +70,13 @@ export const DLREventModal: React.FC<DLREventModalProps> = ({
           <legend className="text-sm font-semibold text-primary px-2">
             Raw Payload
           </legend>
-          <div className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 min-h-[80px] text-sm text-text-primary dark:text-white whitespace-pre-wrap break-words font-mono">
-            {viewLog.raw_payload ? JSON.stringify(viewLog.raw_payload, null, 2) : <span className="text-gray-400 italic">No payload available.</span>}
-          </div>
+          <TextArea
+            label=""
+            value={viewLog.raw_payload ? JSON.stringify(viewLog.raw_payload, null, 2) : "No payload available."}
+            disabled
+            rows={6}
+            className="font-mono text-xs"
+          />
         </fieldset>
 
         {/* Footer Actions */}

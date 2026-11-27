@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import Modal from "../../ui/Modal";
-import { DeleteModal } from "../DeleteModal";
+import Modal from "../../../ui/Modal";
+import { DeleteModal } from "../../DeleteModal";
 import {
   deleteCustomRouteApi,
   getCustomRoutesApi,
@@ -12,24 +12,24 @@ import {
   bulkUpdateCustomRouteApi,
   type RouteGroupCountryData,
   type CustomRouteData,
-} from "../../../api/routeManagerApi/customRouteApi";
-import { CustomRouteModal } from "../RouteManager/CustomRouteModal";
-import { CustomRoutePercentModal } from "../RouteManager/CustomRoutePercentModal";
-import { getVendorsApi } from "../../../api/connectivityApi/vendorApi";
-import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
-import { getOperatorNetworkCodelookupApi } from "../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
-import { findVendorRateApi } from "../../../api/rateApi/vendorRateApi";
-import { findCustomerRateApi } from "../../../api/rateApi/customerRateApi";
+} from "../../../../api/routeManagerApi/customRouteApi";
+import { CustomRouteModal } from "./CustomRouteModal";
+import { CustomRoutePercentModal } from "./CustomRoutePercentModal";
+import { getVendorsApi } from "../../../../api/connectivityApi/vendorApi";
+import { getCountriesApi } from "../../../../api/settingApi/countryApi/countryApi";
+import { getOperatorNetworkCodelookupApi } from "../../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
+import { findVendorRateApi } from "../../../../api/rateApi/vendorRateApi";
+import { findCustomerRateApi } from "../../../../api/rateApi/customerRateApi";
 import { toast } from "react-toastify";
-import Button from "../../ui/Button";
-import Select from "../../ui/Select";
-import Input from "../../ui/Input";
-import { StatusBadge } from "../../ui/StatusBadge";
-import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
-import { CountryFlag } from "../../ui/CountryFlag";
-import ContextMenu, { type ContextMenuItem } from "../../ui/ContextMenu";
-import ToggleSwitch from "../../ui/ToggleSwitch";
-import LoadingSpinner from "../../ui/LoadingSpinner";
+import Button from "../../../ui/Button";
+import Select from "../../../ui/Select";
+import Input from "../../../ui/Input";
+import { StatusBadge } from "../../../ui/StatusBadge";
+import { RatesHoverDropdown } from "../../../ui/RatesHoverDropdown";
+import { CountryFlag } from "../../../ui/CountryFlag";
+import ContextMenu, { type ContextMenuItem } from "../../../ui/ContextMenu";
+import ToggleSwitch from "../../../ui/ToggleSwitch";
+import LoadingSpinner from "../../../ui/LoadingSpinner";
 import {
   Plus,
   Trash2,

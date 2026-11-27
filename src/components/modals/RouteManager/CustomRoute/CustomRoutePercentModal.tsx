@@ -1,29 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import { Trash2, Plus, AlertCircle, CheckCircle2 } from "lucide-react";
-import Modal from "../../ui/Modal";
-import Button from "../../ui/Button";
-import Input from "../../ui/Input";
-import Select from "../../ui/Select";
-import { CountryFlag } from "../../ui/CountryFlag";
-import { RatesHoverDropdown } from "../../ui/RatesHoverDropdown";
+import Modal from "../../../ui/Modal";
+import Button from "../../../ui/Button";
+import Input from "../../../ui/Input";
+import Select from "../../../ui/Select";
+import { CountryFlag } from "../../../ui/CountryFlag";
+import { RatesHoverDropdown } from "../../../ui/RatesHoverDropdown";
 import { getMncMarginInfo } from "./SubRouteTableModal";
 import {
   MultiSelectDropdown,
   type MultiSelectOption,
-} from "../../ui/MultiSelectDropdown";
+} from "../../../ui/MultiSelectDropdown";
 import {
   createCustomRouteApi,
   type CustomRouteData,
-} from "../../../api/routeManagerApi/customRouteApi";
-import { getCountriesApi } from "../../../api/settingApi/countryApi/countryApi";
-import { getVendorsApi } from "../../../api/connectivityApi/vendorApi";
+} from "../../../../api/routeManagerApi/customRouteApi";
+import { getCountriesApi } from "../../../../api/settingApi/countryApi/countryApi";
+import { getVendorsApi } from "../../../../api/connectivityApi/vendorApi";
 import {
   getOperatorNetworkCodelookupApi,
   getOperatorNetworkCodesApi
-} from "../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
-import { findCustomerRateApi } from "../../../api/rateApi/customerRateApi";
-import { findVendorRateApi } from "../../../api/rateApi/vendorRateApi";
+} from "../../../../api/operatorNetworkCodeApi/operatorNetworkCodeApi";
+import { findCustomerRateApi } from "../../../../api/rateApi/customerRateApi";
+import { findVendorRateApi } from "../../../../api/rateApi/vendorRateApi";
 
 interface CustomRoutePercentModalProps {
   isOpen: boolean;
@@ -759,7 +759,7 @@ export const CustomRoutePercentModal: React.FC<CustomRoutePercentModalProps> = (
         }
 
         if (editingRoute?.id) {
-          await import("../../../api/routeManagerApi/customRouteApi").then(api =>
+          await import("../../../../api/routeManagerApi/customRouteApi").then(api =>
             api.updateCustomRouteApi(editingRoute.id!, payload, moduleName)
           );
           toast.success("Route updated successfully!");

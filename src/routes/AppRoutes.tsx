@@ -29,7 +29,7 @@ import CustomerRate from "../pages/Rate/CustomerRate";
 import MappingSetup from "../pages/MappingSetup/MappingSetup";
 // import Operators from "../pages/Operator/Operator";
 import UserLog from "../pages/UserLog/UserLog";
-import CustomRoute from "../pages/RouteManager/CustomRoute";
+import CustomRoute from "../pages/RouteManager/CustomRoute/CustomRoute";
 import { NavItemsContext } from "../context/navItemsContext";
 import TimeZone from "../pages/settings/Timezone/Timezone";
 import NotFound from "../pages/error/notFound";

@@ -10,11 +10,11 @@ import {
 } from "lucide-react";
 import { getClientsApi } from "../../api/clientApi/clientApi";
 import { getCountriesApi } from "../../api/settingApi/countryApi/countryApi";
-import { DestinationRulesTab } from "../SenderIdManagement/tabs/DestinationRulesTab";
-import { MessageTextRulesTab } from "../SenderIdManagement/tabs/MessageTextRulesTab";
-import { MessageTextListsTab } from "../SenderIdManagement/tabs/MessageTextListsTab";
-import { MessageFilterPolicyTab } from "../SenderIdManagement/tabs/MessageFilterPolicyTab";
-import { TestConsoleTab } from "../SenderIdManagement/tabs/TestConsoleTab";
+import { DestinationRulesTab } from "./tabs/DestinationRulesTab";
+import { MessageTextRulesTab } from "./tabs/MessageTextRulesTab";
+import { MessageTextListsTab } from "./tabs/MessageTextListsTab";
+import { MessageFilterPolicyTab } from "./tabs/MessageFilterPolicyTab";
+import { TestConsoleTab } from "./tabs/TestConsoleTab";
 
 export type MessageFilterTab =
   | "destinationRules"

@@ -23,7 +23,7 @@ import {
   rebuildMessageFilterCacheApi,
   getMessageFilterCacheStatusApi,
   type MessageFilterPolicy,
-} from "../../../api/authorizationApi/messageFilterApi";
+} from "../../../api/messageFilterApi/messageFilterApi";
 
 interface MessageFilterPolicyTabProps {
   selectedClientId: number | null;
@@ -253,74 +253,76 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                             </div>
                           </div>
 
-                          {/* Master Switch */}
-                          <div className="flex items-center justify-between p-3.5 bg-gray-50/80 dark:bg-gray-700/30 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-                            <div className="space-y-0.5">
-                              <span className="text-sm font-semibold text-text-primary dark:text-white">
-                                Master Filter Pipeline Switch
-                              </span>
-                              <p className="text-xs text-text-secondary dark:text-gray-400">
-                                When off, all destination and message text transformation is completely bypassed.
-                              </p>
+                          <div className="divide-y divide-gray-100 dark:divide-gray-700/60">
+                            {/* Master Switch */}
+                            <div className="flex items-center justify-between py-3.5 first:pt-1">
+                              <div className="space-y-0.5 pr-4">
+                                <span className="text-sm font-semibold text-text-primary dark:text-white">
+                                  Master Filter Pipeline Switch
+                                </span>
+                                <p className="text-xs text-text-secondary dark:text-gray-400">
+                                  When off, all destination and message text transformation is completely bypassed.
+                                </p>
+                              </div>
+                              <ToggleSwitch
+                                checked={formData.isActive}
+                                onChange={(checked) => handleAutoSave({ isActive: checked })}
+                              />
                             </div>
-                            <ToggleSwitch
-                              checked={formData.isActive}
-                              onChange={(checked) => handleAutoSave({ isActive: checked })}
-                            />
-                          </div>
 
-                          {/* Destination Rules Switch */}
-                          <div className="flex items-center justify-between p-3.5 bg-gray-50/80 dark:bg-gray-700/30 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-                            <div className="space-y-0.5">
-                              <span className="text-sm font-semibold text-text-primary dark:text-white">
-                                Destination Number Translation
-                              </span>
-                              <p className="text-xs text-text-secondary dark:text-gray-400">
-                                Evaluates prefix additions, stripping, and E.164 normalization for destinations.
-                              </p>
+                            {/* Destination Rules Switch */}
+                            <div className="flex items-center justify-between py-3.5">
+                              <div className="space-y-0.5 pr-4">
+                                <span className="text-sm font-semibold text-text-primary dark:text-white">
+                                  Destination Number Translation
+                                </span>
+                                <p className="text-xs text-text-secondary dark:text-gray-400">
+                                  Evaluates prefix additions, stripping, and E.164 normalization for destinations.
+                                </p>
+                              </div>
+                              <ToggleSwitch
+                                checked={formData.destinationRulesEnabled}
+                                onChange={(checked) =>
+                                  handleAutoSave({ destinationRulesEnabled: checked })
+                                }
+                              />
                             </div>
-                            <ToggleSwitch
-                              checked={formData.destinationRulesEnabled}
-                              onChange={(checked) =>
-                          handleAutoSave({destinationRulesEnabled: checked })
-                        }
-                      />
-                          </div>
 
-                          {/* Text Rules Switch */}
-                          <div className="flex items-center justify-between p-3.5 bg-gray-50/80 dark:bg-gray-700/30 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-                            <div className="space-y-0.5">
-                              <span className="text-sm font-semibold text-text-primary dark:text-white">
-                                Message Content Translation
-                              </span>
-                              <p className="text-xs text-text-secondary dark:text-gray-400">
-                                Evaluates content regex replacement, template lists, and token substitutions.
-                              </p>
+                            {/* Text Rules Switch */}
+                            <div className="flex items-center justify-between py-3.5">
+                              <div className="space-y-0.5 pr-4">
+                                <span className="text-sm font-semibold text-text-primary dark:text-white">
+                                  Message Content Translation
+                                </span>
+                                <p className="text-xs text-text-secondary dark:text-gray-400">
+                                  Evaluates content regex replacement, template lists, and token substitutions.
+                                </p>
+                              </div>
+                              <ToggleSwitch
+                                checked={formData.textRulesEnabled}
+                                onChange={(checked) =>
+                                  handleAutoSave({ textRulesEnabled: checked })
+                                }
+                              />
                             </div>
-                            <ToggleSwitch
-                              checked={formData.textRulesEnabled}
-                              onChange={(checked) =>
-                          handleAutoSave({textRulesEnabled: checked })
-                        }
-                      />
-                          </div>
 
-                          {/* Random Functions Switch */}
-                          <div className="flex items-center justify-between p-3.5 bg-gray-50/80 dark:bg-gray-700/30 rounded-xl border border-gray-200/60 dark:border-gray-700/60">
-                            <div className="space-y-0.5">
-                              <span className="text-sm font-semibold text-text-primary dark:text-white">
-                                Dynamic Random Codes & Tokens
-                              </span>
-                              <p className="text-xs text-text-secondary dark:text-gray-400">
-                                Automatically generates unique numbers, letters, or hex codes in message text (e.g. {"${RANDINT}"}, {"${RANDHEX}"} for unique tracking IDs and anti-spam variation).
-                              </p>
+                            {/* Random Functions Switch */}
+                            <div className="flex items-center justify-between py-3.5 last:pb-1">
+                              <div className="space-y-0.5 pr-4">
+                                <span className="text-sm font-semibold text-text-primary dark:text-white">
+                                  Dynamic Random Codes & Tokens
+                                </span>
+                                <p className="text-xs text-text-secondary dark:text-gray-400">
+                                  Automatically generates unique numbers, letters, or hex codes in message text (e.g. {"${RANDINT}"}, {"${RANDHEX}"} for unique tracking IDs and anti-spam variation).
+                                </p>
+                              </div>
+                              <ToggleSwitch
+                                checked={formData.allowRandomFunctions}
+                                onChange={(checked) =>
+                                  handleAutoSave({ allowRandomFunctions: checked })
+                                }
+                              />
                             </div>
-                            <ToggleSwitch
-                              checked={formData.allowRandomFunctions}
-                              onChange={(checked) =>
-                          handleAutoSave({allowRandomFunctions: checked })
-                        }
-                      />
                           </div>
                         </div>
 
@@ -336,7 +338,7 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                           </div>
 
                           {/* Country Boundary Change */}
-                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 bg-gray-50/50 dark:bg-gray-700/20">
+                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 bg-transparent">
                             <div className="flex items-center justify-between">
                               <div>
                                 <span className="text-sm font-semibold text-text-primary dark:text-white">
@@ -349,9 +351,9 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                               <ToggleSwitch
                                 checked={formData.allowCountryChange}
                                 onChange={(checked) =>
-                            handleAutoSave({allowCountryChange: checked })
-                          }
-                        />
+                                  handleAutoSave({ allowCountryChange: checked })
+                                }
+                              />
                             </div>
 
                             {formData.allowCountryChange && (
@@ -370,7 +372,7 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                           </div>
 
                           {/* Max Expansion Limit */}
-                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2 bg-gray-50/50 dark:bg-gray-700/20">
+                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-2 bg-transparent">
                             <Input
                               label="Max Message Text Expansion Limit (Characters)"
                               type="number"
@@ -402,7 +404,7 @@ export const MessageFilterPolicyTab: React.FC<MessageFilterPolicyTabProps> = ({
                           </div>
 
                           {/* Cache Failure Mode */}
-                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 bg-gray-50/50 dark:bg-gray-700/20">
+                          <div className="p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3 bg-transparent">
                             <label className="block text-xs font-semibold text-text-primary dark:text-white">
                               Cache Failure Mode
                             </label>

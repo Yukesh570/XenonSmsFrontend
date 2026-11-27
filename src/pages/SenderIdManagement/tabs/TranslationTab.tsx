@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Plus,
   Edit,
@@ -19,6 +19,8 @@ import { DeleteModal } from "../../../components/modals/DeleteModal";
 import ContextMenu from "../../../components/ui/ContextMenu";
 import { CountryFlag } from "../../../components/ui/CountryFlag";
 import LoadingSpinner from "../../../components/ui/LoadingSpinner";
+import { StatusBadge } from "../../../components/ui/StatusBadge";
+import ToggleSwitch from "../../../components/ui/ToggleSwitch";
 import type {
   SenderIdTranslationPolicy,
   SenderIdTranslationRule,
@@ -46,15 +48,15 @@ interface TranslationTabProps {
 interface RuleColumnDef {
   key: string;
   label: string;
-  className?: string;
 }
 
 const DEFAULT_RULE_COLUMNS: RuleColumnDef[] = [
-  { key: "id", label: "ID", className: "px-4 py-3 font-mono text-xs w-16" },
-  { key: "country", label: "Country", className: "px-4 py-3" },
-  { key: "sourceSenderId", label: "Original", className: "px-4 py-3 font-semibold text-text-primary dark:text-white" },
-  { key: "action", label: "Action", className: "px-4 py-3" },
-  { key: "outputParam", label: "Output Param", className: "px-4 py-3 text-text-secondary dark:text-gray-300 font-mono text-xs" },
+  { key: "sn", label: "S.N." },
+  { key: "id", label: "ID" },
+  { key: "country", label: "Country" },
+  { key: "sourceSenderId", label: "Original" },
+  { key: "action", label: "Action" },
+  { key: "outputParam", label: "Output Param" },
 ];
 
 export const TranslationTab: React.FC<TranslationTabProps> = ({
@@ -81,25 +83,46 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
     isActive: true,
   });
 
-  const [ruleColumns] = useState<RuleColumnDef[]>(() => {
-    try {
-      const saved = localStorage.getItem("sender_id_translation_rule_columns");
-      if (saved) {
-        const rawKeys: string[] = JSON.parse(saved);
-        if (Array.isArray(rawKeys) && rawKeys.length > 0) {
-          const parsedKeys = rawKeys.filter((k) => k !== "actions");
-          const reordered = parsedKeys
-            .map((k) => DEFAULT_RULE_COLUMNS.find((c) => c.key === k))
-            .filter((c): c is RuleColumnDef => Boolean(c));
-          const missing = DEFAULT_RULE_COLUMNS.filter((c) => !parsedKeys.includes(c.key));
-          return [...reordered, ...missing];
-        }
+  const [ruleColumns, setRuleColumns] = useState<RuleColumnDef[]>(DEFAULT_RULE_COLUMNS);
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
+
+  const handleSort = (columnIndex: number) => {
+    const col = ruleColumns[columnIndex];
+    if (!col || col.key === "sn") return;
+    setSortConfig((prev) => {
+      if (prev?.key === col.key) {
+        if (prev.direction === "asc") return { key: col.key, direction: "desc" };
+        return null;
       }
-    } catch (e) {
-      console.error(e);
-    }
-    return DEFAULT_RULE_COLUMNS;
-  });
+      return { key: col.key, direction: "asc" };
+    });
+  };
+
+  const handleReorderColumns = (fromIdx: number, toIdx: number) => {
+    setRuleColumns((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, moved);
+      return next;
+    });
+  };
+
+  const sortedRules = useMemo(() => {
+    if (!sortConfig) return rules;
+    return [...rules].sort((a, b) => {
+      let aVal = (a as any)[sortConfig.key];
+      let bVal = (b as any)[sortConfig.key];
+      if (sortConfig.key === "country") {
+        aVal = countries.find((c) => c.id === a.country)?.name || a.country || "";
+        bVal = countries.find((c) => c.id === b.country)?.name || b.country || "";
+      }
+      if (aVal === bVal) return 0;
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
+      const cmp = aVal < bVal ? -1 : 1;
+      return sortConfig.direction === "asc" ? cmp : -cmp;
+    });
+  }, [rules, sortConfig, countries]);
 
   // Context Menu & Delete Modal State
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
@@ -141,14 +164,41 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
     }
   }, [selectedClientId]);
 
+  const normalizePolicy = (data: any): SenderIdTranslationPolicy | null => {
+    let item: any = null;
+    if (Array.isArray(data)) item = data.length > 0 ? data[0] : null;
+    else if (data && typeof data === "object") {
+      if (Array.isArray(data.results)) item = data.results.length > 0 ? data.results[0] : null;
+      else if (data.id || data.is_active !== undefined || data.isActive !== undefined) item = data;
+    }
+    if (!item) return null;
+    const active =
+      item.isActive !== undefined
+        ? Boolean(item.isActive)
+        : item.is_active !== undefined
+        ? Boolean(item.is_active)
+        : false;
+    return {
+      ...item,
+      id: item.id,
+      client: item.client,
+      isActive: active,
+      is_active: active,
+    };
+  };
+
+  const isPolicyActive = Boolean(
+    policy && (policy.isActive !== undefined ? policy.isActive : (policy as any).is_active)
+  );
+
   const loadData = async (clientId: number) => {
     setLoading(true);
     try {
       const [p, r] = await Promise.all([
-        getSenderTranslationPolicyApi(clientId),
-        getSenderTranslationRulesApi(clientId),
+        getSenderTranslationPolicyApi(clientId).catch(() => null),
+        getSenderTranslationRulesApi(clientId).catch(() => []),
       ]);
-      setPolicy(p);
+      setPolicy(normalizePolicy(p));
       setRules(Array.isArray(r) ? r : []);
     } catch (e) {
       console.error(e);
@@ -160,11 +210,20 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
 
   const handleTogglePolicy = async () => {
     if (!selectedClientId) return;
+    const newStatus = !isPolicyActive;
     try {
-      const newStatus = !policy?.isActive;
       const res = await updateSenderTranslationPolicyApi(selectedClientId, newStatus);
-      setPolicy(res);
-      toast.success(`Translation policy ${newStatus ? "enabled" : "disabled"}`);
+      const normalized = normalizePolicy(res);
+      setPolicy(
+        normalized
+          ? { ...normalized, isActive: newStatus, is_active: newStatus }
+          : ({ ...(policy || {}), id: policy?.id, client: selectedClientId, isActive: newStatus, is_active: newStatus } as any)
+      );
+      if (newStatus) {
+        toast.success("Translation policy enabled");
+      } else {
+        toast.error("Translation policy disabled");
+      }
     } catch (e) {
       console.error(e);
       toast.error("Failed to update policy status");
@@ -367,11 +426,11 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
           <div className="p-4 sm:p-6">
             {/* POLICY TAB */}
             {activeTab === "policy" && (
-              <div className="max-w-2xl space-y-4">
+              <div className="w-full space-y-4">
                 {loading ? (
                   <LoadingSpinner size="sm" text="Loading translation policy..." className="py-8" />
                 ) : (
-                  <div className="p-4 sm:p-5 border border-gray-200 dark:border-gray-700 rounded-xl bg-gray-50/70 dark:bg-gray-900/60 flex items-center justify-between gap-4">
+                  <div className="p-5 sm:p-6 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 shadow-sm flex items-center justify-between gap-4">
                     <div>
                       <h3 className="text-sm sm:text-base font-semibold text-text-primary dark:text-white">
                         Enable Translation
@@ -383,15 +442,15 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                     <button
                       type="button"
                       role="switch"
-                      aria-checked={Boolean(policy?.isActive)}
+                      aria-checked={isPolicyActive}
                       onClick={handleTogglePolicy}
                       className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        policy?.isActive ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"
+                        isPolicyActive ? "bg-primary" : "bg-gray-300 dark:bg-gray-600"
                       }`}
                     >
                       <span
                         className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                          policy?.isActive ? "translate-x-5" : "translate-x-0"
+                          isPolicyActive ? "translate-x-5" : "translate-x-0"
                         }`}
                       />
                     </button>
@@ -405,9 +464,17 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
               <div className="space-y-4">
                 <DataTable
                   density="compact"
-                  data={rules}
+                  storageKey="sender_id_translation_rules_table"
+                  data={sortedRules}
                   isLoading={loading}
                   headers={ruleColumns.map((c) => c.label)}
+                  onSort={handleSort}
+                  sortColumnIndex={
+                    sortConfig ? ruleColumns.findIndex((c) => c.key === sortConfig.key) : null
+                  }
+                  sortDirection={sortConfig?.direction || null}
+                  onReorderColumns={handleReorderColumns}
+                  resizableColumns={true}
                   headerActions={
                     <Button
                       type="button"
@@ -435,24 +502,38 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                       className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
                     >
                       {ruleColumns.map((col) => {
+                        if (col.key === "sn") {
+                          return (
+                            <td key={col.key} className="px-4 py-3.5 text-sm text-text-primary dark:text-white">
+                              {index + 1}
+                            </td>
+                          );
+                        }
                         if (col.key === "id") {
                           return (
-                            <td key={col.key} className={col.className}>
-                              <span className="font-mono text-xs font-semibold text-primary">#{rule.id}</span>
+                            <td key={col.key} className="px-4 py-3.5 text-sm">
+                              <span
+                                className="font-mono font-semibold text-primary cursor-pointer hover:underline"
+                                onClick={() => handleEditRule(rule)}
+                              >
+                                #{rule.id}
+                              </span>
                             </td>
                           );
                         }
                         if (col.key === "country") {
                           return (
-                            <td key={col.key} className={col.className}>
+                            <td key={col.key} className="px-4 py-3.5 text-sm text-text-secondary dark:text-gray-300 whitespace-nowrap">
                               {rule.country ? (
                                 <div className="flex items-center gap-2">
-                                  <CountryFlag
-                                    iso2={countries.find((c) => c.id === rule.country)?.iso2 || ""}
-                                    width={16}
-                                    height={12}
-                                  />
-                                  <span className="text-text-primary dark:text-white font-medium">
+                                  {countries.find((c) => c.id === rule.country)?.iso2 && (
+                                    <CountryFlag
+                                      iso2={countries.find((c) => c.id === rule.country)!.iso2!}
+                                      width={16}
+                                      height={12}
+                                    />
+                                  )}
+                                  <span>
                                     {countries.find((c) => c.id === rule.country)?.name || rule.country}
                                   </span>
                                 </div>
@@ -464,27 +545,26 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
                         }
                         if (col.key === "sourceSenderId") {
                           return (
-                            <td
-                              key={col.key}
-                              className={`${col.className} cursor-pointer hover:underline text-primary font-medium`}
-                              onClick={() => handleEditRule(rule)}
-                            >
-                              <span>{rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}</span>
+                            <td key={col.key} className="px-4 py-3.5 text-sm">
+                              <span
+                                className="font-semibold text-primary cursor-pointer hover:underline"
+                                onClick={() => handleEditRule(rule)}
+                              >
+                                {rule.matchType === "REGEX" ? rule.senderPattern : rule.sourceSenderId}
+                              </span>
                             </td>
                           );
                         }
                         if (col.key === "action") {
                           return (
-                            <td key={col.key} className={col.className}>
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary dark:bg-primary/20">
-                                {rule.action}
-                              </span>
+                            <td key={col.key} className="px-4 py-3.5 text-sm">
+                              <StatusBadge status="SENT_TO_VENDOR" customText={rule.action} />
                             </td>
                           );
                         }
                         if (col.key === "outputParam") {
                           return (
-                            <td key={col.key} className={col.className}>
+                            <td key={col.key} className="px-4 py-3.5 text-sm font-mono text-text-secondary dark:text-gray-300">
                               {rule.action === "FIXED_REPLACE"
                                 ? rule.replacementSenderId
                                 : rule.action === "TRUNCATE"
@@ -543,12 +623,12 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
 
             {/* TEST TAB */}
             {activeTab === "test" && (
-              <div className="space-y-4 max-w-2xl">
+              <div className="space-y-4 w-full">
                 <form
                   onSubmit={handleRunTest}
-                  className="space-y-4 bg-gray-50/70 dark:bg-gray-900/60 p-5 rounded-xl border border-gray-200 dark:border-gray-700"
+                  className="space-y-4 bg-white dark:bg-gray-800 p-5 sm:p-6 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Source Sender ID"
                       value={testSource}
@@ -739,25 +819,19 @@ export const TranslationTab: React.FC<TranslationTabProps> = ({
             />
           )}
 
-          <div className="flex items-center gap-6 pt-2">
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={newRule.stopProcessing ?? true}
-                onChange={(e) => setNewRule({ ...newRule, stopProcessing: e.target.checked })}
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
-              />
-              Stop processing on match
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer text-sm text-text-primary dark:text-white">
-              <input
-                type="checkbox"
-                checked={newRule.isActive ?? true}
-                onChange={(e) => setNewRule({ ...newRule, isActive: e.target.checked })}
-                className="rounded border-gray-300 text-primary focus:ring-primary h-4 w-4"
-              />
-              Active
-            </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+            <ToggleSwitch
+              label="Stop processing on match"
+              description="Skip remaining rules on match"
+              checked={newRule.stopProcessing ?? true}
+              onChange={(checked) => setNewRule({ ...newRule, stopProcessing: checked })}
+            />
+            <ToggleSwitch
+              label="Active"
+              description="Active in live translation"
+              checked={newRule.isActive ?? true}
+              onChange={(checked) => setNewRule({ ...newRule, isActive: checked })}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">

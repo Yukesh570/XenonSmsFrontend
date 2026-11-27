@@ -57,8 +57,18 @@ export const getSenderTranslationPolicyApi = async (clientId: number) => {
 };
 
 export const updateSenderTranslationPolicyApi = async (clientId: number, isActive: boolean) => {
-  const response = await api.put(`/api/clients/${clientId}/sender-translation-policy/`, { isActive });
-  return response.data;
+  const payload = {
+    client: clientId,
+    isActive,
+    is_active: isActive,
+  };
+  try {
+    const response = await api.put(`/api/clients/${clientId}/sender-translation-policy/`, payload);
+    return response.data;
+  } catch (err: any) {
+    const response = await api.patch(`/api/clients/${clientId}/sender-translation-policy/`, payload);
+    return response.data;
+  }
 };
 
 export const getSenderTranslationRulesApi = async (clientId: number) => {

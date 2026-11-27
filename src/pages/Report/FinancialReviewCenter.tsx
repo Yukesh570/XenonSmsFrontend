@@ -186,7 +186,11 @@ const FinancialReviewCenter: React.FC = () => {
     switch (colKey) {
       case "stream_id":
         return (
-          <td key={colKey} className="px-4 py-3 text-sm font-mono text-text-secondary dark:text-gray-300 whitespace-nowrap">
+          <td
+            key={colKey}
+            className="px-4 py-3 text-sm font-mono font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+            onClick={() => setViewRow(item)}
+          >
             {item.stream_id}
           </td>
         );
@@ -332,6 +336,7 @@ const FinancialReviewCenter: React.FC = () => {
           <tr
             key={item.id}
             onContextMenu={(e) => handleContextMenu(e, item)}
+            onDoubleClick={() => setViewRow(item)}
             className="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 transition-colors cursor-context-menu"
           >
             <td className="px-4 py-3 text-sm text-text-primary dark:text-white">

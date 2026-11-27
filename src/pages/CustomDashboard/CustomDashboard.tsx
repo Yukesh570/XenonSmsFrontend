@@ -402,14 +402,6 @@ export const CustomDashboard: React.FC = () => {
             <span>Add Tab</span>
           </button>
         </div>
-
-        {/* Active Tab Subtitle / Description */}
-        {activeTab?.description && (
-          <div className="px-4 py-2.5 bg-gray-50/50 dark:bg-gray-800/50 text-xs text-text-secondary dark:text-gray-400 flex items-center gap-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-            <span>{activeTab.description}</span>
-          </div>
-        )}
       </div>
 
       {/* Main Workspace Body */}

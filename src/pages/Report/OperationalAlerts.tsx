@@ -297,7 +297,11 @@ const OperationalAlerts: React.FC = () => {
         );
       case "event_type":
         return (
-          <td key={colKey} className="px-4 py-3 text-sm text-text-primary dark:text-white whitespace-nowrap">
+          <td
+            key={colKey}
+            className="px-4 py-3 text-sm font-semibold text-primary cursor-pointer hover:underline whitespace-nowrap"
+            onClick={() => openDetail(item)}
+          >
             {item.event_type}
           </td>
         );
@@ -463,6 +467,7 @@ const OperationalAlerts: React.FC = () => {
           <tr
             key={item.id}
             onContextMenu={(e) => handleContextMenu(e, item)}
+            onDoubleClick={() => openDetail(item)}
             className="hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-200 dark:border-gray-700 transition-colors cursor-context-menu"
           >
             <td className="px-4 py-3 text-sm text-text-primary dark:text-white">

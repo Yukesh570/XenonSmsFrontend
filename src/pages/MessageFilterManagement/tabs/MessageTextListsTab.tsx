@@ -11,15 +11,15 @@ import {
 import { toast } from "react-toastify";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
-import TextArea from "../../../components/ui/TextArea";
 import Select from "../../../components/ui/Select";
 import DataTable from "../../../components/ui/DataTable";
-import ModalDataTable from "../../../components/ui/ModalDataTable";
 import FilterCard from "../../../components/ui/FilterCard";
-import Modal from "../../../components/ui/Modal";
 import ContextMenu, { type ContextMenuItem } from "../../../components/ui/ContextMenu";
 import { DeleteModal } from "../../../components/modals/DeleteModal";
-import ToggleSwitch from "../../../components/ui/ToggleSwitch";
+import {
+  MessageTextListModal,
+  MessageTextEntriesModal,
+} from "../../../components/modals/MessageFilter";
 import { StatusBadge } from "../../../components/ui/StatusBadge";
 import AdvancedFilter, {
   type FilterColumn,
@@ -27,16 +27,10 @@ import AdvancedFilter, {
 import { formatDateTime } from "../../../helper/dateFormatter";
 import {
   getMessageTextReplacementListsApi,
-  createMessageTextReplacementListApi,
-  updateMessageTextReplacementListApi,
   deleteMessageTextReplacementListApi,
-  getMessageTextReplacementListItemsApi,
-  createMessageTextReplacementListItemApi,
-  updateMessageTextReplacementListItemApi,
-  deleteMessageTextReplacementListItemApi,
+  updateMessageTextReplacementListApi,
   type MessageTextReplacementList,
-  type MessageTextReplacementListItem,
-} from "../../../api/authorizationApi/messageFilterApi";
+} from "../../../api/messageFilterApi/messageFilterApi";
 
 interface Option {
   label: string;
@@ -71,8 +65,6 @@ const DEFAULT_TABLE_COLUMNS = [
   "itemCount",
   "status",
 ];
-
-const ITEM_HEADERS = ["Seq #", "Replacement Value", "Length", "Status"];
 
 export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   selectedClientId,
@@ -173,19 +165,7 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 
   // List Modal State
   const [showListModal, setShowListModal] = useState(false);
-  const [editingListId, setEditingListId] = useState<number | null>(null);
-  const [isSubmittingList, setIsSubmittingList] = useState(false);
-  const [listForm, setListForm] = useState<{
-    name: string;
-    description: string;
-    selectionMode: "SEQUENTIAL" | "RANDOM";
-    isActive: boolean;
-  }>({
-    name: "",
-    description: "",
-    selectionMode: "RANDOM",
-    isActive: true,
-  });
+  const [editingList, setEditingList] = useState<MessageTextReplacementList | null>(null);
 
   // Delete List State
   const [deletingList, setDeletingList] = useState<MessageTextReplacementList | null>(null);
@@ -193,30 +173,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
 
   // Manage Items Modal State
   const [activeListForItems, setActiveListForItems] = useState<MessageTextReplacementList | null>(null);
-  const [items, setItems] = useState<MessageTextReplacementListItem[]>([]);
-  const [loadingItems, setLoadingItems] = useState(false);
-
-  // Item Context Menu State
-  const [itemContextMenuPos, setItemContextMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [selectedRowItem, setSelectedRowItem] = useState<MessageTextReplacementListItem | null>(null);
-
-  // Add / Edit Item State
-  const [showItemModal, setShowItemModal] = useState(false);
-  const [editingItemId, setEditingItemId] = useState<number | null>(null);
-  const [isSubmittingItem, setIsSubmittingItem] = useState(false);
-  const [itemForm, setItemForm] = useState<{
-    value: string;
-    sequenceNo: number;
-    isActive: boolean;
-  }>({
-    value: "",
-    sequenceNo: 1,
-    isActive: true,
-  });
-
-  // Delete Item State
-  const [deletingItem, setDeletingItem] = useState<MessageTextReplacementListItem | null>(null);
-  const [isDeletingItem, setIsDeletingItem] = useState(false);
 
   // Load Lists
   const loadLists = async (customFilters?: Record<string, string>) => {
@@ -267,79 +223,14 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
     }
   }, [selectedClientId]);
 
-  // Load Items for Active List
-  const loadItems = async (listId: number) => {
-    setLoadingItems(true);
-    try {
-      const res = await getMessageTextReplacementListItemsApi(listId);
-      const data = Array.isArray(res) ? res : (res as any)?.results || [];
-      setItems(
-        data.sort(
-          (a: MessageTextReplacementListItem, b: MessageTextReplacementListItem) =>
-            a.sequenceNo - b.sequenceNo
-        )
-      );
-    } catch (err: any) {
-      toast.error("Failed to load list items");
-    } finally {
-      setLoadingItems(false);
-    }
-  };
-
   const handleOpenAddList = () => {
-    setEditingListId(null);
-    setListForm({
-      name: "",
-      description: "",
-      selectionMode: "RANDOM",
-      isActive: true,
-    });
+    setEditingList(null);
     setShowListModal(true);
   };
 
   const handleOpenEditList = (list: MessageTextReplacementList) => {
-    setEditingListId(list.id || null);
-    setListForm({
-      name: list.name,
-      description: list.description || "",
-      selectionMode: list.selectionMode || "RANDOM",
-      isActive: list.status === "ACTIVE",
-    });
+    setEditingList(list);
     setShowListModal(true);
-  };
-
-  const handleSaveList = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!listForm.name.trim()) {
-      toast.error("List name is required");
-      return;
-    }
-
-    setIsSubmittingList(true);
-    try {
-      const statusValue: "ACTIVE" | "INACTIVE" = listForm.isActive ? "ACTIVE" : "INACTIVE";
-      const payload: Partial<MessageTextReplacementList> = {
-        client: selectedClientId || 0,
-        name: listForm.name.trim(),
-        description: listForm.description.trim(),
-        selectionMode: listForm.selectionMode,
-        status: statusValue,
-      };
-
-      if (editingListId) {
-        await updateMessageTextReplacementListApi(editingListId, payload);
-        toast.success("Replacement list updated successfully");
-      } else {
-        await createMessageTextReplacementListApi(payload);
-        toast.success("Replacement list created successfully");
-      }
-      setShowListModal(false);
-      loadLists();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to save replacement list");
-    } finally {
-      setIsSubmittingList(false);
-    }
   };
 
   const handleDeleteList = async () => {
@@ -384,105 +275,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
   // Manage Items Handlers
   const handleOpenItems = (list: MessageTextReplacementList) => {
     setActiveListForItems(list);
-    if (list.id) loadItems(list.id);
-  };
-
-  const handleOpenAddItem = () => {
-    setEditingItemId(null);
-    setItemForm({
-      value: "",
-      sequenceNo: items.length + 1,
-      isActive: true,
-    });
-    setShowItemModal(true);
-  };
-
-  const handleOpenEditItem = (item: MessageTextReplacementListItem) => {
-    setEditingItemId(item.id || null);
-    setItemForm({
-      value: item.value,
-      sequenceNo: item.sequenceNo,
-      isActive: item.status === "ACTIVE",
-    });
-    setShowItemModal(true);
-  };
-
-  const handleSaveItem = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!activeListForItems?.id) return;
-    if (!itemForm.value.trim()) {
-      toast.error("Item value is required");
-      return;
-    }
-
-    setIsSubmittingItem(true);
-    try {
-      if (editingItemId) {
-        await updateMessageTextReplacementListItemApi(
-          activeListForItems.id,
-          editingItemId,
-          {
-            value: itemForm.value,
-            sequenceNo: Number(itemForm.sequenceNo),
-            status: itemForm.isActive ? "ACTIVE" : "INACTIVE",
-          }
-        );
-        toast.success("Item updated");
-      } else {
-        await createMessageTextReplacementListItemApi(activeListForItems.id, {
-          replacementList: activeListForItems.id,
-          value: itemForm.value,
-          sequenceNo: Number(itemForm.sequenceNo),
-          status: itemForm.isActive ? "ACTIVE" : "INACTIVE",
-        });
-        toast.success("Item added to list");
-      }
-      setShowItemModal(false);
-      loadItems(activeListForItems.id);
-      loadLists();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to save list item");
-    } finally {
-      setIsSubmittingItem(false);
-    }
-  };
-
-  const handleDeleteItem = async () => {
-    if (!deletingItem?.id || !activeListForItems?.id) return;
-    setIsDeletingItem(true);
-    try {
-      await deleteMessageTextReplacementListItemApi(
-        activeListForItems.id,
-        deletingItem.id
-      );
-      toast.success("Item deleted");
-      setDeletingItem(null);
-      setSelectedRowItem(null);
-      loadItems(activeListForItems.id);
-      loadLists();
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || "Failed to delete item");
-    } finally {
-      setIsDeletingItem(false);
-    }
-  };
-
-  const handleToggleItemStatus = async (item: MessageTextReplacementListItem) => {
-    if (!activeListForItems?.id || !item.id) return;
-    const nextStatus = item.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
-    try {
-      await updateMessageTextReplacementListItemApi(
-        activeListForItems.id,
-        item.id,
-        { status: nextStatus }
-      );
-      setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, status: nextStatus } : i))
-      );
-      toast.success(`Item status updated`);
-    } catch (err: any) {
-      toast.error("Failed to toggle item status");
-    }
   };
 
   // Context Menu Handlers
@@ -530,42 +322,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       ]
     : [];
 
-  const handleItemContextMenu = (e: React.MouseEvent, item: MessageTextReplacementListItem) => {
-    e.preventDefault();
-    setItemContextMenuPos({ x: e.clientX, y: e.clientY });
-    setSelectedRowItem(item);
-  };
-
-  const itemContextMenuItems: ContextMenuItem[] = selectedRowItem
-    ? [
-        {
-          label: "Edit Entry",
-          icon: <Edit size={16} />,
-          onClick: () => {
-            handleOpenEditItem(selectedRowItem);
-            setItemContextMenuPos(null);
-          },
-        },
-        {
-          label: selectedRowItem.status === "ACTIVE" ? "Deactivate" : "Activate",
-          icon: <Shuffle size={16} />,
-          onClick: () => {
-            handleToggleItemStatus(selectedRowItem);
-            setItemContextMenuPos(null);
-          },
-        },
-        {
-          label: "Delete Entry",
-          icon: <Trash size={16} />,
-          variant: "danger",
-          onClick: () => {
-            setDeletingItem(selectedRowItem);
-            setItemContextMenuPos(null);
-          },
-        },
-      ]
-    : [];
-
   const clientOptions: Option[] = useMemo(
     () =>
       clients.map((c) => ({
@@ -598,7 +354,10 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       type: "number",
       filterKey: "id",
       render: (list) => (
-        <span className="text-sm font-mono font-semibold text-primary">
+        <span
+          className="text-sm font-mono font-semibold text-primary cursor-pointer hover:underline"
+          onClick={() => handleOpenEditList(list)}
+        >
           #{list.id}
         </span>
       ),
@@ -610,7 +369,10 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       type: "text",
       filterKey: "name__icontains",
       render: (list) => (
-        <span className="text-sm text-text-primary dark:text-white">
+        <span
+          className="text-sm font-semibold text-text-primary dark:text-white cursor-pointer hover:underline"
+          onClick={() => handleOpenEditList(list)}
+        >
           {list.name}
         </span>
       ),
@@ -658,7 +420,10 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       render: (list) => {
         const count = list.items_count ?? list.itemCount ?? (list as any).itemsCount ?? 0;
         return (
-          <span className="text-sm text-text-secondary dark:text-gray-300">
+          <span
+            className="text-sm font-medium text-primary hover:underline cursor-pointer"
+            onClick={() => handleOpenItems(list)}
+          >
             {count} item{count !== 1 ? "s" : ""}
           </span>
         );
@@ -956,6 +721,7 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
           {/* Lists Table */}
           <DataTable
             density="compact"
+            storageKey="message_text_lists_main_table"
             headers={tableHeaders}
             data={filteredAndSortedLists}
             totalItems={filteredAndSortedLists.length}
@@ -1035,203 +801,21 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
       />
 
       {/* Add / Edit List Modal */}
-      <Modal
+      <MessageTextListModal
         isOpen={showListModal}
         onClose={() => setShowListModal(false)}
-        className="max-w-md"
-        title={editingListId ? "Update Replacement List" : "Create Replacement List"}
-      >
-        <form onSubmit={handleSaveList} className="space-y-4">
-          <Input
-            label="List Name"
-            value={listForm.name}
-            onChange={(e) => setListForm({ ...listForm, name: e.target.value })}
-            placeholder="e.g. Promotional Footers, OTP Prefixes"
-            required
-          />
-
-          <TextArea
-            label="Description (Optional)"
-            value={listForm.description}
-            onChange={(e) => setListForm({ ...listForm, description: e.target.value })}
-            placeholder="Brief purpose of this replacement list"
-            rows={2}
-          />
-
-          <Select
-            label="Selection Mode"
-            value={listForm.selectionMode}
-            onChange={(val) =>
-              setListForm({ ...listForm, selectionMode: val as "SEQUENTIAL" | "RANDOM" })
-            }
-            options={[
-              { value: "RANDOM", label: "Random - Uniform distributed selection" },
-              { value: "SEQUENTIAL", label: "Sequential - Round-robin deterministic order" },
-            ]}
-          />
-
-          <div className="p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-text-primary dark:text-white">
-                List Status
-              </div>
-              <div className="text-xs text-text-secondary dark:text-gray-400">
-                Activate or deactivate this replacement list pool
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={listForm.isActive}
-              onChange={(checked) => setListForm({ ...listForm, isActive: checked })}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowListModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={isSubmittingList}>
-              {editingListId ? "Update List" : "Create List"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-
-      {/* Manage Items Modal */}
-      <Modal
-        isOpen={!!activeListForItems}
-        onClose={() => setActiveListForItems(null)}
-        className="max-w-4xl"
-        title={
-          <div className="flex items-center gap-2">
-            <span>List Entries:</span>
-            <span className="text-primary font-bold">{activeListForItems?.name}</span>
-            <span className="text-xs text-text-secondary font-normal">
-              ({activeListForItems?.selectionMode || "RANDOM"})
-            </span>
-          </div>
-        }
-      >
-        <div className="space-y-4" onClick={() => setItemContextMenuPos(null)}>
-          <ModalDataTable
-            density="compact"
-            data={items}
-            isLoading={loadingItems}
-            headers={ITEM_HEADERS}
-            emptyMessage="No items in this list yet. Click 'Add Entry' to create one."
-            headerActions={
-              <Button
-                type="button"
-                variant="primary"
-                size="sm"
-                onClick={handleOpenAddItem}
-                leftIcon={<Plus size={15} />}
-              >
-                Add Entry
-              </Button>
-            }
-            renderRow={(item: MessageTextReplacementListItem) => (
-              <tr
-                key={item.id}
-                onContextMenu={(e) => handleItemContextMenu(e, item)}
-                className="hover:bg-gray-50 dark:hover:bg-gray-700/50 border-b border-gray-100 dark:border-gray-700 text-sm transition-colors cursor-context-menu"
-              >
-                <td className="px-4 py-3 font-mono text-xs font-semibold text-text-primary dark:text-gray-200">
-                  {item.sequenceNo}
-                </td>
-                <td className="px-4 py-3">
-                  <pre className="text-xs font-mono text-text-primary dark:text-gray-200 whitespace-pre-wrap break-all max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-900/60 p-2 rounded-lg border border-gray-200/60 dark:border-gray-700/60">
-                    {item.value}
-                  </pre>
-                </td>
-                <td className="px-4 py-3 font-mono text-xs text-text-secondary dark:text-gray-400">
-                  {item.value.length} ch
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={item.status} />
-                </td>
-              </tr>
-            )}
-          />
-
-          <div className="flex justify-end pt-2 border-t border-gray-200 dark:border-gray-700">
-            <Button variant="secondary" onClick={() => setActiveListForItems(null)}>
-              Close
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      {/* Item Context Menu */}
-      <ContextMenu
-        position={itemContextMenuPos}
-        items={itemContextMenuItems}
-        onClose={() => setItemContextMenuPos(null)}
+        onSuccess={() => loadLists()}
+        editingList={editingList}
+        selectedClientId={selectedClientId}
       />
 
-      {/* Add / Edit Single Item Modal */}
-      <Modal
-        isOpen={showItemModal}
-        onClose={() => setShowItemModal(false)}
-        className="max-w-md"
-        title={editingItemId ? "Update Text Entry" : "Add Text Entry"}
-      >
-        <form onSubmit={handleSaveItem} className="space-y-4">
-          <TextArea
-            label="Text Value / Template Content"
-            value={itemForm.value}
-            onChange={(e) => setItemForm({ ...itemForm, value: e.target.value })}
-            rows={4}
-            placeholder="Enter replacement string, dynamic macro, or multi-line template..."
-            required
-          />
-          <div className="text-[11px] text-gray-400 -mt-2 flex justify-between">
-            <span>Supports any characters, UTF-8, and emoji.</span>
-            <span className="font-mono">{itemForm.value.length} characters</span>
-          </div>
-
-          <Input
-            label="Sequence Number (for Sequential order)"
-            type="number"
-            value={itemForm.sequenceNo}
-            onChange={(e) => setItemForm({ ...itemForm, sequenceNo: Number(e.target.value) })}
-            min={1}
-            max={99999}
-            required
-          />
-
-          <div className="p-3.5 bg-gray-50/70 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold text-text-primary dark:text-white">
-                Entry Status
-              </div>
-              <div className="text-xs text-text-secondary dark:text-gray-400">
-                Include this entry in active list selection
-              </div>
-            </div>
-            <ToggleSwitch
-              checked={itemForm.isActive}
-              onChange={(checked) => setItemForm({ ...itemForm, isActive: checked })}
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowItemModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" disabled={isSubmittingItem}>
-              {editingItemId ? "Update Entry" : "Add Entry"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {/* Manage Items Modal */}
+      <MessageTextEntriesModal
+        isOpen={!!activeListForItems}
+        onClose={() => setActiveListForItems(null)}
+        activeList={activeListForItems}
+        onUpdateListCount={() => loadLists()}
+      />
 
       {/* Delete List Confirmation Modal */}
       {deletingList && (
@@ -1242,18 +826,6 @@ export const MessageTextListsTab: React.FC<MessageTextListsTabProps> = ({
           title="Delete Text Replacement List"
           message={`Are you sure you want to permanently delete list "${deletingList.name}"? Rules referencing this list will fail gracefully.`}
           isDeleting={isDeletingList}
-        />
-      )}
-
-      {/* Delete Item Confirmation Modal */}
-      {deletingItem && (
-        <DeleteModal
-          isOpen={true}
-          onClose={() => setDeletingItem(null)}
-          onConfirm={handleDeleteItem}
-          title="Delete Text Entry"
-          message="Are you sure you want to delete this text entry?"
-          isDeleting={isDeletingItem}
         />
       )}
     </div>
